@@ -1,6 +1,6 @@
 import { type Static, Type as t } from "@sinclair/typebox";
 import { CreatorSummaryDto } from "./creator";
-import { AmountCents, IsoDateTime, Slug } from "./primitives";
+import { AmountCents, IsoDateTime } from "./primitives";
 
 /**
  * The window a ranking covers.
@@ -51,13 +51,6 @@ export const LeaderboardResponseDto = t.Object(
   { $id: "LeaderboardResponse" },
 );
 export type LeaderboardResponseDto = Static<typeof LeaderboardResponseDto>;
-
-export const LeaderboardQueryDto = t.Object({
-  limit: t.Optional(t.Integer({ minimum: 1, maximum: 100, default: 30 })),
-  offset: t.Optional(t.Integer({ minimum: 0, maximum: 10_000, default: 0 })),
-  category: t.Optional(Slug),
-});
-export type LeaderboardQueryDto = Static<typeof LeaderboardQueryDto>;
 
 export const LEADERBOARD_DEFAULT_LIMIT = 30;
 export const LEADERBOARD_MAX_LIMIT = 100;

@@ -3,6 +3,7 @@ import {
   BOOST_STATUSES,
   CLAIM_STATUSES,
   CREATOR_PLATFORMS,
+  DELIVERY_SURFACES,
   MODERATION_STATUSES,
   PAYMENT_STATUSES,
   RANKING_PERIOD_STATUSES,
@@ -15,6 +16,7 @@ import {
   ApiErrorCodeSchema,
   CREATOR_SUBMISSION_OUTCOMES,
   CreatorSubmissionOutcomeSchema,
+  DeliverySurfaceSchema,
   OPT_OUT_VERIFICATION_OUTCOMES,
   OptOutVerificationOutcomeSchema,
   REPORT_REASONS,
@@ -55,6 +57,7 @@ const PAIRS = [
   ["creator submission outcome", CreatorSubmissionOutcomeSchema, CREATOR_SUBMISSION_OUTCOMES],
   ["report reason", ReportReasonSchema, REPORT_REASONS],
   ["opt-out verification outcome", OptOutVerificationOutcomeSchema, OPT_OUT_VERIFICATION_OUTCOMES],
+  ["delivery surface", DeliverySurfaceSchema, DELIVERY_SURFACES],
 ] as const;
 
 describe("contract enums mirror the domain", () => {

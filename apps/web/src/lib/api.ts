@@ -11,12 +11,16 @@ import {
   type CreatorReportRequestDto,
   type CreatorSubmissionResponseDto,
   CreatorSubmissionResponseDto as CreatorSubmissionSchema,
+  type ImpressionBatchResponseDto,
+  ImpressionBatchResponseDto as ImpressionBatchSchema,
   type LeaderboardResponseDto,
   LeaderboardResponseDto as LeaderboardSchema,
   type OptOutChallengeDto,
   OptOutChallengeDto as OptOutChallengeSchema,
   type OptOutVerificationResponseDto,
   OptOutVerificationResponseDto as OptOutVerificationSchema,
+  type OutboundClickResponseDto,
+  OutboundClickResponseDto as OutboundClickSchema,
   type PaymentStatusResponseDto,
   PaymentStatusResponseDto as PaymentStatusSchema,
   parseContract,
@@ -24,6 +28,8 @@ import {
   RankEventListDto as RankEventListSchema,
   type RotationResponseDto,
   RotationResponseDto as RotationSchema,
+  type TorcidaDto,
+  TorcidaDto as TorcidaSchema,
 } from "@creator-outdoor/contracts";
 import { headers } from "next/headers";
 
@@ -142,6 +148,102 @@ export async function fetchCreatorDetail(slug: string): Promise<CreatorDetailDto
     throw new Error(`Creator request failed with status ${response.status}`);
   }
   return parseContract(CreatorDetailSchema, await response.json(), "CreatorDetail");
+}
+
+export type ImpressionEntry = {
+  readonly creatorId: string;
+  readonly surface: "MARQUEE" | "LEADERBOARD" | "ROTATION" | "CREATOR_PAGE" | "EMBED";
+};
+
+/**
+ * Reports what a page displayed.
+ *
+ * The session identifier is added here, server-side, from an httpOnly cookie.
+ * It is never part of the browser's request: a client able to name its own
+ * session could mint impressions for any creator by inventing new ones.
+ */
+export async function reportImpressions(
+  sessionId: string,
+  entries: readonly ImpressionEntry[],
+): Promise<ImpressionBatchResponseDto> {
+  const response = await fetch(new URL("/v1/impressions", webConfig.apiOrigin), {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      "x-analytics-session": sessionId,
+      ...(await forwardedClientHeaders()),
+    },
+    body: JSON.stringify({ entries }),
+    cache: "no-store",
+  });
+  if (response.status === 429) {
+    throw new RateLimitedError("/v1/impressions is rate limited");
+  }
+  if (!response.ok) {
+    throw new Error(`/v1/impressions responded ${response.status}`);
+  }
+  return parseContract(ImpressionBatchSchema, await response.json(), "ImpressionBatchResponse");
+}
+
+/**
+ * Resolves a tracked outbound link and counts the click.
+ *
+ * The destination comes back from the API, derived from the stored link, so no
+ * caller-supplied URL can ever become a redirect target.
+ */
+export async function resolveOutboundLink(
+  creatorLinkId: string,
+  sessionId: string | null,
+  referrer: string | null,
+): Promise<OutboundClickResponseDto | null> {
+  const response = await fetch(new URL("/v1/outbound-clicks", webConfig.apiOrigin), {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      ...(sessionId === null ? {} : { "x-analytics-session": sessionId }),
+      ...(await forwardedClientHeaders()),
+    },
+    body: JSON.stringify({ creatorLinkId, referrer }),
+    cache: "no-store",
+  });
+  if (response.status === 404 || response.status === 400) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`/v1/outbound-clicks responded ${response.status}`);
+  }
+  return parseContract(OutboundClickSchema, await response.json(), "OutboundClickResponse");
+}
+
+export type TorcidaRequest = {
+  readonly slug: string;
+  readonly window?: "weekly" | "all-time";
+  readonly limit?: number;
+};
+
+/** A creator's supporter wall. `null` when the creator is not public. */
+export async function fetchTorcida(request: TorcidaRequest): Promise<TorcidaDto | null> {
+  const url = new URL(
+    `/v1/creators/${encodeURIComponent(request.slug)}/torcida`,
+    webConfig.apiOrigin,
+  );
+  if (request.window !== undefined) {
+    url.searchParams.set("window", request.window);
+  }
+  if (request.limit !== undefined) {
+    url.searchParams.set("limit", String(request.limit));
+  }
+
+  const response = await fetch(url, { headers: { accept: "application/json" }, cache: "no-store" });
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`Torcida request failed with status ${response.status}`);
+  }
+  return parseContract(TorcidaSchema, await response.json(), "Torcida");
 }
 
 export function submitCreatorUrl(url: string): Promise<CreatorSubmissionResponseDto> {

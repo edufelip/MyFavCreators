@@ -62,8 +62,8 @@ function supporterFor(
   supporterMessage: string | null;
   fanIdentityKey: string;
 } {
-  // One in six boosts is anonymous: it counts toward the creator's score but
-  // must never appear in the public Torcida ranking.
+  // One in six boosts is anonymous: it counts toward the creator's score and
+  // appears on the Torcida as *Anônimo*, but never under a name.
   const anonymous = random.int(6) === 0;
   const supporterIndex = random.int(SUPPORTER_NAMES.length);
   const supporterName = SUPPORTER_NAMES[supporterIndex] ?? "Fã";

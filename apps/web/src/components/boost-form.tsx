@@ -133,6 +133,7 @@ export function BoostForm({ creators, fixedCreatorSlug }: BoostFormProps) {
         type="button"
         onClick={() => setShowDetails((value) => !value)}
         aria-expanded={showDetails}
+        data-testid="boost-details-toggle"
         className="self-start text-sm font-semibold text-white/60 underline"
       >
         {copy.boostForm.supporterName}

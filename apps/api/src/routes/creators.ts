@@ -11,6 +11,7 @@ import {
   OptOutVerificationRequestDto,
   OptOutVerificationResponseDto,
   Slug,
+  TorcidaDto,
 } from "@creator-outdoor/contracts";
 import { type Database, findCreatorBySlug, insertReport } from "@creator-outdoor/db";
 import { isPubliclyEligible } from "@creator-outdoor/domain";
@@ -25,6 +26,7 @@ import {
 import { getPublicCreatorDetail } from "../services/creator-detail";
 import { submitCreator } from "../services/creator-submission";
 import { CreatorNotPubliclyVisibleError, requestOptOut, verifyOptOut } from "../services/opt-out";
+import { getTorcida } from "../services/torcida";
 
 export type CreatorRouteDependencies = {
   readonly database: Database;
@@ -34,6 +36,17 @@ export type CreatorRouteDependencies = {
 };
 
 const slugParams = t.Object({ slug: Slug });
+
+/**
+ * Validated at the boundary with Elysia's schema, which also coerces the
+ * numbers a query string can only carry as text. Frontend types are never
+ * treated as runtime validation.
+ */
+const torcidaQuery = t.Object({
+  window: t.Optional(t.Union([t.Literal("weekly"), t.Literal("all-time")])),
+  limit: t.Optional(t.Integer({ minimum: 1, maximum: 100, default: 20 })),
+  offset: t.Optional(t.Integer({ minimum: 0, maximum: 10_000, default: 0 })),
+});
 
 const TOO_MANY_REQUESTS = {
   error: { code: "RATE_LIMITED" as const, message: "Muitas tentativas. Tente novamente em breve." },
@@ -64,6 +77,24 @@ export function creatorRoutes(dependencies: CreatorRouteDependencies) {
         return detail === null ? status(404, NOT_FOUND) : detail;
       },
       { params: slugParams, response: { 200: CreatorDetailDto, 404: ApiErrorDto } },
+    )
+    .get(
+      "/:slug/torcida",
+      async ({ params, query, status }) => {
+        const torcida = await getTorcida(dependencies.database, dependencies.product, {
+          slug: params.slug,
+          window: query.window ?? "weekly",
+          limit: query.limit ?? 20,
+          offset: query.offset ?? 0,
+          now: now(),
+        });
+        return torcida === null ? status(404, NOT_FOUND) : torcida;
+      },
+      {
+        params: slugParams,
+        query: torcidaQuery,
+        response: { 200: TorcidaDto, 404: ApiErrorDto },
+      },
     )
     .post(
       "/submissions",

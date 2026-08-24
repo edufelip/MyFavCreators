@@ -2,6 +2,7 @@ import {
   BOOST_STATUSES,
   CLAIM_STATUSES,
   CREATOR_PLATFORMS,
+  DELIVERY_SURFACES,
   MODERATION_STATUSES,
   PAYMENT_STATUSES,
   RANKING_PERIOD_STATUSES,
@@ -25,15 +26,7 @@ export const rankingPeriodTypeEnum = pgEnum("ranking_period_type", RANKING_PERIO
 export const rankingPeriodStatusEnum = pgEnum("ranking_period_status", RANKING_PERIOD_STATUSES);
 
 /** Where a creator was displayed when an impression was counted. */
-export const IMPRESSION_SURFACES = [
-  "MARQUEE",
-  "LEADERBOARD",
-  "ROTATION",
-  "CREATOR_PAGE",
-  "EMBED",
-] as const;
-export type ImpressionSurface = (typeof IMPRESSION_SURFACES)[number];
-export const impressionSurfaceEnum = pgEnum("impression_surface", IMPRESSION_SURFACES);
+export const impressionSurfaceEnum = pgEnum("impression_surface", DELIVERY_SURFACES);
 
 export const NOTIFICATION_TYPES = ["DETHRONE"] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

@@ -14,6 +14,7 @@ export {
   optionalDate,
   optionalEnum,
   optionalString,
+  requireBoolean,
   requireDate,
   requireEnum,
   requireInteger,

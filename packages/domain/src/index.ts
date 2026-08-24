@@ -5,6 +5,7 @@
  * a curated barrel silently drops symbols whenever the list is edited, and the
  * only signal is a build failure somewhere else in the monorepo.
  */
+export * from "./analytics";
 export * from "./boost";
 export * from "./creator";
 export * from "./money";

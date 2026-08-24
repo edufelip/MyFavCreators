@@ -4,6 +4,7 @@ import { cors } from "@elysiajs/cors";
 import { Elysia } from "elysia";
 import { FakePixPaymentProvider } from "./payments/fake-pix";
 import type { PixPaymentProvider } from "./payments/provider";
+import { analyticsRoutes } from "./routes/analytics";
 import { boostRoutes } from "./routes/boosts";
 import { creatorRoutes } from "./routes/creators";
 import { devPixRoutes } from "./routes/dev-pix";
@@ -89,6 +90,14 @@ export function createApp(options: CreateAppOptions) {
     )
     .use(
       creatorRoutes({
+        database: options.database,
+        product: options.product,
+        rateLimiter,
+        ...(options.now === undefined ? {} : { now: options.now }),
+      }),
+    )
+    .use(
+      analyticsRoutes({
         database: options.database,
         product: options.product,
         rateLimiter,

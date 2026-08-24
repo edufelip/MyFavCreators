@@ -197,6 +197,19 @@ export const copy = {
     backToRanking: "Ver o ranking",
   },
 
+  torcida: {
+    title: "Torcida",
+    subtitle: "Quem impulsionou este perfil.",
+    weekly: "Nesta semana",
+    allTime: "Total",
+    empty: "Ninguém impulsionou este perfil ainda. Seja o primeiro.",
+    anonymous: "Anônimo",
+    boostCount: (count: number) => (count === 1 ? "1 impulso" : `${count} impulsos`),
+    supporters: (count: number) =>
+      count === 1 ? "1 pessoa na torcida" : `${count} pessoas na torcida`,
+    more: (count: number) => `e mais ${count}`,
+  },
+
   optOut: {
     title: "Reivindicar ou remover este perfil",
     intro:

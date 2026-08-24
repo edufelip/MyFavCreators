@@ -52,6 +52,21 @@ export function requireMoneyCents(row: Record<string, unknown>, key: string): Mo
   return parseMoneyCents(row[key]);
 }
 
+export function requireBoolean(row: Record<string, unknown>, key: string): boolean {
+  const value = row[key];
+  if (typeof value === "boolean") {
+    return value;
+  }
+  // A driver may hand back PostgreSQL's own textual form for a boolean.
+  if (value === "t" || value === "true") {
+    return true;
+  }
+  if (value === "f" || value === "false") {
+    return false;
+  }
+  throw new DatabaseRowError(`Column "${key}" should be a boolean, received: ${String(value)}`);
+}
+
 export function requireDate(row: Record<string, unknown>, key: string): Date {
   const value = row[key];
   if (value instanceof Date) {

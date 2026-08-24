@@ -4,8 +4,10 @@ import { notFound } from "next/navigation";
 import { BoostForm } from "@/components/boost-form";
 import { CreatorAvatar } from "@/components/creator-avatar";
 import { CreatorOwnershipPanel } from "@/components/creator-ownership-panel";
+import { ImpressionReporter } from "@/components/impression-reporter";
 import { SiteHeader } from "@/components/site-header";
-import { fetchCreatorDetail } from "@/lib/api";
+import { SupporterWall } from "@/components/supporter-wall";
+import { fetchCreatorDetail, fetchTorcida } from "@/lib/api";
 import { copy } from "@/lib/copy";
 import { formatBrl, formatDuration, formatHandle } from "@/lib/format";
 
@@ -52,7 +54,12 @@ export async function generateMetadata({ params }: CreatorPageProps): Promise<Me
 
 export default async function CreatorPage({ params }: CreatorPageProps) {
   const { slug } = await params;
-  const creator = await fetchCreatorDetail(slug);
+  // One round trip each, in parallel: the wall is part of the page, not an
+  // afterthought loaded on the client.
+  const [creator, torcida] = await Promise.all([
+    fetchCreatorDetail(slug),
+    fetchTorcida({ slug, window: "all-time", limit: 10 }),
+  ]);
   if (creator === null) {
     notFound();
   }
@@ -148,6 +155,8 @@ export default async function CreatorPage({ params }: CreatorPageProps) {
           />
         </section>
 
+        {torcida === null ? null : <SupporterWall torcida={torcida} />}
+
         {creator.links.length === 0 ? null : (
           <section aria-label={copy.creatorPage.links}>
             <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-white/50">
@@ -174,6 +183,8 @@ export default async function CreatorPage({ params }: CreatorPageProps) {
 
         {creator.claimStatus === "UNCLAIMED" ? <CreatorOwnershipPanel slug={creator.slug} /> : null}
       </main>
+
+      <ImpressionReporter entries={[{ creatorId: creator.id, surface: "CREATOR_PAGE" }]} />
     </>
   );
 }

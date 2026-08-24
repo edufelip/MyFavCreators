@@ -6,6 +6,7 @@ import {
 } from "@creator-outdoor/domain";
 import { Billboard } from "@/components/billboard";
 import { BoostForm, type BoostFormCreator } from "@/components/boost-form";
+import { ImpressionReporter } from "@/components/impression-reporter";
 import { Leaderboard } from "@/components/leaderboard";
 import { LiveRefresh } from "@/components/live-refresh";
 import { OvertakeTicker } from "@/components/overtake-ticker";
@@ -77,6 +78,24 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     }),
   );
 
+  /**
+   * What this render put in front of the visitor.
+   *
+   * Built from the entries actually rendered, not from what was requested, so
+   * a surface that failed to load reports nothing rather than claiming a
+   * delivery that never happened.
+   */
+  const shown: Array<{ creatorId: string; surface: "MARQUEE" | "LEADERBOARD" | "ROTATION" }> = [];
+  if (leader !== null) {
+    shown.push({ creatorId: leader.creator.id, surface: "MARQUEE" });
+  }
+  for (const entry of listResult.ok ? listResult.data.entries : []) {
+    shown.push({ creatorId: entry.creator.id, surface: "LEADERBOARD" });
+  }
+  for (const entry of rotation?.entries ?? []) {
+    shown.push({ creatorId: entry.creator.id, surface: "ROTATION" });
+  }
+
   return (
     <>
       <SiteHeader
@@ -114,6 +133,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       </main>
 
       <LiveRefresh />
+      <ImpressionReporter entries={shown} />
     </>
   );
 }

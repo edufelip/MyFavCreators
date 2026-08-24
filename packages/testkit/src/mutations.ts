@@ -1,6 +1,5 @@
 import { type DatabaseExecutor, schema } from "@creator-outdoor/db";
-import type { ImpressionSurface } from "@creator-outdoor/db/schema";
-import type { ModerationStatus } from "@creator-outdoor/domain";
+import type { DeliverySurface, ModerationStatus } from "@creator-outdoor/domain";
 import { eq } from "drizzle-orm";
 
 /**
@@ -57,7 +56,7 @@ export async function insertImpression(
   input: {
     readonly creatorId: string;
     readonly sessionId: string;
-    readonly surface?: ImpressionSurface;
+    readonly surface?: DeliverySurface;
     readonly hourBucket?: Date;
   },
 ): Promise<void> {

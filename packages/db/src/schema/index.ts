@@ -5,8 +5,6 @@ export {
   boostStatusEnum,
   claimStatusEnum,
   creatorPlatformEnum,
-  IMPRESSION_SURFACES,
-  type ImpressionSurface,
   impressionSurfaceEnum,
   moderationStatusEnum,
   NOTIFICATION_TYPES,
