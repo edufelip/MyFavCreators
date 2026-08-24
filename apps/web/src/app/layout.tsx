@@ -16,8 +16,9 @@ export const metadata: Metadata = {
     locale: "pt_BR",
     title: `${copy.brand.name} - ${copy.hero.headline}`,
     description: copy.hero.subheadline,
+    images: [{ url: "/opengraph-image", width: 1200, height: 630 }],
   },
-  twitter: { card: "summary_large_image" },
+  twitter: { card: "summary_large_image", images: ["/opengraph-image"] },
 };
 
 export const viewport: Viewport = {

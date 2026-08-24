@@ -1,10 +1,23 @@
 import { webConfig } from "@creator-outdoor/config/web";
-import { getWeeklyPeriod, millisecondsRemainingInPeriod } from "@creator-outdoor/domain";
+import {
+  getWeeklyPeriod,
+  isHeatMode,
+  millisecondsRemainingInPeriod,
+} from "@creator-outdoor/domain";
 import { Billboard } from "@/components/billboard";
 import { BoostForm, type BoostFormCreator } from "@/components/boost-form";
 import { Leaderboard } from "@/components/leaderboard";
+import { LiveRefresh } from "@/components/live-refresh";
+import { OvertakeTicker } from "@/components/overtake-ticker";
+import { RotationFeed } from "@/components/rotation-feed";
 import { SiteHeader } from "@/components/site-header";
-import { loadLeaderboard, type RankingTab } from "@/lib/api";
+import {
+  fetchRankEvents,
+  fetchRotation,
+  loadLeaderboard,
+  loadOptional,
+  type RankingTab,
+} from "@/lib/api";
 import { copy } from "@/lib/copy";
 import { formatDuration } from "@/lib/format";
 
@@ -32,11 +45,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   // The billboard always belongs to the creator holding #1 *this week*, whether
   // or not the visitor is looking at the general ranking. A previous champion
   // never keeps the marquee either.
-  const [weekly, listed] = await Promise.all([
+  const [weekly, listed, rotation, rankEvents] = await Promise.all([
     loadLeaderboard({ tab: "weekly", limit: LEADERBOARD_LIMIT }),
     tab === "weekly"
       ? Promise.resolve(null)
       : loadLeaderboard({ tab: "all-time", limit: LEADERBOARD_LIMIT }),
+    // Supporting surfaces: if either is unavailable the ranking is still right
+    // and still worth showing, so they render nothing rather than failing.
+    loadOptional(() => fetchRotation()),
+    loadOptional(() => fetchRankEvents(8)),
   ]);
   const listResult = listed ?? weekly;
 
@@ -45,6 +62,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const now = new Date();
   const period = getWeeklyPeriod(now, webConfig.product.timezone);
   const countdownLabel = formatDuration(millisecondsRemainingInPeriod(now, period));
+  // Styling only. Heat mode never changes how a ranking is calculated.
+  const heat = isHeatMode(now, period);
 
   const leader = weekly.ok ? weekly.data.leader : null;
 
@@ -60,7 +79,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   return (
     <>
-      <SiteHeader periodEndsAt={period.endsAt.toISOString()} countdownLabel={countdownLabel} />
+      <SiteHeader
+        periodEndsAt={period.endsAt.toISOString()}
+        countdownLabel={countdownLabel}
+        heatMode={heat}
+      />
 
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 pb-16 pt-6">
         <section className="flex flex-col gap-1">
@@ -79,12 +102,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </section>
         )}
 
+        <RotationFeed rotation={rotation} />
+
         <Leaderboard
           tab={tab}
           entries={listResult.ok ? listResult.data.entries : []}
           unavailable={!listResult.ok}
         />
+
+        <OvertakeTicker events={rankEvents} now={now} />
       </main>
+
+      <LiveRefresh />
     </>
   );
 }

@@ -39,8 +39,14 @@ export async function generateMetadata({ params }: CreatorPageProps): Promise<Me
       title: `${creator.displayName} · ${copy.brand.name}`,
       description,
       url: `/criador/${creator.slug}`,
+      images: [{ url: `/criador/${creator.slug}/opengraph-image`, width: 1200, height: 630 }],
     },
-    twitter: { card: "summary_large_image", title: creator.displayName, description },
+    twitter: {
+      card: "summary_large_image",
+      title: creator.displayName,
+      description,
+      images: [`/criador/${creator.slug}/opengraph-image`],
+    },
   };
 }
 

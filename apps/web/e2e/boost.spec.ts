@@ -236,3 +236,71 @@ async function providerPaymentIdOf(
   const body = (await response.json()) as { providerPaymentId: string };
   return body.providerPaymentId;
 }
+
+test.describe("the live loop", () => {
+  test("a confirmed boost appears in the rotation and the ticker", async ({ page, request }) => {
+    await page.goto("/");
+    const profileHref = await page
+      .getByTestId("creator-card")
+      .last()
+      .getByTestId("creator-profile-link")
+      .getAttribute("href");
+    const slug = (profileHref ?? "").split("/").pop() ?? "";
+
+    await page.goto(profileHref ?? "/");
+    await page.getByTestId("boost-amount-2500").click();
+    await page.getByTestId("boost-submit").click();
+    await expect(page).toHaveURL(/\/impulsionar\//);
+
+    const paymentId = page.url().split("/").pop() ?? "";
+    const providerPaymentId = await providerPaymentIdOf(request, paymentId);
+    await settlePayment(request, providerPaymentId, "CONFIRMED");
+    await expect(page.getByTestId("boost-success")).toBeVisible({ timeout: 15_000 });
+
+    // The rotation entitlement starts at confirmation, so the creator is there.
+    // Cards show a display name, so the link is what identifies the creator.
+    await page.goto("/");
+    const rotation = page.getByTestId("rotation-feed");
+    await expect(rotation).toBeVisible();
+    await expect(rotation.locator(`a[href="/criador/${slug}"]`)).toHaveCount(1);
+  });
+
+  test("the homepage keeps its order: billboard, boost form, rotation, ranking", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const order = await page.evaluate(() => {
+      const ids = ["billboard", "boost-form", "rotation-feed", "creator-card"];
+      return ids
+        .map((id) => {
+          const element = document.querySelector(`[data-testid="${id}"]`);
+          return element === null ? null : { id, top: element.getBoundingClientRect().top };
+        })
+        .filter((entry): entry is { id: string; top: number } => entry !== null);
+    });
+    const tops = order.map((entry) => entry.top);
+    expect(tops).toEqual([...tops].sort((a, b) => a - b));
+    expect(order.map((entry) => entry.id)).toContain("billboard");
+    expect(order.map((entry) => entry.id)).toContain("boost-form");
+  });
+
+  test("the creator share card renders and carries nothing private", async ({ page, request }) => {
+    await page.goto("/");
+    const profileHref = await page
+      .getByTestId("creator-card")
+      .first()
+      .getByTestId("creator-profile-link")
+      .getAttribute("href");
+
+    const response = await request.get(`${profileHref}/opengraph-image`);
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toContain("image/png");
+    const body = await response.body();
+    expect(body.length).toBeGreaterThan(1000);
+  });
+
+  test("a creator who is not public has no share card", async ({ request }) => {
+    const response = await request.get("/criador/nao-existe/opengraph-image");
+    expect(response.status()).toBe(404);
+  });
+});

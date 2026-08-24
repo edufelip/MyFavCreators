@@ -27,6 +27,10 @@ export type PaymentEventOutcome =
       readonly boostActivated: boolean;
       readonly refundRequired: boolean;
       readonly providerPaymentId: string;
+      readonly creatorId: string;
+      readonly amountCents: number;
+      /** When the money originally settled, for a refund correcting history. */
+      readonly confirmedAt: Date | null;
     }
   | { readonly kind: "DUPLICATE"; readonly providerPaymentId: string }
   | {
@@ -160,6 +164,9 @@ export async function applyPaymentEvent(
       boostActivated: activate,
       refundRequired: confirming && !creatorEligible,
       providerPaymentId: input.event.providerPaymentId,
+      creatorId: payment.creatorId,
+      amountCents: payment.amountCents,
+      confirmedAt: payment.confirmedAt,
     };
   });
 }

@@ -54,3 +54,25 @@ export function formatHandle(handle: string, platform: string | null): string {
   }
   return handle.startsWith("@") ? handle : `@${handle}`;
 }
+
+/**
+ * A short pt-BR "how long ago" for the ticker.
+ *
+ * Rounded down deliberately: "há 2 min" for anything under three minutes reads
+ * as fresher than it is, and the ticker's job is to feel live and be honest.
+ */
+export function formatRelativeTime(instant: Date, now: Date): string {
+  const elapsed = Math.max(0, now.getTime() - instant.getTime());
+  const minutes = Math.floor(elapsed / MINUTE_MS);
+  if (minutes < 1) {
+    return "instantes";
+  }
+  if (minutes < 60) {
+    return `${minutes} min`;
+  }
+  const hours = Math.floor(elapsed / HOUR_MS);
+  if (hours < 24) {
+    return `${hours} h`;
+  }
+  return `${Math.floor(elapsed / DAY_MS)} d`;
+}

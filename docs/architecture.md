@@ -50,6 +50,9 @@ Public surface:
 | `GET /v1/payments/:id/checkout` | The stored PIX payload for a payment |
 | `GET /v1/payments/:id/status` | Authoritative payment state and real rank movement |
 | `POST /v1/webhooks/payments/:provider` | Provider events, authenticated by the provider |
+| `GET /v1/rotation` | The *Impulsionados agora* feed |
+| `GET /v1/rank-events` | The overtake ticker |
+| `GET /v1/champion` | The most recent weekly champion |
 
 Internal surface, reached only server-to-server from apps/admin and authorized by
 `ADMIN_API_SECRET` on every route before any handler work:
@@ -214,6 +217,34 @@ The PIX payload never carries the provider payment id — the payload is pasted 
 and is effectively public, while the provider payment id is the server-side idempotency and
 lookup key. The checkout screen reads the payload back from the API by payment id rather than
 carrying it in a URL, where it would land in browser history, referrer headers and access logs.
+
+## The live loop
+
+**Rotation** is a deterministic hash of a time bucket and the creator id, described in
+ADR 0010. SQL returns everyone entitled and deliberately does not order them; the domain
+decides who is shown, so the feed cannot be bought.
+
+**Weekly rollover** (`bun run job:weekly-rollover`) closes every period that has ended and
+snapshots its ranking. Idempotent by construction: the snapshot write is an upsert keyed by
+(creator, period), closing a closed period is a no-op, and the ranking recorded is derived from
+the boosts that count at that moment. It looks back several weeks, so a job that did not run for
+a fortnight still closes everything it missed. The live ranking never depends on it having run.
+
+**Historical refund correction.** A refund landing after a period closed recomputes that
+period's snapshots, which may remove a creator entirely and may change who the champion was —
+Hall da Fama shows financially active boosts, not stale history.
+
+**The overtake ticker** is written after the payment transaction commits, never inside it. A
+failure there costs a ticker line, never a correct payment or a correct ranking.
+
+**Live refresh** re-runs the server render on an interval (ADR 0011), pausing to a slow
+heartbeat while the tab is hidden.
+
+**Heat mode** is styling in the closing 24 hours of a week and changes no ranking behaviour.
+
+**Share cards** are generated per creator and for the homepage. They carry only what is already
+public on the page they represent — no supporter name, message, email or identifier — because a
+share card is the most widely copied surface the product has.
 
 ## Money
 

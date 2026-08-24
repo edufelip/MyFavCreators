@@ -4,6 +4,8 @@ import { Elysia, t } from "elysia";
 import type { PixPaymentProvider } from "../payments/provider";
 import { WebhookValidationError } from "../payments/provider";
 import { applyPaymentEvent } from "../services/payment-transitions";
+import { recordOvertakes } from "../services/rank-events";
+import { recomputeClosedPeriodFor } from "../services/rollover";
 
 export type WebhookRouteDependencies = {
   readonly database: Database;
@@ -52,19 +54,8 @@ export function webhookRoutes(dependencies: WebhookRouteDependencies) {
         now: now(),
       });
 
-      if (outcome.kind === "APPLIED" && outcome.refundRequired) {
-        // The creator stopped being eligible while the payment was in flight.
-        // The promotion was never delivered, so the money goes back.
-        try {
-          await provider.refundPayment(outcome.providerPaymentId);
-        } catch (error) {
-          // Reconciliation retries this; the boost is already VOID either way.
-          console.error("refund_failed", {
-            provider: provider.name,
-            providerPaymentId: outcome.providerPaymentId,
-            message: error instanceof Error ? error.message : "unknown",
-          });
-        }
+      if (outcome.kind === "APPLIED") {
+        await runFollowUps(dependencies, provider, outcome, now());
       }
 
       return { received: true, outcome: outcome.kind };
@@ -92,4 +83,58 @@ export function webhookRoutes(dependencies: WebhookRouteDependencies) {
       },
     },
   );
+}
+
+type AppliedOutcome = Extract<
+  Awaited<ReturnType<typeof applyPaymentEvent>>,
+  { readonly kind: "APPLIED" }
+>;
+
+/**
+ * Everything that happens *after* the payment transaction committed.
+ *
+ * Each of these is secondary to a correct payment, so each is attempted
+ * independently and each failure is logged rather than thrown: a ticker line, a
+ * historical snapshot or a refund call must never undo an activation or make the
+ * provider retry a delivery that already succeeded.
+ */
+async function runFollowUps(
+  dependencies: WebhookRouteDependencies,
+  provider: PixPaymentProvider,
+  outcome: AppliedOutcome,
+  now: Date,
+): Promise<void> {
+  if (outcome.boostActivated) {
+    await attempt("rank_event_failed", () =>
+      recordOvertakes(dependencies.database, dependencies.product, {
+        creatorId: outcome.creatorId,
+        boostAmountCents: outcome.amountCents,
+        now,
+      }),
+    );
+  }
+
+  if (outcome.to === "REFUNDED" && outcome.confirmedAt !== null) {
+    // A refund can land after the period closed. Hall da Fama has to show
+    // financially active boosts, so that period is recomputed.
+    const confirmedAt = outcome.confirmedAt;
+    await attempt("snapshot_correction_failed", () =>
+      recomputeClosedPeriodFor(dependencies.database, dependencies.product, confirmedAt, now),
+    );
+  }
+
+  if (outcome.refundRequired) {
+    // The creator stopped being eligible while the payment was in flight, so the
+    // promotion was never delivered and the money goes back. Reconciliation
+    // retries this; the boost is already VOID either way.
+    await attempt("refund_failed", () => provider.refundPayment(outcome.providerPaymentId));
+  }
+}
+
+async function attempt(label: string, work: () => Promise<unknown>): Promise<void> {
+  try {
+    await work();
+  } catch (error) {
+    console.error(label, { message: error instanceof Error ? error.message : "unknown" });
+  }
 }

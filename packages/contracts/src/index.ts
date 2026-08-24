@@ -6,4 +6,5 @@ export * from "./enums";
 export * from "./errors";
 export * from "./primitives";
 export * from "./rankings";
+export * from "./rotation";
 export * from "./validate";

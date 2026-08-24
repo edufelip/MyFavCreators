@@ -20,6 +20,10 @@ import {
   type PaymentStatusResponseDto,
   PaymentStatusResponseDto as PaymentStatusSchema,
   parseContract,
+  type RankEventListDto,
+  RankEventListDto as RankEventListSchema,
+  type RotationResponseDto,
+  RotationResponseDto as RotationSchema,
 } from "@creator-outdoor/contracts";
 import { headers } from "next/headers";
 
@@ -222,4 +226,43 @@ export async function fetchCheckout(paymentId: string): Promise<CheckoutDto | nu
     throw new Error(`Checkout request failed with status ${response.status}`);
   }
   return parseContract(CheckoutSchema, await response.json(), "Checkout");
+}
+
+async function getJson<TResult>(
+  path: string,
+  schema: Parameters<typeof parseContract>[0],
+  label: string,
+): Promise<TResult> {
+  const response = await fetch(new URL(path, webConfig.apiOrigin), {
+    headers: { accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`${path} responded ${response.status}`);
+  }
+  return parseContract(schema, await response.json(), label) as TResult;
+}
+
+export function fetchRotation(): Promise<RotationResponseDto> {
+  return getJson("/v1/rotation", RotationSchema, "RotationResponse");
+}
+
+export function fetchRankEvents(limit = 10): Promise<RankEventListDto> {
+  return getJson(`/v1/rank-events?limit=${limit}`, RankEventListSchema, "RankEventList");
+}
+
+/**
+ * A live surface must never take the whole page down.
+ *
+ * The rotation and the ticker are supporting cast: if either is unavailable the
+ * ranking is still correct and still worth showing, so a failure renders nothing
+ * instead of an error page.
+ */
+export async function loadOptional<TResult>(load: () => Promise<TResult>): Promise<TResult | null> {
+  try {
+    return await load();
+  } catch (error) {
+    console.error("optional_surface_failed", error instanceof Error ? error.message : "unknown");
+    return null;
+  }
 }

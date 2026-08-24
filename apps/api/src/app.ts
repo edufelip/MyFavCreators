@@ -8,6 +8,7 @@ import { boostRoutes } from "./routes/boosts";
 import { creatorRoutes } from "./routes/creators";
 import { devPixRoutes } from "./routes/dev-pix";
 import { adminRoutes } from "./routes/internal/admin";
+import { liveRoutes } from "./routes/live";
 import { rankingRoutes } from "./routes/rankings";
 import { webhookRoutes } from "./routes/webhooks";
 import { RateLimiter } from "./security/rate-limit";
@@ -91,6 +92,13 @@ export function createApp(options: CreateAppOptions) {
         database: options.database,
         product: options.product,
         rateLimiter,
+        ...(options.now === undefined ? {} : { now: options.now }),
+      }),
+    )
+    .use(
+      liveRoutes({
+        database: options.database,
+        product: options.product,
         ...(options.now === undefined ? {} : { now: options.now }),
       }),
     )

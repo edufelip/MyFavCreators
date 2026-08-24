@@ -1,3 +1,4 @@
+export { HEAT_MODE_HOURS, isHeatMode } from "./heat";
 export {
   timeZoneOffsetMs,
   toWallClock,

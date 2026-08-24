@@ -13,11 +13,12 @@ external engagement. See [`docs/product.md`](docs/product.md).
 
 ## Status
 
-**Phases 1–3 complete.** The public leaderboard, the current #1 billboard, creator pages, the
+**Phases 1–4 complete.** The public leaderboard, the current #1 billboard, creator pages, the
 weekly countdown and the Take #1 calculation are live; creators can be submitted, moderated,
 reported and removed; and the full boost loop runs against a fake PIX provider — checkout with
 QR and copia-e-cola, webhook confirmation, transactional activation, real rank movement and
-refunds. A production PIX provider arrives in Phase 5; see
+refunds. The live loop is closed: fair rotation, the overtake ticker, dynamic share cards,
+heat mode and an idempotent weekly rollover. A production PIX provider arrives in Phase 5; see
 [Phase boundaries](#phase-boundaries).
 
 ## Requirements
@@ -66,6 +67,7 @@ Then open <http://localhost:3000>.
 | `bun run db:seed` | Replaces fixture data (refuses to run with `NODE_ENV=production`) |
 | `bun run db:reset` | Drops the schema and re-applies migrations |
 | `bun run admin:hash '<password>'` | Prints the `ADMIN_PASSWORD_HASH` value for a password |
+| `bun run job:weekly-rollover` | Closes finished weeks and snapshots their rankings |
 
 Migrations are explicit artifacts and are deliberately **not** part of `build`. Production
 schema changes happen through a separate deployment step.
@@ -129,12 +131,19 @@ curl -X POST localhost:3001/dev/pix/<providerPaymentId>/CONFIRMED
 The simulation delivers a properly signed webhook to the real webhook route, so the local flow
 exercises the same authentication and the same idempotency the production one will.
 
+## Scheduled jobs
+
+`bun run job:weekly-rollover` closes every weekly period that has ended and snapshots its final
+ranking. It is safe to run late, twice, or concurrently, and **nothing about the live ranking
+depends on it having run** — the active period is computed from the instant, so a job executing
+at Monday 00:07 still closes a period that ended at Monday 00:00.
+
+Production schedules it hourly. Running it more often is harmless.
+
 ## Phase boundaries
 
 Not yet implemented:
 
-- Rotation and the *Impulsionados agora* feed, dynamic OG images, the overtake ticker and the
-  weekly rollover job (Phase 4)
 - A production PIX provider, reconciliation and stuck-payment recovery (Phase 5)
 - The public Torcida, analytics ingestion and dethrone notifications (Phase 6)
 - Creator claiming, Hall da Fama and embeds (Phase 7)

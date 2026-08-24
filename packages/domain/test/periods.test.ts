@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   getWeeklyPeriod,
+  isHeatMode,
   isWithinPeriod,
   millisecondsRemainingInPeriod,
   timeZoneOffsetMs,
@@ -116,5 +117,31 @@ describe("weekly period", () => {
     );
     expect(millisecondsRemainingInPeriod(period.endsAt, period)).toBe(0);
     expect(millisecondsRemainingInPeriod(new Date("2030-01-01T00:00:00.000Z"), period)).toBe(0);
+  });
+});
+
+describe("heat mode", () => {
+  test("turns on in the final day and off once the period closes", () => {
+    const period = getWeeklyPeriod(new Date("2026-08-19T18:30:00.000Z"), TZ);
+    // The period ends 2026-08-24T03:00Z.
+    expect(isHeatMode(new Date("2026-08-22T02:59:00.000Z"), period)).toBe(false);
+    expect(isHeatMode(new Date("2026-08-23T03:01:00.000Z"), period)).toBe(true);
+    expect(isHeatMode(new Date("2026-08-24T02:59:59.000Z"), period)).toBe(true);
+    expect(isHeatMode(period.endsAt, period)).toBe(false);
+    expect(isHeatMode(new Date("2026-08-25T00:00:00.000Z"), period)).toBe(false);
+  });
+
+  test("honours a different window", () => {
+    const period = getWeeklyPeriod(new Date("2026-08-19T18:30:00.000Z"), TZ);
+    expect(isHeatMode(new Date("2026-08-22T04:00:00.000Z"), period, 48)).toBe(true);
+    expect(isHeatMode(new Date("2026-08-22T04:00:00.000Z"), period, 12)).toBe(false);
+  });
+
+  test("changes nothing about the period itself", () => {
+    const now = new Date("2026-08-23T12:00:00.000Z");
+    const period = getWeeklyPeriod(now, TZ);
+    expect(isHeatMode(now, period)).toBe(true);
+    // The boundaries are exactly the same as on any other day of the week.
+    expect(getWeeklyPeriod(new Date("2026-08-19T18:30:00.000Z"), TZ)).toEqual(period);
   });
 });

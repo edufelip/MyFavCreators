@@ -69,6 +69,24 @@ export const copy = {
 
   rotation: {
     title: "Impulsionados agora",
+    empty: "Nenhum perfil em destaque neste momento.",
+    entitlement: (count: number) =>
+      count === 1 ? "1 perfil no rodízio agora" : `${count} perfis no rodízio agora`,
+  },
+
+  ticker: {
+    title: "Ultrapassagens",
+    overtake: (handle: string, from: number, to: number, elapsed: string) =>
+      `@${handle} subiu de #${from} para #${to} há ${elapsed}`,
+    passed: (handle: string, passedHandle: string, elapsed: string) =>
+      `@${handle} ultrapassou @${passedHandle} há ${elapsed}`,
+    empty: "Nenhuma ultrapassagem ainda nesta semana.",
+    justNow: "instantes",
+  },
+
+  champion: {
+    previous: "Campeão da semana passada",
+    badge: "Campeão da semana",
   },
 
   countdown: {
