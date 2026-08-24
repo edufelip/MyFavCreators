@@ -29,7 +29,8 @@
     "db:migrate": "bun run --filter @creator-outdoor/db db:migrate",
     "db:seed": "bun run --filter @creator-outdoor/db db:seed",
     "db:reset": "bun run --filter @creator-outdoor/db db:reset",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "admin:hash": "bun run --cwd packages/config ../../scripts/hash-admin-password.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.10",

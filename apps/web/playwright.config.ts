@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const WEB_ORIGIN = process.env["WEB_ORIGIN"] ?? "http://localhost:3000";
 const API_ORIGIN = process.env["API_ORIGIN"] ?? "http://localhost:3001";
+const ADMIN_ORIGIN = process.env["ADMIN_ORIGIN"] ?? "http://localhost:3002";
 const isCi = process.env["CI"] !== undefined;
 /**
  * Escape hatch for environments that already ship a Chromium build (containers,
@@ -50,6 +51,14 @@ export default defineConfig({
     {
       command: "bun run start",
       url: WEB_ORIGIN,
+      reuseExistingServer: !isCi,
+      timeout: 120_000,
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+    {
+      command: "bun run --cwd ../admin start",
+      url: `${ADMIN_ORIGIN}/login`,
       reuseExistingServer: !isCi,
       timeout: 120_000,
       stdout: "pipe",

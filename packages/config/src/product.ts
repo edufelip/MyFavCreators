@@ -22,6 +22,17 @@ export const productConfigSchema = z.object({
   weekStart: z.literal("MONDAY_00_00").default("MONDAY_00_00"),
   launchCategory: z.string().min(1).default("musica"),
   fakePixExpirationMinutes: positiveInt.default(30),
+  /**
+   * Write-heavy public endpoints, per client per hour. Rate limits are
+   * configuration like any other product constant: a load test or an end-to-end
+   * suite raises them explicitly rather than the code disabling them.
+   */
+  submissionsPerHour: positiveInt.default(5),
+  reportsPerHour: positiveInt.default(10),
+  optOutRequestsPerHour: positiveInt.default(5),
+  optOutVerificationsPerHour: positiveInt.default(20),
+  boostsPerHour: positiveInt.default(20),
+  impressionsPerMinute: positiveInt.default(240),
 });
 
 export type ProductConfig = z.infer<typeof productConfigSchema>;
@@ -44,6 +55,12 @@ export function parseProductConfig(env: EnvSource): ProductConfig {
       weekStart: env["WEEK_START"],
       launchCategory: env["LAUNCH_CATEGORY"],
       fakePixExpirationMinutes: env["FAKE_PIX_EXPIRATION_MINUTES"],
+      submissionsPerHour: env["RATE_LIMIT_SUBMISSIONS_PER_HOUR"],
+      reportsPerHour: env["RATE_LIMIT_REPORTS_PER_HOUR"],
+      optOutRequestsPerHour: env["RATE_LIMIT_OPT_OUT_REQUESTS_PER_HOUR"],
+      optOutVerificationsPerHour: env["RATE_LIMIT_OPT_OUT_VERIFICATIONS_PER_HOUR"],
+      boostsPerHour: env["RATE_LIMIT_BOOSTS_PER_HOUR"],
+      impressionsPerMinute: env["RATE_LIMIT_IMPRESSIONS_PER_MINUTE"],
     },
     "product",
   );

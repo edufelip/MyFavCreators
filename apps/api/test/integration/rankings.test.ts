@@ -28,6 +28,7 @@ const app = createApp({
   database: testDatabase.db,
   product: PRODUCT_DEFAULTS,
   allowedOrigins: ["http://localhost:3000"],
+  adminApiSecret: "integration-admin-secret-value",
   now: () => NOW,
 });
 
@@ -494,6 +495,7 @@ describe("the weekly window is derived from the instant", () => {
       database: testDatabase.db,
       product: PRODUCT_DEFAULTS,
       allowedOrigins: ["http://localhost:3000"],
+      adminApiSecret: "integration-admin-secret-value",
       now: () => instant,
     });
   }

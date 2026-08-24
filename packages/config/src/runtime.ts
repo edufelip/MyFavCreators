@@ -17,6 +17,11 @@ const apiEnvSchema = z.object({
   nodeEnv: nodeEnvSchema,
   port: portSchema.default(3001),
   databaseUrl: z.string().min(1, "DATABASE_URL is required"),
+  /**
+   * Server-only shared secret for apps/admin -> apps/api internal calls.
+   * A production deployment must set a real one; the browser never sees it.
+   */
+  adminApiSecret: z.string().min(16, "ADMIN_API_SECRET must be at least 16 characters"),
   webOrigin: originSchema.default("http://localhost:3000"),
   adminOrigin: originSchema.default("http://localhost:3002"),
 });
@@ -35,6 +40,7 @@ export function parseApiConfig(env: EnvSource): ApiConfig {
       nodeEnv: env["NODE_ENV"],
       port: env["API_PORT"],
       databaseUrl: env["DATABASE_URL"],
+      adminApiSecret: env["ADMIN_API_SECRET"],
       webOrigin: env["WEB_ORIGIN"],
       adminOrigin: env["ADMIN_ORIGIN"],
     },
@@ -82,6 +88,12 @@ const adminEnvSchema = z.object({
   nodeEnv: nodeEnvSchema,
   apiOrigin: originSchema.default("http://localhost:3001"),
   adminOrigin: originSchema.default("http://localhost:3002"),
+  /** Server-only. Held by the admin Next.js server, never sent to a browser. */
+  adminApiSecret: z.string().min(16, "ADMIN_API_SECRET must be at least 16 characters"),
+  /** scrypt hash of the administrator password, produced by `bun run admin:hash`. */
+  adminPasswordHash: z.string().min(16, "ADMIN_PASSWORD_HASH is required"),
+  /** 32+ byte secret used to seal the administrator session cookie. */
+  adminSessionSecret: z.string().min(32, "ADMIN_SESSION_SECRET must be at least 32 characters"),
 });
 
 export type AdminConfig = z.infer<typeof adminEnvSchema> & {
@@ -95,6 +107,9 @@ export function parseAdminConfig(env: EnvSource): AdminConfig {
       nodeEnv: env["NODE_ENV"],
       apiOrigin: env["API_ORIGIN"],
       adminOrigin: env["ADMIN_ORIGIN"],
+      adminApiSecret: env["ADMIN_API_SECRET"],
+      adminPasswordHash: env["ADMIN_PASSWORD_HASH"],
+      adminSessionSecret: env["ADMIN_SESSION_SECRET"],
     },
     "apps/admin",
   );

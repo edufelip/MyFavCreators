@@ -12,9 +12,12 @@
   },
   "dependencies": {
     "@creator-outdoor/config": "workspace:*",
+    "@creator-outdoor/contracts": "workspace:*",
+    "@creator-outdoor/domain": "workspace:*",
     "next": "16.3.2",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "server-only": "0.0.1"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "20.11.6",

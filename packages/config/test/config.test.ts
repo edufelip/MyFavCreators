@@ -5,6 +5,7 @@ import { parseApiConfig, parseWebConfig } from "../src/runtime";
 
 const VALID_API_ENV = {
   DATABASE_URL: "postgres://user:pass@localhost:5432/creator_outdoor",
+  ADMIN_API_SECRET: "a-server-only-admin-secret",
 };
 
 describe("product configuration", () => {
@@ -24,6 +25,12 @@ describe("product configuration", () => {
       weekStart: "MONDAY_00_00",
       launchCategory: "musica",
       fakePixExpirationMinutes: 30,
+      submissionsPerHour: 5,
+      reportsPerHour: 10,
+      optOutRequestsPerHour: 5,
+      optOutVerificationsPerHour: 20,
+      boostsPerHour: 20,
+      impressionsPerMinute: 240,
     });
   });
 
@@ -46,6 +53,18 @@ describe("product configuration", () => {
     expect(() => parseProductConfig({ MIN_INCREMENT_CENTS: "cem" })).toThrow(ConfigurationError);
   });
 
+  test("rate limits are configuration, with the documented defaults", () => {
+    expect(parseProductConfig({ RATE_LIMIT_SUBMISSIONS_PER_HOUR: "50" }).submissionsPerHour).toBe(
+      50,
+    );
+    expect(() => parseProductConfig({ RATE_LIMIT_SUBMISSIONS_PER_HOUR: "0" })).toThrow(
+      ConfigurationError,
+    );
+    expect(() => parseProductConfig({ RATE_LIMIT_IMPRESSIONS_PER_MINUTE: "-1" })).toThrow(
+      ConfigurationError,
+    );
+  });
+
   test("rejects a currency or week start the product does not support", () => {
     expect(() => parseProductConfig({ CURRENCY: "USD" })).toThrow(ConfigurationError);
     expect(() => parseProductConfig({ WEEK_START: "SUNDAY_00_00" })).toThrow(ConfigurationError);
@@ -58,8 +77,20 @@ describe("product configuration", () => {
 
 describe("api configuration", () => {
   test("fails immediately when the database URL is missing", () => {
-    expect(() => parseApiConfig({})).toThrow(ConfigurationError);
-    expect(() => parseApiConfig({})).toThrow(/databaseUrl/);
+    expect(() => parseApiConfig({ ADMIN_API_SECRET: "a-server-only-admin-secret" })).toThrow(
+      ConfigurationError,
+    );
+    expect(() => parseApiConfig({ ADMIN_API_SECRET: "a-server-only-admin-secret" })).toThrow(
+      /databaseUrl/,
+    );
+  });
+
+  test("refuses to boot without a strong internal admin secret", () => {
+    const withoutSecret = { DATABASE_URL: VALID_API_ENV.DATABASE_URL };
+    expect(() => parseApiConfig(withoutSecret)).toThrow(/adminApiSecret/);
+    expect(() => parseApiConfig({ ...withoutSecret, ADMIN_API_SECRET: "curto" })).toThrow(
+      /adminApiSecret/,
+    );
   });
 
   test("builds the CORS allowlist from the configured origins", () => {

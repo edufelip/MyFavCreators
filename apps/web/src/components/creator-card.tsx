@@ -35,7 +35,13 @@ export function CreatorCard({ entry, tab }: CreatorCardProps) {
       <CreatorAvatar displayName={creator.displayName} avatarUrl={creator.avatarUrl} size="sm" />
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-base font-bold text-white">{creator.displayName}</p>
+        <a
+          href={`/criador/${creator.slug}`}
+          data-testid="creator-profile-link"
+          className="truncate text-base font-bold text-white underline-offset-2 hover:underline"
+        >
+          {creator.displayName}
+        </a>
         {creator.primaryHandle !== null ? (
           <p className="truncate text-sm text-white/60">
             {formatHandle(creator.primaryHandle, creator.primaryPlatform)}

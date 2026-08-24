@@ -32,7 +32,9 @@ export function Billboard({ leader }: BillboardProps) {
 
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-2xl font-black leading-tight text-white sm:text-4xl">
-            {creator.displayName}
+            <a href={`/criador/${creator.slug}`} className="underline-offset-4 hover:underline">
+              {creator.displayName}
+            </a>
           </h1>
           {creator.primaryHandle !== null ? (
             <p className="truncate text-sm text-white/70 sm:text-base">

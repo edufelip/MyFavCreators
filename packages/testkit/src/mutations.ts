@@ -85,3 +85,15 @@ export async function insertOutboundClick(
     hourBucket: input.hourBucket ?? new Date("2026-08-19T18:00:00.000Z"),
   });
 }
+
+/** Suppresses a normalized key, as a verified opt-out does. */
+export async function suppressKey(
+  executor: DatabaseExecutor,
+  normalizedKey: string,
+  reason: string,
+): Promise<void> {
+  await executor
+    .insert(schema.creatorSuppressions)
+    .values({ normalizedKey, reason })
+    .onConflictDoNothing({ target: schema.creatorSuppressions.normalizedKey });
+}

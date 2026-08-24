@@ -22,4 +22,5 @@ export {
   insertOutboundClick,
   refundBoost,
   setCreatorModerationStatus,
+  suppressKey,
 } from "./mutations";

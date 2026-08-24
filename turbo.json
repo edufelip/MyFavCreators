@@ -24,7 +24,16 @@
     "WEB_PORT",
     "API_PORT",
     "ADMIN_PORT",
-    "DATABASE_URL"
+    "DATABASE_URL",
+    "ADMIN_API_SECRET",
+    "ADMIN_PASSWORD_HASH",
+    "ADMIN_SESSION_SECRET",
+    "RATE_LIMIT_SUBMISSIONS_PER_HOUR",
+    "RATE_LIMIT_REPORTS_PER_HOUR",
+    "RATE_LIMIT_OPT_OUT_REQUESTS_PER_HOUR",
+    "RATE_LIMIT_OPT_OUT_VERIFICATIONS_PER_HOUR",
+    "RATE_LIMIT_BOOSTS_PER_HOUR",
+    "RATE_LIMIT_IMPRESSIONS_PER_MINUTE"
   ],
   "tasks": {
     "dev": {
@@ -58,7 +67,7 @@
       "outputs": []
     },
     "test:e2e": {
-      "dependsOn": ["build"],
+      "dependsOn": ["build", "@creator-outdoor/admin#build"],
       "cache": false,
       "env": [
         "DATABASE_URL",
@@ -68,7 +77,13 @@
         "WEB_PORT",
         "API_PORT",
         "PLAYWRIGHT_BROWSERS_PATH",
-        "PLAYWRIGHT_CHROMIUM_EXECUTABLE"
+        "PLAYWRIGHT_CHROMIUM_EXECUTABLE",
+        "ADMIN_ORIGIN",
+        "ADMIN_API_SECRET",
+        "ADMIN_PASSWORD_HASH",
+        "ADMIN_SESSION_SECRET",
+        "E2E_ADMIN_PASSWORD",
+        "ADMIN_PORT"
       ],
       "outputs": []
     }

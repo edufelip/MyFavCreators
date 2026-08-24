@@ -42,3 +42,12 @@ export const notificationTypeEnum = pgEnum("notification_type", NOTIFICATION_TYP
 export const REPORT_STATUSES = ["OPEN", "RESOLVED"] as const;
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
 export const reportStatusEnum = pgEnum("report_status", REPORT_STATUSES);
+
+/** Why a proof-of-ownership code was issued for a creator profile. */
+export const VERIFICATION_PURPOSES = ["OPTOUT", "CLAIM"] as const;
+export type VerificationPurpose = (typeof VERIFICATION_PURPOSES)[number];
+export const verificationPurposeEnum = pgEnum("verification_purpose", VERIFICATION_PURPOSES);
+
+export const VERIFICATION_STATUSES = ["PENDING", "VERIFIED", "EXPIRED", "CANCELLED"] as const;
+export type VerificationStatus = (typeof VERIFICATION_STATUSES)[number];
+export const verificationStatusEnum = pgEnum("verification_status", VERIFICATION_STATUSES);

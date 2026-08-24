@@ -34,13 +34,30 @@ Enforced, not aspirational:
 
 Elysia on Bun. Owns business rules, transactions and every write. Versioned under `/v1`.
 
-Phase 1 surface:
+Public surface:
 
 | Route | Purpose |
 | --- | --- |
 | `GET /health` | Liveness |
 | `GET /v1/rankings/weekly` | Weekly ranking (`limit`, `offset`, `category`) |
 | `GET /v1/rankings/all-time` | General ranking, same parameters |
+| `GET /v1/creators/:slug` | Public creator page; 404 for anything not `APPROVED` |
+| `POST /v1/creators/submissions` | Creator submission (rate limited) |
+| `POST /v1/creators/:slug/reports` | Report a creator (rate limited) |
+| `POST /v1/creators/:slug/opt-out` | Open a removal challenge (rate limited) |
+| `POST /v1/creators/:slug/opt-out/verify` | Complete a removal with proof (rate limited) |
+
+Internal surface, reached only server-to-server from apps/admin and authorized by
+`ADMIN_API_SECRET` on every route before any handler work:
+
+| Route | Purpose |
+| --- | --- |
+| `GET /internal/admin/creators` | Moderation queue by status |
+| `GET /internal/admin/creators/:id` | One creator, with moderation metadata |
+| `POST /internal/admin/creators/:id/{approve,reject,remove,restore}` | Moderation decisions |
+| `PATCH /internal/admin/creators/:id` | Metadata completion |
+| `GET /internal/admin/reports`, `POST /internal/admin/reports/:id/resolve` | Reports |
+| `GET /internal/admin/audit-logs` | Audit trail |
 
 Every path and query parameter is validated at the boundary; frontend types are never treated
 as runtime validation. CORS uses an explicit allowlist built from `WEB_ORIGIN` and
@@ -127,6 +144,48 @@ Boosts are never pulled into application memory to compute a ranking.
 **Supporter count** is `COUNT(DISTINCT COALESCE(fan_identity_key, 'boost:' || boost.id))`:
 distinct fan identities, with each boost that carries no identity counting once. Supporters are
 never grouped by display name, so two different people called "Marina" stay two supporters.
+
+## Submitted URLs are a security boundary
+
+`normalizeCreatorUrl` runs before deduplication and before anything is stored. It is the only
+place a submitted URL is trusted, and it refuses:
+
+- any scheme that is not http(s), including `data:` and `javascript:`
+- embedded credentials
+- loopback, private, carrier-grade NAT, link-local (including `169.254.169.254`), reserved and
+  multicast addresses, in every IPv4 shorthand and numeric encoding, plus IPv6 unique-local,
+  link-local and IPv4-mapped forms
+- bare intranet hostnames and `.local`, `.internal`, `.lan`, `.home.arpa` suffixes
+- platform URLs that name no creator (a video, a playlist, a search, a reserved path)
+
+Paths are split first and percent-decoded per segment, so an encoded separator stays inside a
+segment and fails handle validation instead of becoming a path boundary. `twitter.com` folds
+to `x.com`, hosts lowercase, `www.` and query strings and fragments are dropped, and the result
+is idempotent — normalizing a canonical URL returns it unchanged.
+
+The output `normalizedKey` (`instagram:handle`, `youtube:@handle`, `spotify:artist-id`,
+`site:domain`) is unique in the database, so two spellings of one profile can never become two
+creators competing for the same fandom's money.
+
+## Rate limiting
+
+An in-process fixed-window limiter guards submissions, reports, opt-out requests and
+verifications, with per-scope limits taken from configuration so a deployment tunes them and
+the code never disables them. Public writes travel browser → apps/web → apps/api, so apps/web
+forwards the visitor's address: without it the API would see one address for the whole internet
+and a single enthusiastic visitor could throttle everybody. The forwarded address is a
+throttling key only, never an authentication claim.
+
+## Administrator authentication
+
+No customer identity provider for a single operator. The password is stored as a scrypt hash
+(`ADMIN_PASSWORD_HASH`), verified timing-safe, and the encoding is deliberately shell-safe —
+colon separators and base64url — because the value lives in an environment file people
+`source`, where a `$` would be silently expanded away. Failed attempts are throttled per client.
+
+The session is an HMAC-signed, expiring token in an HttpOnly, `SameSite=Strict` cookie owned by
+apps/admin. It carries an issue time, an expiry and a nonce, and no credential at all. Server
+actions validate the request origin in addition to Next.js's own check.
 
 ## Money
 
@@ -224,6 +283,15 @@ a new ADR rather than as a silent change.
   is already in `.gitignore`.
 - **CodeRabbit and DeepSource.** No configuration was fabricated. Both integrate through their
   own dashboards; missing credentials must never block local development or CI.
+- **Opt-out semantics.** The specification says only `APPROVED` is public *and* that a creator
+  remains visible before verification. ADR 0007 resolves the contradiction: the request changes
+  no status at all, which also closes a griefing hole.
+- **Report statuses and reasons.** The data model specifies a `status` column for reports
+  without enumerating it, and no reason list; `OPEN`/`RESOLVED` and a six-value reason set are
+  used, both covered by contract parity tests.
+- **Creator metadata.** The default provider derives everything from the URL and performs no
+  network call, because the product forbids brittle scrapers and ToS-violating extraction. An
+  administrator completes the rest during moderation, which is the documented fallback.
 - **TypeScript 7.** `tsc` runs the TypeScript 7 compiler with the full strict flag set,
   including `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`. No `any`, `as any`,
   double cast, `@ts-ignore` or type-silencing assertion appears anywhere in the repository.

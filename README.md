@@ -13,9 +13,9 @@ external engagement. See [`docs/product.md`](docs/product.md).
 
 ## Status
 
-**Phase 1 — foundation and public seeded ranking.** The public leaderboard, the current #1
-billboard, creator cards, the weekly countdown and the Take #1 calculation are implemented
-against seeded fixture data. There is no payment flow yet; see
+**Phases 1–2 complete.** The public leaderboard, the current #1 billboard, creator pages, the
+weekly countdown and the Take #1 calculation are live, and creators can be submitted,
+moderated, reported and removed. There is no payment flow yet; see
 [Phase boundaries](#phase-boundaries).
 
 ## Requirements
@@ -63,6 +63,7 @@ Then open <http://localhost:3000>.
 | `bun run db:migrate` | Applies committed migrations |
 | `bun run db:seed` | Replaces fixture data (refuses to run with `NODE_ENV=production`) |
 | `bun run db:reset` | Drops the schema and re-applies migrations |
+| `bun run admin:hash '<password>'` | Prints the `ADMIN_PASSWORD_HASH` value for a password |
 
 Migrations are explicit artifacts and are deliberately **not** part of `build`. Production
 schema changes happen through a separate deployment step.
@@ -99,15 +100,24 @@ bun run test:e2e                      # builds apps/web, boots the stack, drives
 Integration tests run against a real PostgreSQL database and never mock it: ranking rules
 live partly in SQL and in database constraints, which a fake would not exercise.
 
+## Administration
+
+`apps/admin` on port 3002 owns the administrator session. Sign in with the password whose
+scrypt hash is in `ADMIN_PASSWORD_HASH` (the development value is `creator-outdoor-dev`).
+Generate a real one with `bun run admin:hash '<password>'`; the plaintext never leaves your
+terminal.
+
+The browser only ever talks to the admin Next.js server. Every mutation is a server-to-server
+call into the API's `/internal/admin/*` surface, authenticated with `ADMIN_API_SECRET`, which
+the browser never receives.
+
 ## Phase boundaries
 
-Phase 1 stops deliberately short of the payment loop. Not yet implemented:
+Not yet implemented:
 
-- Creator submission, moderation, opt-out, reporting and the audit log (Phase 2)
 - PIX payments, the fake PIX provider, boost creation and checkout (Phase 3)
 - Rotation, sharing, dynamic OG images, the overtake ticker and weekly rollover (Phase 4)
-- Creator pages and the public rules page, which arrive with the phases that give them
-  content; the Phase 1 homepage links to neither rather than shipping a dead link
+- The public rules page, which arrives with the boost flow it has to explain
 - Boost calls to action render disabled with an "Em breve" state until Phase 3
 
 The mandatory `<BoostDisclosure />` component already exists with its exact wording so that

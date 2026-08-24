@@ -18,10 +18,16 @@ export function SiteHeader({ periodEndsAt, countdownLabel }: SiteHeaderProps) {
           {copy.brand.name}
         </a>
         <a
-          href="#ranking"
+          href="/#ranking"
           className="text-sm font-medium text-white/70 transition-colors hover:text-white"
         >
           {copy.nav.ranking}
+        </a>
+        <a
+          href="/enviar"
+          className="text-sm font-medium text-white/70 transition-colors hover:text-white"
+        >
+          {copy.nav.submit}
         </a>
         <div className="ml-auto basis-full sm:basis-auto">
           {periodEndsAt !== null && countdownLabel !== null ? (

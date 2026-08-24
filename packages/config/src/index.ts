@@ -1,5 +1,6 @@
 export { originSchema, portSchema } from "./origins";
 export { ConfigurationError, type EnvSource, parseOrThrow } from "./parse";
+export { hashPassword, verifyPassword } from "./password";
 export {
   PRODUCT_DEFAULTS,
   type ProductConfig,
@@ -14,3 +15,8 @@ export {
   parseWebConfig,
   type WebConfig,
 } from "./runtime";
+export {
+  createSessionToken,
+  readSessionToken,
+  type SessionPayload,
+} from "./session";

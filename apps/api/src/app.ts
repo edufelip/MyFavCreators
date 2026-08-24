@@ -2,14 +2,20 @@ import type { ProductConfig } from "@creator-outdoor/config";
 import type { Database } from "@creator-outdoor/db";
 import { cors } from "@elysiajs/cors";
 import { Elysia } from "elysia";
+import { creatorRoutes } from "./routes/creators";
+import { adminRoutes } from "./routes/internal/admin";
 import { rankingRoutes } from "./routes/rankings";
+import { RateLimiter } from "./security/rate-limit";
 
 export type CreateAppOptions = {
   readonly database: Database;
   readonly product: ProductConfig;
   /** Explicit allowlist. Sensitive API surfaces never answer `*`. */
   readonly allowedOrigins: readonly string[];
+  /** Server-only shared secret for the internal admin surface. */
+  readonly adminApiSecret: string;
   readonly now?: () => Date;
+  readonly rateLimiter?: RateLimiter;
 };
 
 /**
@@ -20,6 +26,8 @@ export type CreateAppOptions = {
  * explicit allowlist.
  */
 export function createApp(options: CreateAppOptions) {
+  const rateLimiter = options.rateLimiter ?? new RateLimiter();
+
   return new Elysia()
     .use(
       cors({
@@ -51,6 +59,20 @@ export function createApp(options: CreateAppOptions) {
         database: options.database,
         product: options.product,
         ...(options.now === undefined ? {} : { now: options.now }),
+      }),
+    )
+    .use(
+      creatorRoutes({
+        database: options.database,
+        product: options.product,
+        rateLimiter,
+        ...(options.now === undefined ? {} : { now: options.now }),
+      }),
+    )
+    .use(
+      adminRoutes({
+        database: options.database,
+        adminApiSecret: options.adminApiSecret,
       }),
     );
 }

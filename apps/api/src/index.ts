@@ -6,6 +6,7 @@ const app = createApp({
   database,
   product: apiConfig.product,
   allowedOrigins: apiConfig.corsAllowedOrigins,
+  adminApiSecret: apiConfig.adminApiSecret,
 });
 
 app.listen(apiConfig.port);

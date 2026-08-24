@@ -26,6 +26,7 @@ export const copy = {
 
   nav: {
     ranking: "Ranking",
+    submit: "Enviar perfil",
   },
 
   cta: {
@@ -98,5 +99,70 @@ export const copy = {
 
   heatMode: {
     label: "DECIDE HOJE",
+  },
+
+  submission: {
+    title: "Enviar um perfil",
+    intro:
+      "Cole o link do perfil do criador. Depois da análise, ele entra no ranking e pode ser impulsionado.",
+    urlLabel: "Link do perfil",
+    urlPlaceholder: "https://instagram.com/perfil",
+    urlHint: "Instagram, TikTok, YouTube, Twitch, X, Spotify, Substack ou site próprio.",
+    submit: "Enviar para análise",
+    submitting: "Enviando...",
+    outcomes: {
+      SUBMITTED: "Perfil enviado para análise. Ele aparece no ranking depois da aprovação.",
+      ALREADY_EXISTS: "Esse perfil já está no ranking.",
+      ALREADY_PENDING: "Esse perfil já foi enviado e está em análise.",
+      SUPPRESSED: "Este perfil pediu a remoção do Creator Outdoor e não pode ser reenviado.",
+      INVALID_URL: "Não reconhecemos esse endereço.",
+    },
+    seeProfile: "Ver perfil",
+    unavailable: "Não foi possível enviar agora. Tente novamente em instantes.",
+  },
+
+  creatorPage: {
+    weeklyRank: "Posição desta semana",
+    unranked: "Sem impulsos nesta semana",
+    weeklyTotal: "Nesta semana",
+    lifetimeTotal: "Total acumulado",
+    supporters: "Impulsionadores",
+    links: "Links",
+    notFound: "Perfil não encontrado.",
+    backToRanking: "Ver o ranking",
+  },
+
+  optOut: {
+    title: "Reivindicar ou remover este perfil",
+    intro:
+      "Se este perfil é seu, você pode pedir a remoção. Para confirmar que o perfil é seu, geramos um código.",
+    request: "Pedir remoção",
+    stepOne: "1. Gere seu código",
+    stepTwo: "2. Confirme com o código no perfil",
+    codeTitle: "Seu código de verificação",
+    profileTextLabel: "Cole aqui a bio ou descrição do perfil com o código",
+    verify: "Confirmar remoção",
+    outcomes: {
+      VERIFIED: "Perfil removido do Creator Outdoor.",
+      CODE_NOT_FOUND: "Não encontramos o código no texto enviado. Confira e tente de novo.",
+      NO_OPEN_REQUEST: "Não há pedido de remoção aberto para este perfil.",
+      EXPIRED: "O código expirou. Peça a remoção novamente para receber um novo código.",
+    },
+  },
+
+  report: {
+    title: "Denunciar este perfil",
+    reasonLabel: "Motivo",
+    detailsLabel: "Detalhes (opcional)",
+    submit: "Enviar denúncia",
+    sent: "Denúncia registrada. Obrigado.",
+    reasons: {
+      IMPERSONATION: "Está se passando por outra pessoa",
+      NOT_A_PUBLIC_CREATOR: "Não é um criador público",
+      MINOR: "É uma criança ou adolescente",
+      MALICIOUS_OR_HARMFUL: "Conteúdo malicioso ou nocivo",
+      WRONG_INFORMATION: "Informação incorreta",
+      OTHER: "Outro",
+    },
   },
 } as const;

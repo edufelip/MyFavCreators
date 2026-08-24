@@ -11,6 +11,16 @@ import {
 } from "@creator-outdoor/domain";
 import type { TSchema } from "@sinclair/typebox";
 import {
+  API_ERROR_CODES,
+  ApiErrorCodeSchema,
+  CREATOR_SUBMISSION_OUTCOMES,
+  CreatorSubmissionOutcomeSchema,
+  OPT_OUT_VERIFICATION_OUTCOMES,
+  OptOutVerificationOutcomeSchema,
+  REPORT_REASONS,
+  ReportReasonSchema,
+} from "../src";
+import {
   BoostStatusSchema,
   ClaimStatusSchema,
   CreatorPlatformSchema,
@@ -41,6 +51,10 @@ const PAIRS = [
   ["creator platform", CreatorPlatformSchema, CREATOR_PLATFORMS],
   ["ranking period type", RankingPeriodTypeSchema, RANKING_PERIOD_TYPES],
   ["ranking period status", RankingPeriodStatusSchema, RANKING_PERIOD_STATUSES],
+  ["api error code", ApiErrorCodeSchema, API_ERROR_CODES],
+  ["creator submission outcome", CreatorSubmissionOutcomeSchema, CREATOR_SUBMISSION_OUTCOMES],
+  ["report reason", ReportReasonSchema, REPORT_REASONS],
+  ["opt-out verification outcome", OptOutVerificationOutcomeSchema, OPT_OUT_VERIFICATION_OUTCOMES],
 ] as const;
 
 describe("contract enums mirror the domain", () => {
