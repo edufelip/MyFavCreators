@@ -28,6 +28,33 @@ export const notificationSubscriptions = pgTable(
   ],
 );
 
+/**
+ * One row per notification actually sent.
+ *
+ * `dedupe_key` is unique, so an email can never be sent twice for the same
+ * happening: a retried job, a webhook redelivered, or two processes racing all
+ * collide at the database rather than in whichever piece of application logic
+ * happens to run. Nobody gets the same "voce foi ultrapassado" twice.
+ */
+export const notificationDeliveries = pgTable(
+  "notification_deliveries",
+  {
+    id: primaryKeyColumn(),
+    subscriptionId: uuid("subscription_id")
+      .notNull()
+      .references(() => notificationSubscriptions.id, { onDelete: "cascade" }),
+    type: notificationTypeEnum("type").notNull(),
+    /** Identifies the happening, not the message. */
+    dedupeKey: text("dedupe_key").notNull(),
+    metadata: jsonbObject("metadata").notNull().default(sql`'{}'::jsonb`),
+    createdAt: createdAtColumn(),
+  },
+  (table) => [
+    uniqueIndex("notification_deliveries_dedupe_key").on(table.subscriptionId, table.dedupeKey),
+    index("notification_deliveries_subscription_idx").on(table.subscriptionId, table.createdAt),
+  ],
+);
+
 export const auditLogs = pgTable(
   "audit_logs",
   {

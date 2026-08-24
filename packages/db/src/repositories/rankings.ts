@@ -172,6 +172,69 @@ export async function getLeaderboardPage(
   return { entries, leader, total };
 }
 
+export type CreatorAtRank = {
+  readonly creatorId: string;
+  readonly slug: string;
+  readonly displayName: string;
+};
+
+/**
+ * Who currently holds a position.
+ *
+ * Used to name the creator an overtake actually passed, which is the one now
+ * standing directly below the mover. Read from the live ranking rather than
+ * stored, for the same reason every other position is: a later refund changes
+ * who that was, and a remembered answer would keep being wrong.
+ */
+export async function findCreatorAtRank(
+  executor: DatabaseExecutor,
+  query: { readonly startsAt: Date; readonly endsAt: Date; readonly rank: number },
+): Promise<CreatorAtRank | null> {
+  const result: unknown[] = await executor.execute(sql`
+    with contribution as (
+      select b.creator_id as creator_id, b.amount_cents as amount_cents, p.confirmed_at
+      from boosts b
+      inner join payments p on p.id = b.payment_id
+      inner join creators c on c.id = b.creator_id and c.moderation_status = 'APPROVED'
+      where b.status = 'ACTIVE'
+        and p.status = 'CONFIRMED'
+        and p.confirmed_at is not null
+        and p.confirmed_at >= ${query.startsAt}
+        and p.confirmed_at < ${query.endsAt}
+    ),
+    score as (
+      select
+        creator_id,
+        sum(amount_cents)::bigint as amount_cents,
+        max(confirmed_at) as reached_current_score_at
+      from contribution
+      group by creator_id
+    ),
+    ranked as (
+      select
+        s.creator_id,
+        c.slug,
+        c.display_name,
+        (row_number() over (
+          order by s.amount_cents desc, s.reached_current_score_at asc, c.created_at asc, c.id asc
+        ))::int as rank
+      from score s
+      inner join creators c on c.id = s.creator_id
+    )
+    select creator_id, slug, display_name from ranked where rank = ${query.rank}
+  `);
+  const row = result[0];
+  if (row === undefined) {
+    return null;
+  }
+  const record = requireRecord(row);
+  return {
+    creatorId: requireString(record, "creator_id"),
+    slug: requireString(record, "slug"),
+    displayName: requireString(record, "display_name"),
+  };
+}
+
 export type ScoreAboveQuery = {
   readonly startsAt: Date;
   readonly endsAt: Date;

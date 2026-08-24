@@ -30,6 +30,8 @@ import {
   RotationResponseDto as RotationSchema,
   type TorcidaDto,
   TorcidaDto as TorcidaSchema,
+  type UnsubscribeResponseDto,
+  UnsubscribeResponseDto as UnsubscribeSchema,
 } from "@creator-outdoor/contracts";
 import { headers } from "next/headers";
 
@@ -215,6 +217,21 @@ export async function resolveOutboundLink(
     throw new Error(`/v1/outbound-clicks responded ${response.status}`);
   }
   return parseContract(OutboundClickSchema, await response.json(), "OutboundClickResponse");
+}
+
+/**
+ * Switches off the notifications an emailed link points at.
+ *
+ * The API answers the same way for a live token, a used one and one that never
+ * existed, so nothing here can report which it was.
+ */
+export function unsubscribeFromNotifications(token: string): Promise<UnsubscribeResponseDto> {
+  return postJson(
+    "/v1/notifications/unsubscribe",
+    { token },
+    UnsubscribeSchema,
+    "UnsubscribeResponse",
+  );
 }
 
 export type TorcidaRequest = {

@@ -1,6 +1,7 @@
 import type { ProductConfig } from "@creator-outdoor/config";
 import { type Database, listUnsettledPayments } from "@creator-outdoor/db";
 import { isTerminalPaymentStatus } from "@creator-outdoor/domain";
+import type { EmailProvider } from "../email/provider";
 import { PaymentProviderError, type PixPaymentProvider } from "../payments/provider";
 import { runPaymentFollowUps } from "./payment-follow-ups";
 import { applyPaymentEvent, type PaymentEventOutcome } from "./payment-transitions";
@@ -17,6 +18,9 @@ export type ReconcileOptions = {
   /** Only look at payments untouched for at least this long. */
   readonly staleAfterMinutes?: number;
   readonly limit?: number;
+  /** Absent in a process that does not send mail; notifications are skipped. */
+  readonly email?: EmailProvider;
+  readonly webOrigin?: string;
 };
 
 /**
@@ -89,7 +93,17 @@ export async function reconcilePayments(
 
     if (outcome.kind === "APPLIED") {
       changed += 1;
-      await runPaymentFollowUps({ database, product }, provider, outcome, options.now);
+      await runPaymentFollowUps(
+        {
+          database,
+          product,
+          ...(options.email === undefined ? {} : { email: options.email }),
+          ...(options.webOrigin === undefined ? {} : { webOrigin: options.webOrigin }),
+        },
+        provider,
+        outcome,
+        options.now,
+      );
       console.info("reconciliation_applied", {
         provider: provider.name,
         from: outcome.from,

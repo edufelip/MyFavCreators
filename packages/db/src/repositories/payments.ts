@@ -8,6 +8,7 @@ import { and, eq, lt, sql } from "drizzle-orm";
 import type { DatabaseExecutor } from "../client";
 import {
   optionalDate,
+  optionalString,
   readJsonObject,
   requireEnum,
   requireMoneyCents,
@@ -48,6 +49,8 @@ export type PaymentWithBoost = {
   readonly creatorId: string;
   readonly creatorSlug: string;
   readonly creatorModerationStatus: ModerationStatus;
+  /** Private. Used to record a notification interest; never serialized. */
+  readonly supporterEmail: string | null;
 };
 
 function toPaymentWithBoost(value: unknown): PaymentWithBoost {
@@ -64,6 +67,7 @@ function toPaymentWithBoost(value: unknown): PaymentWithBoost {
     creatorId: requireString(row, "creator_id"),
     creatorSlug: requireString(row, "creator_slug"),
     creatorModerationStatus: requireEnum(row, "moderation_status", MODERATION_STATUS_VALUES),
+    supporterEmail: optionalString(row, "supporter_email"),
   };
 }
 
@@ -90,6 +94,7 @@ export async function lockPaymentByProviderId(
       p.confirmed_at as confirmed_at,
       b.id::text as boost_id,
       b.status as boost_status,
+      b.supporter_email as supporter_email,
       c.id::text as creator_id,
       c.slug as creator_slug,
       c.moderation_status as moderation_status
@@ -117,6 +122,7 @@ export async function findPaymentByIdWithBoost(
       p.confirmed_at as confirmed_at,
       b.id::text as boost_id,
       b.status as boost_status,
+      b.supporter_email as supporter_email,
       c.id::text as creator_id,
       c.slug as creator_slug,
       c.moderation_status as moderation_status

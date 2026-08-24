@@ -9,6 +9,7 @@ export * from "./analytics";
 export * from "./boost";
 export * from "./creator";
 export * from "./money";
+export * from "./notifications";
 export * from "./payment";
 export * from "./periods";
 export * from "./ranking";

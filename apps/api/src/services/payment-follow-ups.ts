@@ -1,8 +1,10 @@
 import type { ProductConfig } from "@creator-outdoor/config";
 import type { Database } from "@creator-outdoor/db";
+import type { EmailProvider } from "../email/provider";
 import type { PixPaymentProvider } from "../payments/provider";
+import { notifyDethrone, subscribeToDethrone } from "./notifications";
 import type { PaymentEventOutcome } from "./payment-transitions";
-import { recordOvertakes } from "./rank-events";
+import { detectLeaderChange, recordOvertakes } from "./rank-events";
 import { recomputeClosedPeriodFor } from "./rollover";
 
 export type AppliedPaymentOutcome = Extract<PaymentEventOutcome, { readonly kind: "APPLIED" }>;
@@ -10,6 +12,9 @@ export type AppliedPaymentOutcome = Extract<PaymentEventOutcome, { readonly kind
 export type PaymentFollowUpDependencies = {
   readonly database: Database;
   readonly product: ProductConfig;
+  /** Absent in a process that does not send mail; notifications are skipped. */
+  readonly email?: EmailProvider;
+  readonly webOrigin?: string;
 };
 
 /**
@@ -34,6 +39,32 @@ export async function runPaymentFollowUps(
   now: Date,
 ): Promise<void> {
   if (outcome.boostActivated) {
+    /*
+     * The person who paid asked to hear about this creator, so record that
+     * before anything else can fail: an interest lost because a ticker write
+     * threw would be silent and permanent.
+     */
+    await attempt("subscription_failed", () =>
+      subscribeToDethrone(dependencies.database, {
+        email: outcome.supporterEmail,
+        creatorId: outcome.creatorId,
+      }),
+    );
+
+    /*
+     * The ticker and the notification are answered separately and in this
+     * order: the ticker describes the mover's climb, while the notification is
+     * about the leader losing the top spot, and a newcomer who buys #1 outright
+     * produces the second without producing the first.
+     */
+    const change = await attemptValue("leader_change_failed", () =>
+      detectLeaderChange(dependencies.database, dependencies.product, {
+        creatorId: outcome.creatorId,
+        boostAmountCents: outcome.amountCents,
+        now,
+      }),
+    );
+
     await attempt("rank_event_failed", () =>
       recordOvertakes(dependencies.database, dependencies.product, {
         creatorId: outcome.creatorId,
@@ -41,6 +72,20 @@ export async function runPaymentFollowUps(
         now,
       }),
     );
+
+    const email = dependencies.email;
+    const webOrigin = dependencies.webOrigin;
+    if (change !== null && email !== undefined && webOrigin !== undefined) {
+      await attempt("dethrone_notification_failed", () =>
+        notifyDethrone(
+          { database: dependencies.database, product: dependencies.product, email, webOrigin },
+          change,
+          // One notification per activation: a redelivered webhook or a
+          // reconciliation pass for the same payment claims the same key.
+          `dethrone:${provider.name}:${outcome.providerPaymentId}`,
+        ),
+      );
+    }
   }
 
   if (outcome.to === "REFUNDED" && outcome.confirmedAt !== null) {
@@ -61,9 +106,18 @@ export async function runPaymentFollowUps(
 }
 
 async function attempt(label: string, work: () => Promise<unknown>): Promise<void> {
+  await attemptValue(label, work);
+}
+
+/** Same contract, but hands back what the step produced when it succeeded. */
+async function attemptValue<TValue>(
+  label: string,
+  work: () => Promise<TValue>,
+): Promise<TValue | null> {
   try {
-    await work();
+    return await work();
   } catch (error) {
     console.error(label, { message: error instanceof Error ? error.message : "unknown" });
+    return null;
   }
 }

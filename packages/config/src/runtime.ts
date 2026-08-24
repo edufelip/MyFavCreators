@@ -38,6 +38,16 @@ const apiEnvSchema = z.object({
    */
   mercadoPagoAccessToken: z.string().min(1).optional(),
   mercadoPagoWebhookSecret: z.string().min(16).optional(),
+  /**
+   * Production email credentials.
+   *
+   * Optional for the same reason the PIX ones are: their absence selects the
+   * console provider so local work and CI need no external account. A
+   * production process without them refuses to start; see
+   * `resolveEmailProvider`.
+   */
+  resendApiKey: z.string().min(1).optional(),
+  emailFromAddress: z.string().min(3).optional(),
 });
 
 export type ApiConfig = z.infer<typeof apiEnvSchema> & {
@@ -60,6 +70,8 @@ export function parseApiConfig(env: EnvSource): ApiConfig {
       adminOrigin: env["ADMIN_ORIGIN"],
       mercadoPagoAccessToken: env["MERCADO_PAGO_ACCESS_TOKEN"],
       mercadoPagoWebhookSecret: env["MERCADO_PAGO_WEBHOOK_SECRET"],
+      resendApiKey: env["RESEND_API_KEY"],
+      emailFromAddress: env["EMAIL_FROM_ADDRESS"],
     },
     "apps/api",
   );

@@ -24,7 +24,7 @@ export {
   verificationPurposeEnum,
   verificationStatusEnum,
 } from "./enums";
-export { auditLogs, notificationSubscriptions } from "./operations";
+export { auditLogs, notificationDeliveries, notificationSubscriptions } from "./operations";
 export { paymentEvents, payments } from "./payments";
 export { creatorRankingSnapshots, rankEvents, rankingPeriods } from "./ranking";
 export { creatorVerifications } from "./verifications";

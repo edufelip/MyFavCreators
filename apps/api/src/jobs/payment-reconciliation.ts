@@ -1,6 +1,7 @@
 import { apiConfig } from "@creator-outdoor/config/api";
 import { closeDatabase } from "@creator-outdoor/db";
 import { database } from "../database";
+import { resolveEmailProvider } from "../email/resolve";
 import { resolvePaymentProvider } from "../payments/resolve";
 import { reconcilePayments } from "../services/reconciliation";
 
@@ -15,6 +16,8 @@ import { reconcilePayments } from "../services/reconciliation";
 const provider = resolvePaymentProvider(apiConfig);
 const summary = await reconcilePayments(database, apiConfig.product, provider, {
   now: new Date(),
+  email: resolveEmailProvider(apiConfig),
+  webOrigin: apiConfig.webOrigin,
 });
 
 console.info(

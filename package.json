@@ -32,6 +32,7 @@
     "prepare": "husky || true",
     "admin:hash": "bun run --cwd packages/config ../../scripts/hash-admin-password.ts",
     "job:weekly-rollover": "bun run --filter @creator-outdoor/api job:weekly-rollover",
+    "job:weekly-recap": "bun run --filter @creator-outdoor/api job:weekly-recap",
     "job:payment-reconcile": "bun run --filter @creator-outdoor/api job:payment-reconcile"
   },
   "devDependencies": {

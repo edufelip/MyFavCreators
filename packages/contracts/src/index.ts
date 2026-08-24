@@ -5,6 +5,7 @@ export * from "./creator";
 export * from "./creators-detail";
 export * from "./enums";
 export * from "./errors";
+export * from "./notifications";
 export * from "./primitives";
 export * from "./rankings";
 export * from "./rotation";

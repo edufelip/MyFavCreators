@@ -13,15 +13,17 @@ external engagement. See [`docs/product.md`](docs/product.md).
 
 ## Status
 
-**Phases 1–5 complete.** The public leaderboard, the current #1 billboard, creator pages, the
+**Phases 1–6 complete.** The public leaderboard, the current #1 billboard, creator pages, the
 weekly countdown and the Take #1 calculation are live; creators can be submitted, moderated,
 reported and removed; and the full boost loop runs end to end — checkout with QR and
 copia-e-cola, webhook confirmation, transactional activation, real rank movement and refunds.
 The live loop is closed: fair rotation, the overtake ticker, dynamic share cards, heat mode and
 an idempotent weekly rollover. Payments run against a real PIX provider when credentials are
 set, with signed webhooks, replay protection and a reconciliation job that recovers payments
-whose webhook never arrived. See [Phase boundaries](#phase-boundaries) for what is still to
-come.
+whose webhook never arrived. Creator pages carry the Torcida, delivery is measured through
+impressions and tracked outbound clicks, and supporters who leave an address hear when the
+creator they follow loses the top spot. See [Phase boundaries](#phase-boundaries) for what is
+still to come.
 
 ## Requirements
 
@@ -142,11 +144,23 @@ at Monday 00:07 still closes a period that ended at Monday 00:00.
 
 Production schedules it hourly. Running it more often is harmless.
 
+`bun run job:weekly-recap` emails each subscriber how the week that just ended went for the
+creator they follow. Run it after the rollover; running it twice sends nobody a second copy.
+
 `bun run job:payment-reconcile` recovers payments whose webhook never arrived. It asks the
 provider about everything still unsettled and routes the answer through the same transition
 service the webhook uses, so a repeat is a no-op and a recovered payment gets the same ticker
 line, history correction and refund a delivered one would. Production schedules it every few
 minutes.
+
+## Email provider
+
+Without `RESEND_API_KEY` and `EMAIL_FROM_ADDRESS` the API uses the console provider, which
+delivers nothing and logs a redacted line, so the whole notification loop works locally and in
+CI with no external account. A production process with neither refuses to start rather than
+silently dropping notifications somebody opted into. See
+`docs/decisions/0013-email-provider.md`, which also records what is *not* done yet: bounce
+handling and sender authentication.
 
 ## Payment provider
 
@@ -163,5 +177,4 @@ assumption.
 
 Not yet implemented:
 
-- The public Torcida, analytics ingestion and dethrone notifications (Phase 6)
 - Creator claiming, Hall da Fama and embeds (Phase 7)

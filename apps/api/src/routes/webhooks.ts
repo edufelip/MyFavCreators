@@ -1,6 +1,7 @@
 import type { ProductConfig } from "@creator-outdoor/config";
 import type { Database } from "@creator-outdoor/db";
 import { Elysia, t } from "elysia";
+import type { EmailProvider } from "../email/provider";
 import type { PixPaymentProvider } from "../payments/provider";
 import { WebhookValidationError } from "../payments/provider";
 import { runPaymentFollowUps } from "../services/payment-follow-ups";
@@ -10,6 +11,8 @@ export type WebhookRouteDependencies = {
   readonly database: Database;
   readonly product: ProductConfig;
   readonly providers: ReadonlyMap<string, PixPaymentProvider>;
+  readonly email?: EmailProvider;
+  readonly webOrigin?: string;
   readonly now?: () => Date;
 };
 

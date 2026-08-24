@@ -31,6 +31,8 @@ export type PaymentEventOutcome =
       readonly amountCents: number;
       /** When the money originally settled, for a refund correcting history. */
       readonly confirmedAt: Date | null;
+      /** Private. Recorded as a notification interest; never serialized. */
+      readonly supporterEmail: string | null;
     }
   | { readonly kind: "DUPLICATE"; readonly providerPaymentId: string }
   | {
@@ -167,6 +169,7 @@ export async function applyPaymentEvent(
       creatorId: payment.creatorId,
       amountCents: payment.amountCents,
       confirmedAt: payment.confirmedAt,
+      supporterEmail: payment.supporterEmail,
     };
   });
 }

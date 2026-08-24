@@ -273,19 +273,23 @@ export async function insertRankEvents(
     readonly fromRank: number;
     readonly toRank: number;
   }>,
-): Promise<void> {
+): Promise<readonly string[]> {
   if (events.length === 0) {
-    return;
+    return [];
   }
-  await executor.insert(rankEvents).values(
-    events.map((event) => ({
-      rankingPeriodId,
-      creatorId: event.creatorId,
-      passedCreatorId: event.passedCreatorId,
-      fromRank: event.fromRank,
-      toRank: event.toRank,
-    })),
-  );
+  const inserted = await executor
+    .insert(rankEvents)
+    .values(
+      events.map((event) => ({
+        rankingPeriodId,
+        creatorId: event.creatorId,
+        passedCreatorId: event.passedCreatorId,
+        fromRank: event.fromRank,
+        toRank: event.toRank,
+      })),
+    )
+    .returning({ id: rankEvents.id });
+  return inserted.map((row) => row.id);
 }
 
 /** The overtake ticker. Secondary data: never an input to any ranking. */

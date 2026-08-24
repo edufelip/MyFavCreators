@@ -277,6 +277,88 @@ heartbeat while the tab is hidden.
 public on the page they represent — no supporter name, message, email or identifier — because a
 share card is the most widely copied surface the product has.
 
+## The Torcida
+
+A creator page lists who bought their prominence, derived from the same boosts
+the ranking counts — `ACTIVE` boost, `CONFIRMED` payment, confirmation inside the
+window — so a refunded boost leaves the wall for exactly the reason it leaves the
+score. Nothing is stored twice.
+
+Rows group by supporter **and** by whether the boost was anonymous. Grouping on
+the supporter alone would fold an anonymous boost into a named row and publish,
+under a name, an amount its payer asked not to have attributed to them. One
+person who chose anonymity for part of their boosts therefore occupies two rows
+while still counting as one supporter, which is why `supporterCount` is computed
+separately rather than read off the rows.
+
+Wall ids are hashed per creator: stable on one profile, useless on another, so a
+supporter cannot be followed across the site by comparing them.
+
+## Delivery measurement
+
+Impressions and outbound clicks record what the platform showed. **No ranking
+query reads any of it**, and nothing here can move a position — money is the only
+ranking signal, and mixing traffic into it would turn attention into rank.
+
+Both are deduplicated by (creator, surface, session, hour) and (link, session,
+hour) respectively, enforced by unique indexes, so a retried beacon or a page
+restored from the back/forward cache cannot inflate a number.
+
+The analytics session is an httpOnly cookie the page cannot read, added to the
+beacon by the web server. A client able to name its own session could mint
+impressions for any creator by inventing new ones. It is deliberately separate
+from the supporter key: mixing them would let analytics deduplication reshape who
+counts as a supporter.
+
+CTR is `null` rather than zero when nothing was shown. Zero clicks out of zero
+impressions is not a rate of zero; it is a rate nobody can state, and a delivery
+report printing "0%" there would be claiming a measurement it never made.
+
+`/out/{creatorLinkId}` resolves through the API, which returns the stored URL for
+a known link id — the destination never comes from the request, which is what
+stops it being an open redirect, and a link whose creator stopped being public
+stops resolving immediately. It is a page rather than a route handler so a dead
+link lands on the site's own not-found page instead of a bare status code the
+browser renders as a network error; that also means following a link never
+creates a tracking cookie for somebody who does not already have one, and their
+click simply goes uncounted.
+
+## Notifications
+
+`EmailProvider` is the only thing the rest of the code knows about a mail
+service (ADR 0013), the same shape as `PixPaymentProvider`.
+`ConsoleEmailProvider` delivers nothing, so the whole loop — subscribe, claim,
+render, send, unsubscribe — is exercised without an external account. A
+production process without credentials refuses to start rather than silently
+dropping every notification somebody opted into.
+
+**Subscribing** happens when a boost confirms and the payer left an address.
+Addresses are normalized, so two spellings of one inbox are one subscription and
+therefore one copy of every message. Nothing about a subscription is ever
+public.
+
+**Dethrone** is decided by `detectLeaderChange`, deliberately *not* by the
+overtake ticker. The ticker describes a creator's own climb and stays silent when
+somebody enters the ranking, which is right for "subiu de 5º para 2º" and wrong
+here: a newcomer who buys the top spot outright has dethroned the leader just as
+surely as a regular who climbed past them.
+
+**Exactly once** is a database property, not a code path. Every delivery claims a
+unique `(subscription, dedupe_key)` row *before* sending, so a redelivered
+webhook, a reconciliation pass over the same payment, a retried recap job and two
+racing processes all produce one email. The claim is released only when the send
+itself failed, so a later run genuinely retries — a crash between claim and send
+costs one email nobody receives, which is the cheaper of the two mistakes.
+
+**Unsubscribing** is one click. Every message carries the RFC 8058 headers, so a
+mail client can offer the button itself, and the link lands on a page that asks
+before acting: mail clients prefetch links, and a GET that unsubscribed would
+unsubscribe people who never clicked. The answer is identical for a live token,
+a used one and one that never existed — anything else would turn the link into an
+oracle for whether an address is subscribed.
+
+Email never appears in a log in full. `redactEmail` is what may be printed.
+
 ## Money
 
 Integer centavos everywhere: `integer` columns, a branded `MoneyCents` domain type whose

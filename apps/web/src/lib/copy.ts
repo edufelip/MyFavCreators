@@ -210,6 +210,15 @@ export const copy = {
     more: (count: number) => `e mais ${count}`,
   },
 
+  unsubscribe: {
+    title: "Avisos deste perfil",
+    body: "Você não vai mais receber avisos deste perfil. Nada mais muda: os impulsos já feitos continuam valendo.",
+    confirm: "Cancelar os avisos",
+    intro: "Confirme para parar de receber avisos sobre este perfil.",
+    backToRanking: "Ver o ranking",
+    unavailable: "Não foi possível cancelar agora. Tente novamente em instantes.",
+  },
+
   optOut: {
     title: "Reivindicar ou remover este perfil",
     intro:

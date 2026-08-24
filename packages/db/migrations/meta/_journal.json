@@ -15,6 +15,13 @@
       "when": 1787599896270,
       "tag": "0001_creator_verifications",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787607306771,
+      "tag": "0002_notification_deliveries",
+      "breakpoints": true
     }
   ]
 }

@@ -2,6 +2,8 @@ import type { ProductConfig } from "@creator-outdoor/config";
 import type { Database } from "@creator-outdoor/db";
 import { cors } from "@elysiajs/cors";
 import { Elysia } from "elysia";
+import { ConsoleEmailProvider } from "./email/console";
+import type { EmailProvider } from "./email/provider";
 import { FakePixPaymentProvider } from "./payments/fake-pix";
 import type { PixPaymentProvider } from "./payments/provider";
 import { analyticsRoutes } from "./routes/analytics";
@@ -10,6 +12,7 @@ import { creatorRoutes } from "./routes/creators";
 import { devPixRoutes } from "./routes/dev-pix";
 import { adminRoutes } from "./routes/internal/admin";
 import { liveRoutes } from "./routes/live";
+import { notificationRoutes } from "./routes/notifications";
 import { rankingRoutes } from "./routes/rankings";
 import { webhookRoutes } from "./routes/webhooks";
 import { RateLimiter } from "./security/rate-limit";
@@ -25,6 +28,10 @@ export type CreateAppOptions = {
   readonly fanIdentitySecret: string;
   /** The provider that creates payments. Defaults to the fake PIX provider. */
   readonly paymentProvider?: PixPaymentProvider;
+  /** The provider that sends notifications. Defaults to the console provider. */
+  readonly emailProvider?: EmailProvider;
+  /** Where an unsubscribe link points. The public site, never this API. */
+  readonly webOrigin?: string;
   /**
    * Enables the development-only PIX simulation routes. Never true in
    * production: the guard lives here rather than in the route, so a route file
@@ -45,6 +52,8 @@ export type CreateAppOptions = {
  */
 export function createApp(options: CreateAppOptions) {
   const rateLimiter = options.rateLimiter ?? new RateLimiter();
+  const email = options.emailProvider ?? new ConsoleEmailProvider();
+  const webOrigin = options.webOrigin ?? options.allowedOrigins[0] ?? "http://localhost:3000";
   const provider =
     options.paymentProvider ??
     new FakePixPaymentProvider({
@@ -112,6 +121,14 @@ export function createApp(options: CreateAppOptions) {
       }),
     )
     .use(
+      notificationRoutes({
+        database: options.database,
+        product: options.product,
+        rateLimiter,
+        ...(options.now === undefined ? {} : { now: options.now }),
+      }),
+    )
+    .use(
       boostRoutes({
         database: options.database,
         product: options.product,
@@ -126,6 +143,8 @@ export function createApp(options: CreateAppOptions) {
         database: options.database,
         product: options.product,
         providers,
+        email,
+        webOrigin,
         ...(options.now === undefined ? {} : { now: options.now }),
       }),
     )
