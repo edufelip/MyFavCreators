@@ -1,0 +1,72 @@
+import { webConfig } from "@creator-outdoor/config/web";
+import { getWeeklyPeriod, millisecondsRemainingInPeriod } from "@creator-outdoor/domain";
+import { Billboard } from "@/components/billboard";
+import { Leaderboard } from "@/components/leaderboard";
+import { SiteHeader } from "@/components/site-header";
+import { loadLeaderboard, type RankingTab } from "@/lib/api";
+import { copy } from "@/lib/copy";
+import { formatDuration } from "@/lib/format";
+
+/**
+ * The ranking is live, so the homepage renders per request rather than being
+ * prerendered at build time. The initial render is still server-side HTML, so
+ * the ranking is indexable.
+ */
+export const dynamic = "force-dynamic";
+
+const LEADERBOARD_LIMIT = 30;
+
+type HomePageProps = {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function resolveTab(value: string | string[] | undefined): RankingTab {
+  return value === "geral" ? "all-time" : "weekly";
+}
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const params = await searchParams;
+  const tab = resolveTab(params["ranking"]);
+
+  // The billboard always belongs to the creator holding #1 *this week*, whether
+  // or not the visitor is looking at the general ranking. A previous champion
+  // never keeps the marquee either.
+  const [weekly, listed] = await Promise.all([
+    loadLeaderboard({ tab: "weekly", limit: LEADERBOARD_LIMIT }),
+    tab === "weekly"
+      ? Promise.resolve(null)
+      : loadLeaderboard({ tab: "all-time", limit: LEADERBOARD_LIMIT }),
+  ]);
+  const listResult = listed ?? weekly;
+
+  // The countdown describes the current weekly period, computed from the
+  // instant rather than read from any job's bookkeeping.
+  const now = new Date();
+  const period = getWeeklyPeriod(now, webConfig.product.timezone);
+  const countdownLabel = formatDuration(millisecondsRemainingInPeriod(now, period));
+
+  const leader = weekly.ok ? weekly.data.leader : null;
+
+  return (
+    <>
+      <SiteHeader periodEndsAt={period.endsAt.toISOString()} countdownLabel={countdownLabel} />
+
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 pb-16 pt-6">
+        <section className="flex flex-col gap-1">
+          <h2 className="text-xl font-black tracking-tight text-white sm:text-2xl">
+            {copy.hero.headline}
+          </h2>
+          <p className="text-sm text-white/60 sm:text-base">{copy.hero.subheadline}</p>
+        </section>
+
+        {leader === null ? null : <Billboard leader={leader} />}
+
+        <Leaderboard
+          tab={tab}
+          entries={listResult.ok ? listResult.data.entries : []}
+          unavailable={!listResult.ok}
+        />
+      </main>
+    </>
+  );
+}

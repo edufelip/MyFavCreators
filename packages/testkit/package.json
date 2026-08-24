@@ -1,0 +1,20 @@
+{
+  "name": "@creator-outdoor/testkit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@creator-outdoor/db": "workspace:*",
+    "@creator-outdoor/domain": "workspace:*",
+    "drizzle-orm": "0.45.2"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

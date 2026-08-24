@@ -1,0 +1,20 @@
+{
+  "name": "@creator-outdoor/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:unit": "bun test"
+  },
+  "dependencies": {
+    "@creator-outdoor/domain": "workspace:*",
+    "@sinclair/typebox": "0.34.52"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

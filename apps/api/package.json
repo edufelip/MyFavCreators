@@ -1,0 +1,26 @@
+{
+  "name": "@creator-outdoor/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "build": "bun build src/index.ts --target bun --outdir dist",
+    "start": "bun dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "bun test test/unit",
+    "test:integration": "bun test test/integration"
+  },
+  "dependencies": {
+    "@creator-outdoor/config": "workspace:*",
+    "@creator-outdoor/contracts": "workspace:*",
+    "@creator-outdoor/db": "workspace:*",
+    "@creator-outdoor/domain": "workspace:*",
+    "@elysiajs/cors": "1.4.2",
+    "elysia": "1.4.29"
+  },
+  "devDependencies": {
+    "@creator-outdoor/testkit": "workspace:*",
+    "typescript": "7.0.2"
+  }
+}
