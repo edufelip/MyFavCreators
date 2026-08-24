@@ -47,6 +47,8 @@ export const CreatorDetailDto = t.Object(
     weekly: CreatorStandingDto,
     allTime: CreatorStandingDto,
     period: t.Object({ startsAt: IsoDateTime, endsAt: IsoDateTime }),
+    /** Closed weeks this creator finished #1. Powers the champion badge. */
+    championWeeks: t.Integer({ minimum: 0 }),
     createdAt: IsoDateTime,
   },
   { $id: "CreatorDetail" },

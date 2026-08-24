@@ -22,6 +22,13 @@
       "when": 1787607306771,
       "tag": "0002_notification_deliveries",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787608135794,
+      "tag": "0003_creator_claims",
+      "breakpoints": true
     }
   ]
 }

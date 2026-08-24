@@ -231,6 +231,83 @@ export async function findLatestChampion(
   };
 }
 
+/**
+ * Hall da Fama: every weekly champion, most recent first.
+ *
+ * Read from the closed snapshots, which is why a refund landing after a period
+ * closed can change who is listed — the snapshot is recomputed and the history
+ * corrects itself rather than preserving a champion whose money went back.
+ */
+export async function listChampions(
+  executor: DatabaseExecutor,
+  limit: number,
+): Promise<readonly ChampionRecord[]> {
+  const result: unknown[] = await executor.execute(sql`
+    select
+      c.id::text as creator_id,
+      c.slug as slug,
+      c.display_name as display_name,
+      c.avatar_url as avatar_url,
+      cat.slug as category_slug,
+      cat.name as category_name,
+      link.platform as primary_platform,
+      link.handle as primary_handle,
+      s.amount_cents as amount_cents,
+      s.supporter_count as supporter_count,
+      rp.starts_at as period_starts_at,
+      rp.ends_at as period_ends_at
+    from creator_ranking_snapshots s
+    inner join ranking_periods rp on rp.id = s.ranking_period_id
+    inner join creators c on c.id = s.creator_id
+    inner join categories cat on cat.id = c.category_id
+    left join lateral (
+      select cl.platform, cl.handle
+      from creator_links cl
+      where cl.creator_id = c.id
+      order by cl.is_primary desc, cl.created_at asc
+      limit 1
+    ) link on true
+    where rp.status = 'CLOSED' and rp.type = 'WEEKLY' and s.rank = 1
+      and c.moderation_status = 'APPROVED'
+    order by rp.ends_at desc
+    limit ${limit}
+  `);
+  return result.map((value) => {
+    const row = requireRecord(value);
+    return {
+      creatorId: requireString(row, "creator_id"),
+      slug: requireString(row, "slug"),
+      displayName: requireString(row, "display_name"),
+      avatarUrl: optionalString(row, "avatar_url"),
+      categorySlug: requireString(row, "category_slug"),
+      categoryName: requireString(row, "category_name"),
+      primaryPlatform: optionalString(row, "primary_platform"),
+      primaryHandle: optionalString(row, "primary_handle"),
+      amountCents: requireMoneyCents(row, "amount_cents"),
+      supporterCount: requireInteger(row, "supporter_count"),
+      periodStartsAt: requireDate(row, "period_starts_at"),
+      periodEndsAt: requireDate(row, "period_ends_at"),
+    };
+  });
+}
+
+/** How many closed weeks a creator finished on top. Powers the champion badge. */
+export async function countChampionWeeks(
+  executor: DatabaseExecutor,
+  creatorId: string,
+): Promise<number> {
+  const result: unknown[] = await executor.execute(sql`
+    select count(*)::int as weeks
+    from creator_ranking_snapshots s
+    inner join ranking_periods rp on rp.id = s.ranking_period_id
+    where s.creator_id = ${creatorId}
+      and s.rank = 1
+      and rp.status = 'CLOSED'
+      and rp.type = 'WEEKLY'
+  `);
+  return requireInteger(requireRecord(result[0]), "weeks");
+}
+
 export async function listClosedPeriodsContaining(
   executor: DatabaseExecutor,
   instant: Date,

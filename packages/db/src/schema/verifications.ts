@@ -41,3 +41,35 @@ export const creatorVerifications = pgTable(
     index("creator_verifications_creator_idx").on(table.creatorId, table.purpose),
   ],
 );
+
+/**
+ * A verified creator's grip on their own profile.
+ *
+ * One row per creator, created when a claim is verified. The management token
+ * is stored as a SHA-256 hash and never in the clear: a leaked database dump
+ * must not hand somebody control of every claimed profile, and the raw token is
+ * shown exactly once, at the moment of verification.
+ *
+ * `revoked_at` ends a session without deleting the claim, so an administrator
+ * can cut off a compromised token while leaving the record of who claimed what.
+ */
+export const creatorClaims = pgTable(
+  "creator_claims",
+  {
+    id: primaryKeyColumn(),
+    creatorId: uuid("creator_id")
+      .notNull()
+      .references(() => creators.id, { onDelete: "cascade" }),
+    /** Contact for the claimant. Private, exactly like a supporter's. */
+    email: text("email"),
+    /** SHA-256 of the management token. The token itself is never stored. */
+    tokenHash: text("token_hash").notNull(),
+    createdAt: createdAtColumn(),
+    revokedAt: timestampColumn("revoked_at"),
+  },
+  (table) => [
+    /** One claim per creator: a profile has one owner, not a queue of them. */
+    uniqueIndex("creator_claims_creator_key").on(table.creatorId),
+    uniqueIndex("creator_claims_token_key").on(table.tokenHash),
+  ],
+);

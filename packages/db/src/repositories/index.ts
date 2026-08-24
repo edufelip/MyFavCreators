@@ -1,5 +1,6 @@
 export * from "./analytics";
 export * from "./categories";
+export * from "./claims";
 export * from "./creators";
 export * from "./moderation";
 export * from "./notifications";

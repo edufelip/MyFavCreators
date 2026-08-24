@@ -1,6 +1,7 @@
 export * from "./admin";
 export * from "./analytics";
 export * from "./boosts";
+export * from "./claims";
 export * from "./creator";
 export * from "./creators-detail";
 export * from "./enums";

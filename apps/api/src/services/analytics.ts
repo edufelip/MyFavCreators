@@ -20,6 +20,7 @@ import {
   isPubliclyEligible,
   validateImpressionBatch,
 } from "@creator-outdoor/domain";
+import { describeErrorMessage } from "../observability/errors";
 
 /**
  * Delivery measurement.
@@ -87,7 +88,7 @@ export async function resolveOutboundClick(
       }));
   } catch (error) {
     console.error("outbound_click_not_recorded", {
-      message: error instanceof Error ? error.message : "unknown",
+      message: describeErrorMessage(error),
     });
   }
 

@@ -23,6 +23,7 @@ import {
   recordImpressionBatch,
   resolveOutboundClick,
 } from "../services/analytics";
+import { renderRankBadge } from "../services/rank-badge";
 
 export type AnalyticsRouteDependencies = {
   readonly database: Database;
@@ -136,6 +137,34 @@ export function analyticsRoutes(dependencies: AnalyticsRouteDependencies) {
           404: ApiErrorDto,
           429: ApiErrorDto,
         },
+      },
+    )
+    .get(
+      "/creators/:slug/badge.svg",
+      async ({ params, request, set, status }) => {
+        const header = request.headers.get(SESSION_HEADER);
+        const sessionId = header !== null && header.length >= MIN_SESSION_LENGTH ? header : null;
+
+        const badge = await renderRankBadge(dependencies.database, dependencies.product, {
+          slug: params.slug,
+          sessionId,
+          now: now(),
+        });
+        if (badge === null) {
+          return status(404, NOT_FOUND);
+        }
+
+        set.headers["content-type"] = "image/svg+xml; charset=utf-8";
+        // Short enough to stay roughly true, long enough that a popular
+        // profile's badge does not become a load test on someone else's page.
+        set.headers["cache-control"] = "public, max-age=300";
+        // The badge is meant to be embedded anywhere; that is the whole point.
+        set.headers["access-control-allow-origin"] = "*";
+        return badge.svg;
+      },
+      {
+        params: t.Object({ slug: Slug }),
+        response: { 200: t.String(), 404: ApiErrorDto },
       },
     )
     .get(

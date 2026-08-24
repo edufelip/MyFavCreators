@@ -7,6 +7,7 @@
  */
 export * from "./analytics";
 export * from "./boost";
+export * from "./claims";
 export * from "./creator";
 export * from "./money";
 export * from "./notifications";

@@ -1,6 +1,11 @@
 import type { ProductConfig } from "@creator-outdoor/config";
-import { ChampionDto, RankEventListDto, RotationResponseDto } from "@creator-outdoor/contracts";
-import { type Database, findLatestChampion } from "@creator-outdoor/db";
+import {
+  ChampionDto,
+  HallOfFameDto,
+  RankEventListDto,
+  RotationResponseDto,
+} from "@creator-outdoor/contracts";
+import { type Database, findLatestChampion, listChampions } from "@creator-outdoor/db";
 import { isCreatorPlatform } from "@creator-outdoor/domain";
 import { Elysia, t } from "elysia";
 import { getRecentRankEvents } from "../services/rank-events";
@@ -56,5 +61,40 @@ export function liveRoutes(dependencies: LiveRouteDependencies) {
             };
       },
       { response: t.Union([ChampionDto, t.Null()]) },
+    )
+    .get(
+      "/hall-da-fama",
+      async ({ query }) => {
+        const champions = await listChampions(dependencies.database, query.limit ?? 20);
+        return { champions: champions.map(serializeChampion) };
+      },
+      {
+        query: t.Object({
+          limit: t.Optional(t.Integer({ minimum: 1, maximum: 100, default: 20 })),
+        }),
+        response: HallOfFameDto,
+      },
     );
+}
+
+type ChampionRow = Awaited<ReturnType<typeof listChampions>>[number];
+
+function serializeChampion(champion: ChampionRow) {
+  return {
+    creator: {
+      id: champion.creatorId,
+      slug: champion.slug,
+      displayName: champion.displayName,
+      avatarUrl: champion.avatarUrl,
+      category: { slug: champion.categorySlug, name: champion.categoryName },
+      primaryPlatform: isCreatorPlatform(champion.primaryPlatform)
+        ? champion.primaryPlatform
+        : null,
+      primaryHandle: champion.primaryHandle,
+    },
+    amountCents: champion.amountCents,
+    supporterCount: champion.supporterCount,
+    periodStartsAt: champion.periodStartsAt.toISOString(),
+    periodEndsAt: champion.periodEndsAt.toISOString(),
+  };
 }

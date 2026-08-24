@@ -53,6 +53,7 @@ export type SerializeCreatorDetailInput = {
   readonly period: WeeklyPeriod;
   readonly minIncrementCents: number;
   readonly minBoostCents: number;
+  readonly championWeeks: number;
 };
 
 /**
@@ -77,6 +78,7 @@ export function serializeCreatorDetail(input: SerializeCreatorDetailInput): Crea
       startsAt: input.period.startsAt.toISOString(),
       endsAt: input.period.endsAt.toISOString(),
     },
+    championWeeks: input.championWeeks,
     createdAt: input.creator.createdAt.toISOString(),
   };
 }

@@ -8,6 +8,7 @@ import {
 } from "@creator-outdoor/db";
 import { centsValue, getWeeklyPeriod, redactEmail } from "@creator-outdoor/domain";
 import type { EmailProvider } from "../email/provider";
+import { describeErrorMessage } from "../observability/errors";
 import { weeklyRecapEmail } from "./notification-templates";
 
 export type WeeklyRecapSummary = {
@@ -85,7 +86,7 @@ export async function sendWeeklyRecaps(
       failed += 1;
       console.error("weekly_recap_failed", {
         to: redactEmail(subscription.email),
-        message: error instanceof Error ? error.message : "unknown",
+        message: describeErrorMessage(error),
       });
     }
   }

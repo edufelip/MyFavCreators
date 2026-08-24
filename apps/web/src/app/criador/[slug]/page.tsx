@@ -83,6 +83,14 @@ export default async function CreatorPage({ params }: CreatorPageProps) {
             <h1 className="truncate text-2xl font-black leading-tight text-white sm:text-3xl">
               {creator.displayName}
             </h1>
+            {creator.championWeeks === 0 ? null : (
+              <p
+                data-testid="champion-badge"
+                className="mt-1 inline-block rounded-full bg-amber-300/15 px-2 py-0.5 text-xs font-black uppercase tracking-wide text-amber-300"
+              >
+                {copy.hallOfFame.championBadge(creator.championWeeks)}
+              </p>
+            )}
             {primary === undefined ? null : (
               <p className="truncate text-sm text-white/70">
                 {formatHandle(primary.handle, primary.platform)}

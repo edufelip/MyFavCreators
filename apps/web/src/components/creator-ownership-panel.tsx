@@ -7,6 +7,8 @@ import {
   verifyOptOutAction,
 } from "@/app/criador/actions";
 import { INITIAL_OWNERSHIP_STATE, INITIAL_REPORT_STATE } from "@/app/criador/state";
+import { requestClaimAction, verifyClaimAction } from "@/app/gerenciar/actions";
+import { INITIAL_CLAIM_STATE } from "@/app/gerenciar/state";
 import { copy } from "@/lib/copy";
 
 const REPORT_REASONS = [
@@ -33,6 +35,9 @@ export function CreatorOwnershipPanel({ slug }: { readonly slug: string }) {
   const [ownership, requestAction] = useActionState(requestOptOutAction, INITIAL_OWNERSHIP_STATE);
   const [verification, verifyAction] = useActionState(verifyOptOutAction, INITIAL_OWNERSHIP_STATE);
   const [report, reportAction] = useActionState(reportCreatorAction, INITIAL_REPORT_STATE);
+  const [claim, requestClaim] = useActionState(requestClaimAction, INITIAL_CLAIM_STATE);
+  const [claimCheck, verifyClaim] = useActionState(verifyClaimAction, INITIAL_CLAIM_STATE);
+  const claimCode = claimCheck.code ?? claim.code;
 
   const challenge = verification.code ?? ownership.code;
   const verified = verification.outcome === "VERIFIED";
@@ -53,6 +58,80 @@ export function CreatorOwnershipPanel({ slug }: { readonly slug: string }) {
 
       {open ? (
         <div className="flex flex-col gap-4">
+          {/*
+            Claiming and removal are the same proof of control: a code that has
+            to appear on the profile. Only what happens afterwards differs.
+          */}
+          <div className={PANEL_CLASS}>
+            <h2 className="mb-2 text-sm font-bold">{copy.claim.title}</h2>
+            <p className="mb-3 text-sm text-white/60">{copy.claim.intro}</p>
+
+            {claimCode === null ? (
+              <form action={requestClaim}>
+                <input type="hidden" name="slug" value={slug} />
+                <button
+                  type="submit"
+                  data-testid="claim-request"
+                  className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-neutral-950"
+                >
+                  {copy.claim.request}
+                </button>
+              </form>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <p
+                  data-testid="claim-code"
+                  className="select-all font-mono text-lg font-bold text-amber-300"
+                >
+                  {claimCode}
+                </p>
+                <p className="text-xs text-white/50">{claim.message ?? claimCheck.message}</p>
+                <form action={verifyClaim} className="flex flex-col gap-2">
+                  <input type="hidden" name="slug" value={slug} />
+                  <label htmlFor="claimProfileText" className="text-xs text-white/60">
+                    {copy.claim.profileTextLabel}
+                  </label>
+                  <textarea
+                    id="claimProfileText"
+                    name="profileText"
+                    rows={3}
+                    required
+                    data-testid="claim-profile-text"
+                    className={FIELD_CLASS}
+                  />
+                  <label htmlFor="claimEmail" className="text-xs text-white/60">
+                    {copy.claim.emailLabel}
+                  </label>
+                  <input
+                    id="claimEmail"
+                    name="email"
+                    type="email"
+                    maxLength={254}
+                    data-testid="claim-email"
+                    className={FIELD_CLASS}
+                  />
+                  <button
+                    type="submit"
+                    data-testid="claim-verify"
+                    className="self-start rounded-lg bg-amber-300 px-4 py-2 text-sm font-black text-neutral-950"
+                  >
+                    {copy.claim.verify}
+                  </button>
+                </form>
+                {claimCheck.outcome === null || claimCheck.outcome === "VERIFIED" ? null : (
+                  <p
+                    role="status"
+                    data-testid="claim-result"
+                    data-outcome={claimCheck.outcome}
+                    className="text-sm text-white/80"
+                  >
+                    {claimCheck.message}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className={PANEL_CLASS}>
             <p className="mb-3 text-sm text-white/60">{copy.optOut.intro}</p>
 

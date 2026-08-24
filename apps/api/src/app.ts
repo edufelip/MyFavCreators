@@ -4,10 +4,12 @@ import { cors } from "@elysiajs/cors";
 import { Elysia } from "elysia";
 import { ConsoleEmailProvider } from "./email/console";
 import type { EmailProvider } from "./email/provider";
+import { describeErrorMessage } from "./observability/errors";
 import { FakePixPaymentProvider } from "./payments/fake-pix";
 import type { PixPaymentProvider } from "./payments/provider";
 import { analyticsRoutes } from "./routes/analytics";
 import { boostRoutes } from "./routes/boosts";
+import { claimRoutes } from "./routes/claims";
 import { creatorRoutes } from "./routes/creators";
 import { devPixRoutes } from "./routes/dev-pix";
 import { adminRoutes } from "./routes/internal/admin";
@@ -84,7 +86,7 @@ export function createApp(options: CreateAppOptions) {
       // Never leak a driver message, a stack trace or an internal identifier.
       console.error("api_error", {
         code,
-        message: error instanceof Error ? error.message : "unknown",
+        message: describeErrorMessage(error),
       });
       set.status = 500;
       return { error: { code: "INTERNAL", message: "Erro interno." } };
@@ -117,6 +119,14 @@ export function createApp(options: CreateAppOptions) {
       liveRoutes({
         database: options.database,
         product: options.product,
+        ...(options.now === undefined ? {} : { now: options.now }),
+      }),
+    )
+    .use(
+      claimRoutes({
+        database: options.database,
+        product: options.product,
+        rateLimiter,
         ...(options.now === undefined ? {} : { now: options.now }),
       }),
     )

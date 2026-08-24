@@ -13,7 +13,7 @@ external engagement. See [`docs/product.md`](docs/product.md).
 
 ## Status
 
-**Phases 1–6 complete.** The public leaderboard, the current #1 billboard, creator pages, the
+**Phases 1–7 complete.** The public leaderboard, the current #1 billboard, creator pages, the
 weekly countdown and the Take #1 calculation are live; creators can be submitted, moderated,
 reported and removed; and the full boost loop runs end to end — checkout with QR and
 copia-e-cola, webhook confirmation, transactional activation, real rank movement and refunds.
@@ -22,8 +22,9 @@ an idempotent weekly rollover. Payments run against a real PIX provider when cre
 set, with signed webhooks, replay protection and a reconciliation job that recovers payments
 whose webhook never arrived. Creator pages carry the Torcida, delivery is measured through
 impressions and tracked outbound clicks, and supporters who leave an address hear when the
-creator they follow loses the top spot. See [Phase boundaries](#phase-boundaries) for what is
-still to come.
+creator they follow loses the top spot. Creators can claim their own profile with a code in the
+bio, edit it, read their delivery numbers, embed a rank badge and appear in the Hall da Fama.
+See [Phase boundaries](#phase-boundaries) for what is still to come.
 
 ## Requirements
 
@@ -153,6 +154,14 @@ service the webhook uses, so a repeat is a no-op and a recovered payment gets th
 line, history correction and refund a delivered one would. Production schedules it every few
 minutes.
 
+## Creator claiming
+
+A creator proves control of a profile with a code in their bio, exactly as the removal flow
+works. Verification hands over a management token — shown once, stored only as a hash — which the
+web app keeps in an httpOnly cookie and never puts in a URL. `/gerenciar` is that session's page:
+bio and category editing, the delivery numbers, the notification preference and the embed
+snippet.
+
 ## Email provider
 
 Without `RESEND_API_KEY` and `EMAIL_FROM_ADDRESS` the API uses the console provider, which
@@ -177,4 +186,14 @@ assumption.
 
 Not yet implemented:
 
-- Creator claiming, Hall da Fama and embeds (Phase 7)
+- Hardening: structured logging with request ids, error tracking, a backup and restore
+  strategy, mutation testing and the performance, accessibility, SEO and privacy audits
+  (Phase 8)
+
+Recorded as open items rather than assumed done:
+
+- One real R$5 PIX charge verified end to end against a live account
+  (`docs/decisions/0012-pix-provider-selection.md`)
+- Bounce handling and sender authentication for email
+  (`docs/decisions/0013-email-provider.md`)
+- The `TODO(legal)` markers on `/regras`: refund policy, contact address and company details

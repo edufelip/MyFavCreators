@@ -157,8 +157,8 @@ activated: it is marked `VOID` and a refund or reconciliation follows.
 | 7 | Creator claiming, Hall da Fama, embeds, final production copy |
 | 8 | Hardening: security, observability, performance, accessibility, SEO, privacy |
 
-Phases 1 to 6 are implemented. Everything from Phase 7 onward is not, and the code
-deliberately contains no placeholder implementations of it.
+Phases 1 to 7 are implemented. Phase 8 is not, and the code deliberately contains no
+placeholder implementations of it.
 
 ## Product filter
 

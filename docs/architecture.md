@@ -359,6 +359,58 @@ oracle for whether an address is subscribed.
 
 Email never appears in a log in full. `redactEmail` is what may be printed.
 
+## Claiming a profile
+
+A creator proves control the same way somebody proves it to remove a profile: a
+code that has to appear on the bio. Requesting one changes nothing public — an
+unauthenticated visitor asking about a profile must never move it.
+
+Verification issues a **management token**, shown exactly once and stored only as
+a SHA-256 hash. A plain hash with no secret is right here and would be wrong for
+a password: the token is 256 bits of uniform randomness, so there is nothing to
+guess and no dictionary to run, and what the hash buys is that a leaked dump
+hands nobody control of a profile. Re-verifying replaces the token, which is how
+somebody who lost theirs gets back in and how the old one stops working.
+
+The token travels as a bearer credential from the web server, held in an
+httpOnly cookie, and **never in a URL**: a management link in browser history, a
+referrer header or an access log would hand somebody else the profile.
+
+What a claimed creator may change is deliberately narrow — the bio and the
+category. The display name and the platform links are how a visitor tells one
+profile from another, and letting a claimant rewrite them would turn a claimed
+profile into a way to impersonate somebody else after the fact.
+
+The dashboard shows the same ranking numbers the public page shows, plus the
+delivery measurement and their own notification setting. There is no private
+ranking and no second version of the truth: the product's claim is that money is
+the only signal and the ranking is not a secret algorithm, and a dashboard
+showing something the public page does not would undo that.
+
+## Hall da Fama and the badge
+
+Champions are read from the closed weekly snapshots, so a refund landing after a
+period closed corrects the history rather than preserving a champion whose money
+went back. `championWeeks` counts the same rows and powers the badge on a
+profile.
+
+The embeddable badge is an **SVG**, not an iframe or a script: it works in a
+README, a link-in-bio page and an email signature, it runs no code on somebody
+else's site, and it can carry no cookie. Anything a creator embeds elsewhere is a
+promise about what Creator Outdoor puts on other people's pages, and the smallest
+possible promise is a picture. Display names are XML-escaped before they reach
+that markup.
+
+## Errors in logs
+
+A database driver puts the whole statement *and its parameters* into the error
+message, so logging `error.message` publishes whatever the request carried — an
+email address, a supporter's name, a token. `describeError` is what may be
+printed: it prefers the deepest cause (the database's own complaint rather than
+the statement wrapping it), truncates, drops everything a driver appends after
+`params:`, and redacts anything shaped like an address. Keeping that rule by
+remembering it at every call site is not keeping it at all.
+
 ## Money
 
 Integer centavos everywhere: `integer` columns, a branded `MoneyCents` domain type whose

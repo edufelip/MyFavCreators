@@ -5,12 +5,20 @@ import {
   AcknowledgementDto,
   type CheckoutDto,
   CheckoutDto as CheckoutSchema,
+  type ClaimChallengeDto,
+  ClaimChallengeDto as ClaimChallengeSchema,
+  type ClaimVerificationResponseDto,
+  ClaimVerificationResponseDto as ClaimVerificationSchema,
   type CreateBoostRequestDto,
+  type CreatorDashboardDto,
+  CreatorDashboardDto as CreatorDashboardSchema,
   type CreatorDetailDto,
   CreatorDetailDto as CreatorDetailSchema,
   type CreatorReportRequestDto,
   type CreatorSubmissionResponseDto,
   CreatorSubmissionResponseDto as CreatorSubmissionSchema,
+  type HallOfFameDto,
+  HallOfFameDto as HallOfFameSchema,
   type ImpressionBatchResponseDto,
   ImpressionBatchResponseDto as ImpressionBatchSchema,
   type LeaderboardResponseDto,
@@ -232,6 +240,111 @@ export function unsubscribeFromNotifications(token: string): Promise<Unsubscribe
     UnsubscribeSchema,
     "UnsubscribeResponse",
   );
+}
+
+/** Opens a claim. Issues a code and changes nothing public. */
+export function requestCreatorClaim(slug: string): Promise<ClaimChallengeDto> {
+  return postJson(
+    `/v1/creators/${encodeURIComponent(slug)}/claims`,
+    {},
+    ClaimChallengeSchema,
+    "ClaimChallenge",
+  );
+}
+
+export function verifyCreatorClaim(
+  slug: string,
+  profileText: string,
+  email: string | null,
+): Promise<ClaimVerificationResponseDto> {
+  return postJson(
+    `/v1/creators/${encodeURIComponent(slug)}/claims/verify`,
+    { profileText, ...(email === null ? {} : { email }) },
+    ClaimVerificationSchema,
+    "ClaimVerificationResponse",
+  );
+}
+
+/**
+ * Reads a claimed creator's own view.
+ *
+ * The management token travels in an Authorization header from this server,
+ * never in a URL: a token in browser history, a referrer or an access log would
+ * hand somebody else the profile.
+ */
+export async function fetchCreatorDashboard(token: string): Promise<CreatorDashboardDto | null> {
+  const response = await fetch(new URL("/v1/creators/me", webConfig.apiOrigin), {
+    headers: { accept: "application/json", authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (response.status === 401) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`Creator dashboard request failed with status ${response.status}`);
+  }
+  return parseContract(CreatorDashboardSchema, await response.json(), "CreatorDashboard");
+}
+
+export type ProfileUpdate = {
+  readonly bio?: string | null;
+  readonly categorySlug?: string;
+};
+
+export async function updateCreatorProfile(
+  token: string,
+  update: ProfileUpdate,
+): Promise<CreatorDashboardDto | null> {
+  const response = await fetch(new URL("/v1/creators/me", webConfig.apiOrigin), {
+    method: "PATCH",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      authorization: `Bearer ${token}`,
+      ...(await forwardedClientHeaders()),
+    },
+    body: JSON.stringify(update),
+    cache: "no-store",
+  });
+  if (response.status === 401) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`Profile update failed with status ${response.status}`);
+  }
+  return parseContract(CreatorDashboardSchema, await response.json(), "CreatorDashboard");
+}
+
+export async function setCreatorNotifications(
+  token: string,
+  notifyDethrone: boolean,
+  email: string | null,
+): Promise<void> {
+  const response = await fetch(new URL("/v1/creators/me/notifications", webConfig.apiOrigin), {
+    method: "PUT",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      authorization: `Bearer ${token}`,
+      ...(await forwardedClientHeaders()),
+    },
+    body: JSON.stringify({ notifyDethrone, ...(email === null ? {} : { email }) }),
+    cache: "no-store",
+  });
+  if (!response.ok && response.status !== 401) {
+    throw new Error(`Notification preference failed with status ${response.status}`);
+  }
+}
+
+/** Past weekly champions, most recent first. */
+export async function fetchHallOfFame(limit = 20): Promise<HallOfFameDto> {
+  const url = new URL("/v1/hall-da-fama", webConfig.apiOrigin);
+  url.searchParams.set("limit", String(limit));
+  const response = await fetch(url, { headers: { accept: "application/json" }, cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Hall da Fama request failed with status ${response.status}`);
+  }
+  return parseContract(HallOfFameSchema, await response.json(), "HallOfFame");
 }
 
 export type TorcidaRequest = {

@@ -64,6 +64,52 @@ export async function upsertNotificationSubscription(
   return row;
 }
 
+/** Whether one person is still listening for one creator. */
+export async function hasActiveSubscription(
+  executor: DatabaseExecutor,
+  input: {
+    readonly email: string;
+    readonly creatorId: string;
+    readonly type: NotificationType;
+  },
+): Promise<boolean> {
+  const rows = await executor
+    .select({ id: notificationSubscriptions.id })
+    .from(notificationSubscriptions)
+    .where(
+      and(
+        eq(notificationSubscriptions.email, input.email),
+        eq(notificationSubscriptions.creatorId, input.creatorId),
+        eq(notificationSubscriptions.type, input.type),
+        isNull(notificationSubscriptions.disabledAt),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
+/** Switches one person's subscription off, by address rather than by token. */
+export async function disableSubscription(
+  executor: DatabaseExecutor,
+  input: {
+    readonly email: string;
+    readonly creatorId: string;
+    readonly type: NotificationType;
+    readonly at: Date;
+  },
+): Promise<void> {
+  await executor
+    .update(notificationSubscriptions)
+    .set({ disabledAt: input.at })
+    .where(
+      and(
+        eq(notificationSubscriptions.email, input.email),
+        eq(notificationSubscriptions.creatorId, input.creatorId),
+        eq(notificationSubscriptions.type, input.type),
+      ),
+    );
+}
+
 /** Everyone still listening for one creator. Unsubscribed rows never appear. */
 export async function listActiveSubscribers(
   executor: DatabaseExecutor,

@@ -15,6 +15,7 @@ import {
   redactEmail,
 } from "@creator-outdoor/domain";
 import type { EmailProvider } from "../email/provider";
+import { describeErrorMessage } from "../observability/errors";
 import { dethroneEmail } from "./notification-templates";
 import type { LeaderChange } from "./rank-events";
 
@@ -111,7 +112,7 @@ export async function notifyDethrone(
       });
       console.error("dethrone_email_failed", {
         to: redactEmail(subscriber.email),
-        message: error instanceof Error ? error.message : "unknown",
+        message: describeErrorMessage(error),
       });
     }
   }

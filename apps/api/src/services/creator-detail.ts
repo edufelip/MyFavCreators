@@ -1,6 +1,11 @@
 import type { ProductConfig } from "@creator-outdoor/config";
 import type { CreatorDetailDto } from "@creator-outdoor/contracts";
-import { type Database, findCreatorBySlug, getCreatorStanding } from "@creator-outdoor/db";
+import {
+  countChampionWeeks,
+  type Database,
+  findCreatorBySlug,
+  getCreatorStanding,
+} from "@creator-outdoor/db";
 import { getWeeklyPeriod, isPubliclyEligible } from "@creator-outdoor/domain";
 import { serializeCreatorDetail } from "../serializers/creators";
 
@@ -23,12 +28,13 @@ export async function getPublicCreatorDetail(
   }
 
   const period = getWeeklyPeriod(now, product.timezone);
-  const [weekly, allTime] = await Promise.all([
+  const [weekly, allTime, championWeeks] = await Promise.all([
     getCreatorStanding(database, creator.id, {
       startsAt: period.startsAt,
       endsAt: period.endsAt,
     }),
     getCreatorStanding(database, creator.id, null),
+    countChampionWeeks(database, creator.id),
   ]);
 
   return serializeCreatorDetail({
@@ -38,5 +44,6 @@ export async function getPublicCreatorDetail(
     period,
     minIncrementCents: product.minIncrementCents,
     minBoostCents: product.minBoostCents,
+    championWeeks,
   });
 }

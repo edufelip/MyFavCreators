@@ -27,6 +27,7 @@ export const copy = {
   nav: {
     ranking: "Ranking",
     submit: "Enviar perfil",
+    hallOfFame: "Hall da Fama",
     rules: "Regras",
   },
 
@@ -208,6 +209,61 @@ export const copy = {
     supporters: (count: number) =>
       count === 1 ? "1 pessoa na torcida" : `${count} pessoas na torcida`,
     more: (count: number) => `e mais ${count}`,
+  },
+
+  claim: {
+    title: "Este perfil é meu",
+    intro:
+      "Para gerenciar este perfil, prove que ele é seu: geramos um código, você coloca na bio e confirma aqui.",
+    request: "Gerar código",
+    stepOne: "1. Gere seu código",
+    stepTwo: "2. Confirme com o código no perfil",
+    profileTextLabel: "Cole aqui a bio ou descrição do perfil com o código",
+    emailLabel: "Email para avisos (opcional)",
+    verify: "Confirmar e gerenciar",
+    outcomes: {
+      VERIFIED: "Perfil reivindicado.",
+      CODE_NOT_FOUND: "Não encontramos o código no texto enviado. Confira e tente de novo.",
+      EXPIRED: "O código expirou. Gere um novo e tente de novo.",
+      NO_OPEN_REQUEST: "Não há pedido aberto para este perfil.",
+    },
+  },
+
+  manage: {
+    title: "Gerenciar perfil",
+    signedOut: "Sua sessão de gerenciamento terminou. Reivindique o perfil de novo.",
+    unavailable: "Não foi possível salvar agora. Tente novamente em instantes.",
+    saved: "Salvo.",
+    bio: "Bio",
+    category: "Categoria",
+    save: "Salvar",
+    signOut: "Sair",
+    delivery: "Entrega medida",
+    impressions: "Exibições",
+    clicks: "Cliques para o perfil",
+    ctr: "Taxa de clique",
+    ctrUnavailable: "sem exibições ainda",
+    ranking: "Ranking",
+    weeklyRank: "Posição desta semana",
+    weeklyTotal: "Nesta semana",
+    lifetimeTotal: "Total acumulado",
+    supporters: "Impulsionadores",
+    championWeeks: "Semanas em #1",
+    notifications: "Avisos",
+    notifyDethrone: "Quero saber quando alguém assumir o #1",
+    notifyEmail: "Email para avisos",
+    embed: "Selo para o seu site",
+    embedHelp: "Cole este código onde quiser mostrar sua posição.",
+    noSession: "Nenhum perfil reivindicado neste navegador.",
+    findProfile: "Ver o ranking",
+  },
+
+  hallOfFame: {
+    title: "Hall da Fama",
+    subtitle: "Quem terminou a semana em #1.",
+    empty: "Nenhuma semana fechou ainda.",
+    week: "Semana de",
+    championBadge: (weeks: number) => (weeks === 1 ? "1 semana em #1" : `${weeks} semanas em #1`),
   },
 
   unsubscribe: {

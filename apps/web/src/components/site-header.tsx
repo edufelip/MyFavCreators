@@ -32,6 +32,12 @@ export function SiteHeader({ periodEndsAt, countdownLabel, heatMode = false }: S
           {copy.nav.submit}
         </a>
         <a
+          href="/hall-da-fama"
+          className="text-sm font-medium text-white/70 transition-colors hover:text-white"
+        >
+          {copy.nav.hallOfFame}
+        </a>
+        <a
           href="/regras"
           className="text-sm font-medium text-white/70 transition-colors hover:text-white"
         >
