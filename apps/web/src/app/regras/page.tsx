@@ -57,6 +57,10 @@ export default function RulesPage() {
             Nenhum valor é repassado ao criador impulsionado. Todo o valor é da plataforma,
             descontadas taxas de pagamento, impostos, estornos e despesas operacionais.
           </p>
+          <p>
+            Impulsionar também nunca entra em sorteio, rifa ou prêmio de qualquer tipo. O que um
+            impulso compra está descrito acima e é tudo o que ele compra.
+          </p>
         </Rule>
 
         <Rule title="Como o ranking é calculado">

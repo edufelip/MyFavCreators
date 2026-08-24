@@ -401,6 +401,24 @@ promise about what Creator Outdoor puts on other people's pages, and the smalles
 possible promise is a picture. Display names are XML-escaped before they reach
 that markup.
 
+## Public copy
+
+Interface strings live in `apps/web/src/lib/copy.ts`, and a unit test walks every
+one of them — applying sample arguments to the functions — and fails on any
+wording that implies a payout, a donation or a game of chance.
+
+The long-form prose on `/regras` is the deliberate exception: it lives in the
+page. It is the one surface whose job is to *name* those ideas and deny them
+("não é vaquinha, não é doação"), so a bank scan would either fail on it or need
+an exemption that hollows out the check. Instead a Playwright audit reads the
+rendered pages and applies the rule where it actually matters — to what a
+visitor sees — with the rules page held to the opposite standard: it must
+contain each denial, and every sentence putting money and a creator together
+must carry one.
+
+That audit also skips what a supporter or a creator wrote. Their words are
+theirs; the rule is about what the platform says.
+
 ## Errors in logs
 
 A database driver puts the whole statement *and its parameters* into the error

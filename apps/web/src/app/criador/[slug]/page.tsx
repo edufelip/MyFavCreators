@@ -105,7 +105,11 @@ export default async function CreatorPage({ params }: CreatorPageProps) {
                 .join(" · ")}
             </p>
             {creator.bio === null ? null : (
-              <p className="mt-3 text-sm text-white/70">{creator.bio}</p>
+              // Marked so audits can tell the creator's words from the
+              // platform's: the copy rules are about what the platform says.
+              <p data-testid="creator-bio" className="mt-3 text-sm text-white/70">
+                {creator.bio}
+              </p>
             )}
           </div>
         </section>

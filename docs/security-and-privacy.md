@@ -59,10 +59,22 @@ address `169.254.169.254`), carrier-grade NAT, benchmarking, multicast and bare
 internal hostnames — including the shorthand, hexadecimal and octal encodings
 used to smuggle them past string checks.
 
-A numeric host that this code cannot pin down is refused rather than allowed:
-`010.0.0.1` is octal 8 to one parser and decimal 10 — a private address — to
-another, and a check that has to guess which reader comes next is not a check.
-Mutation testing is what surfaced that gap.
+A numeric host that `isUnsafeHost` cannot pin down is refused rather than
+allowed, including anything zero-padded — `010.0.0.1` is octal 8 to one parser
+and decimal 10 to another, and a check that has to guess which reader comes next
+is not a check.
+
+**This is defence in depth, not a patched hole.** In the submission path the
+host reaching `isUnsafeHost` has already been through `new URL()`, which resolves
+the ambiguity the way browsers and most clients do, and the *resolved* URL is
+what gets stored — `http://012.0.0.1/` becomes `10.0.0.1` and is refused as
+private, `http://0177.0.0.1/` becomes `127.0.0.1` and is refused as loopback.
+The rule exists for any future caller that passes a raw host, where nothing has
+resolved it yet.
+
+What mutation testing did surface was a genuine parser bug next to it:
+`parseIpv4` read `0178` as decimal 178. A leading zero means octal, 8 is not an
+octal digit, and the address is invalid — not a number in a different base.
 
 Percent-decoding happens **per path segment, after splitting**, so `%2F` cannot
 become a path separator and turn one profile's URL into another's.
@@ -132,6 +144,29 @@ caught.
 resubmission; it does not delete payment records, because those are the evidence
 behind money that changed hands. A subject-access or deletion process for
 supporters is **not built** — recorded here as an open item rather than implied.
+
+## Dependencies
+
+`bun audit` reports two moderate advisories, both in **development-only**
+transitive dependencies, and both in tools that never run in a deployed process:
+
+| Advisory | Reaches production? | Why |
+| --- | --- | --- |
+| `qs` DoS, via `@stryker-mutator/core` | No | Mutation testing runs in CI and on a laptop |
+| `esbuild` dev-server request forgery, via `drizzle-kit` | No | Migration generation runs on a laptop; the esbuild dev server is never started |
+
+Neither has a fixed version reachable without changing the tool's own pin, and
+neither is worth pinning around: the fix would be churn against a risk that does
+not exist in this shape.
+
+**What does reach production** is a deliberately short list — Elysia and its
+CORS plugin, Drizzle ORM, Next.js, React, `server-only` and `uqr`. The domain
+package has no runtime dependencies at all. Every provider integration is a
+`fetch` call written here rather than an SDK, which is why there is no payment
+or email SDK on this list.
+
+Re-run `bun audit` before each deploy. An advisory in the production list is a
+different conversation from these two.
 
 ## What this product deliberately does not defend against
 

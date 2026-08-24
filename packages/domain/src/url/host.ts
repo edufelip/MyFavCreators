@@ -136,9 +136,14 @@ export function isUnsafeHost(hostname: string): boolean {
   if (looksNumeric(host)) {
     /*
      * A numeric host is refused unless it parses to a definitely public
-     * address. Zero padding is refused outright: "010.0.0.1" is octal 8 to one
-     * parser and decimal 10 — a private address — to another, and a check that
-     * has to guess which reader comes next is not a check.
+     * address, and anything zero-padded is refused outright: "010.0.0.1" is
+     * octal 8 to one parser and decimal 10 to another.
+     *
+     * Defence in depth rather than a patched hole. Callers that go through
+     * `normalizeCreatorUrl` hand over a hostname `new URL()` has already
+     * resolved, and it is the resolved URL that gets stored — so the ambiguity
+     * is settled before this runs. This is for a caller that passes a raw host,
+     * where nothing has settled it yet.
      */
     if (hasAmbiguousLabel(host)) {
       return true;

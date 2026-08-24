@@ -103,6 +103,41 @@ the profile against resubmission.
 Every response carries `x-request-id`, and every log line produced by that
 request carries the same id. Ask for the id, then grep for it.
 
+## Performance
+
+Measured on a laptop-class machine against a seeded database, then again with
+50,000 confirmed boosts across 147 approved creators — roughly a year of
+moderate traffic.
+
+| Endpoint | 834 boosts | 50,000 boosts |
+| --- | --- | --- |
+| Weekly leaderboard | 3 ms | 17 ms |
+| All-time leaderboard (100) | 8 ms | 101 ms |
+| Creator page (API) | 6 ms | 114 ms |
+| Torcida (all time) | 5 ms | 15 ms |
+| Rotation | 4 ms | 15 ms |
+| Delivery report | 5 ms | 5 ms |
+| Homepage (rendered HTML) | 41 ms | 36 ms |
+
+**The weekly surfaces stay fast because they are windowed**: the period filter
+uses `payments (status, confirmed_at)` and touches only that week's rows. The
+homepage is unaffected by dataset size for the same reason.
+
+**The all-time aggregates scale linearly**, because they genuinely read every
+confirmed boost — a hash join and a hash aggregate, which is the right plan for
+"sum everything". At 50,000 boosts that is about 50 ms of database time; at a
+million it will be about a second.
+
+No index fixes that: an aggregate over every row is a sequential scan by
+definition, and adding indexes would slow every write for no measured gain. The
+fix, when it is needed, is a maintained aggregate — a materialized view of
+all-time scores refreshed on the same schedule as the rollover. **Not built,
+because it is not needed yet**, and building it now would mean a second
+definition of the ranking to keep in step.
+
+The threshold to watch: the all-time leaderboard and the creator page. When
+either passes ~300 ms in production, that is the signal.
+
 ## Before launch
 
 Not done, and not to be assumed done:
@@ -116,3 +151,5 @@ Not done, and not to be assumed done:
       company details.
 - [ ] Rate limits reviewed against real traffic; the defaults in
       `packages/config/src/product.ts` are estimates, not measurements.
+- [ ] A shared rate-limit store if more than one API instance runs: the buckets
+      are per process, so two instances allow twice the configured rate.
