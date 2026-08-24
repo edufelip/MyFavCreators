@@ -31,7 +31,8 @@
     "db:reset": "bun run --filter @creator-outdoor/db db:reset",
     "prepare": "husky || true",
     "admin:hash": "bun run --cwd packages/config ../../scripts/hash-admin-password.ts",
-    "job:weekly-rollover": "bun run --filter @creator-outdoor/api job:weekly-rollover"
+    "job:weekly-rollover": "bun run --filter @creator-outdoor/api job:weekly-rollover",
+    "job:payment-reconcile": "bun run --filter @creator-outdoor/api job:payment-reconcile"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.10",

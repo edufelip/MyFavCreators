@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test:unit": "bun test test/unit",
     "test:integration": "bun test test/integration",
-    "job:weekly-rollover": "bun run src/jobs/weekly-rollover.ts"
+    "job:weekly-rollover": "bun run src/jobs/weekly-rollover.ts",
+    "job:payment-reconcile": "bun run src/jobs/payment-reconciliation.ts"
   },
   "dependencies": {
     "@creator-outdoor/config": "workspace:*",

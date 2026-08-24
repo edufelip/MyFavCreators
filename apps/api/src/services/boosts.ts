@@ -210,6 +210,9 @@ async function rankBeforeThisBoost(
     startsAt: period.startsAt,
     endsAt: period.endsAt,
     amountCents: withoutBoost,
+    // Without this the creator's own post-boost total counts as somebody ahead
+    // of their pre-boost total, and every repeat boost claims a position gained.
+    excludeCreatorId: creatorId,
   });
   return ahead + 1;
 }

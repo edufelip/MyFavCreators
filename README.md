@@ -13,13 +13,15 @@ external engagement. See [`docs/product.md`](docs/product.md).
 
 ## Status
 
-**Phases 1–4 complete.** The public leaderboard, the current #1 billboard, creator pages, the
+**Phases 1–5 complete.** The public leaderboard, the current #1 billboard, creator pages, the
 weekly countdown and the Take #1 calculation are live; creators can be submitted, moderated,
-reported and removed; and the full boost loop runs against a fake PIX provider — checkout with
-QR and copia-e-cola, webhook confirmation, transactional activation, real rank movement and
-refunds. The live loop is closed: fair rotation, the overtake ticker, dynamic share cards,
-heat mode and an idempotent weekly rollover. A production PIX provider arrives in Phase 5; see
-[Phase boundaries](#phase-boundaries).
+reported and removed; and the full boost loop runs end to end — checkout with QR and
+copia-e-cola, webhook confirmation, transactional activation, real rank movement and refunds.
+The live loop is closed: fair rotation, the overtake ticker, dynamic share cards, heat mode and
+an idempotent weekly rollover. Payments run against a real PIX provider when credentials are
+set, with signed webhooks, replay protection and a reconciliation job that recovers payments
+whose webhook never arrived. See [Phase boundaries](#phase-boundaries) for what is still to
+come.
 
 ## Requirements
 
@@ -140,10 +142,26 @@ at Monday 00:07 still closes a period that ended at Monday 00:00.
 
 Production schedules it hourly. Running it more often is harmless.
 
+`bun run job:payment-reconcile` recovers payments whose webhook never arrived. It asks the
+provider about everything still unsettled and routes the answer through the same transition
+service the webhook uses, so a repeat is a no-op and a recovered payment gets the same ticker
+line, history correction and refund a delivered one would. Production schedules it every few
+minutes.
+
+## Payment provider
+
+Without `MERCADO_PAGO_ACCESS_TOKEN` and `MERCADO_PAGO_WEBHOOK_SECRET` the API uses the fake PIX
+provider, so the whole boost flow works locally and in CI with no external account. Setting both
+selects the real provider. A production process with neither refuses to start rather than take
+money through a provider that settles nothing.
+
+Before launch, one real R$5 charge has to be confirmed end to end against a live account. See
+`docs/decisions/0012-pix-provider-selection.md` — it is recorded as an open item, not an
+assumption.
+
 ## Phase boundaries
 
 Not yet implemented:
 
-- A production PIX provider, reconciliation and stuck-payment recovery (Phase 5)
 - The public Torcida, analytics ingestion and dethrone notifications (Phase 6)
 - Creator claiming, Hall da Fama and embeds (Phase 7)

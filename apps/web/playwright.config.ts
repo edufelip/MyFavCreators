@@ -18,7 +18,16 @@ const chromiumExecutable = process.env["PLAYWRIGHT_CHROMIUM_EXECUTABLE"];
  */
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  /**
+   * Tests inside one file run in order, files run in parallel.
+   *
+   * The suite drives the real stack against one shared database, and the ranking
+   * is global state: two tests boosting the same creator at once read each
+   * other's money and fail on an assertion that has nothing to do with the code
+   * under test. Files stay isolated from each other because each creates the
+   * creators it touches, so parallelism is kept where it is actually safe.
+   */
+  fullyParallel: false,
   forbidOnly: isCi,
   retries: isCi ? 1 : 0,
   workers: isCi ? 1 : undefined,

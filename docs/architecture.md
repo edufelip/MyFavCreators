@@ -209,6 +209,30 @@ exercises the same authentication and the same idempotency as production. Its si
 are mounted only outside production, and the guard lives in `createApp` rather than in the route
 file, so a future refactor cannot mount them by accident.
 
+`MercadoPagoPixProvider` is the production adapter (ADR 0012). It authenticates webhooks with the
+provider's `x-signature` manifest — HMAC over `id`, `x-request-id` and the timestamp, compared in
+constant time, with a five-minute freshness window so a captured delivery cannot be replayed
+later or aimed at a different payment. A verified notification is still only a *hint*: the
+adapter re-reads the payment from the provider's API and reports that status, so a body that
+someone managed to forge past the signature check still cannot confirm a payment that did not
+settle. An unrecognised provider status maps to `null` and is dropped rather than guessed at.
+
+`resolvePaymentProvider` picks between them. Credentials present selects the real provider; their
+absence selects the fake one, so a missing external credential never blocks local work or CI. A
+**production** process without credentials is a misconfiguration rather than a fallback and
+refuses to start: charging real money through a provider that settles nothing would be selling a
+promotion no bank ever confirms.
+
+**Reconciliation** (`bun run job:payment-reconcile`) asks the provider about every payment still
+`CREATED` or `PENDING` and older than a few minutes, then feeds the answer through the same
+transition service the webhook uses and the same follow-ups. Webhooks get lost — a delivery times
+out, a deploy drops one — and without this a customer who really paid watches a spinner forever.
+There is deliberately no second state machine and no second set of consequences: a recovered
+payment produces the ticker line, the corrected history and the refund a delivered one would
+have. Repeating it is a no-op for the same reason a replayed webhook is: the event fingerprint is
+unique. A provider failure on one payment is counted and skipped, leaving that payment a
+candidate for the next run.
+
 Exactly-once processing, the payment state machine and the boost lifecycle are described in
 ADR 0008. The short version: lock the payment row, claim the event fingerprint against a unique
 index, validate the transition, then move payment and boost together in one transaction.
@@ -236,6 +260,13 @@ Hall da Fama shows financially active boosts, not stale history.
 
 **The overtake ticker** is written after the payment transaction commits, never inside it. A
 failure there costs a ticker line, never a correct payment or a correct ranking.
+
+Both the ticker and the success screen reconstruct the position a creator held *before* a boost
+by subtracting that boost from their current score and re-reading the ranking. The creator
+themselves is excluded from that count: their own post-boost total is always above their
+pre-boost total, and counting it would place them one rung behind where they actually stood —
+inventing a climb for a boost that moved nobody. This product sells prominence, so a screen that
+overstates the position money bought is not a cosmetic bug.
 
 **Live refresh** re-runs the server render on an interval (ADR 0011), pausing to a slow
 heartbeat while the tab is hidden.

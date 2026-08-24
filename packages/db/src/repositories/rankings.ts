@@ -176,6 +176,15 @@ export type ScoreAboveQuery = {
   readonly startsAt: Date;
   readonly endsAt: Date;
   readonly amountCents: number;
+  /**
+   * Left out of the count entirely.
+   *
+   * Callers reconstructing a creator's own position before a boost must pass
+   * that creator: their *current* total is always above their pre-boost total,
+   * so counting them would place them one rung ahead of themselves and invent a
+   * climb they never made.
+   */
+  readonly excludeCreatorId?: string;
 };
 
 /**
@@ -206,7 +215,14 @@ export async function countCreatorsWithScoreAbove(
       from contribution
       group by creator_id
     )
-    select count(*)::int as ahead from score where amount_cents > ${query.amountCents}
+    select count(*)::int as ahead
+    from score
+    where amount_cents > ${query.amountCents}
+      and ${
+        query.excludeCreatorId === undefined
+          ? sql`true`
+          : sql`creator_id <> ${query.excludeCreatorId}`
+      }
   `);
   return requireInteger(requireRecord(result[0]), "ahead");
 }

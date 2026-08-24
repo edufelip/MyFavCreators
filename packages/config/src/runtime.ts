@@ -29,6 +29,15 @@ const apiEnvSchema = z.object({
   fanIdentitySecret: z.string().min(32, "FAN_IDENTITY_SECRET must be at least 32 characters"),
   webOrigin: originSchema.default("http://localhost:3000"),
   adminOrigin: originSchema.default("http://localhost:3002"),
+  /**
+   * Production PIX credentials.
+   *
+   * Optional on purpose: a missing external credential must never block local
+   * development or CI, so their absence selects the fake provider. A production
+   * process without them refuses to start; see `resolvePaymentProvider`.
+   */
+  mercadoPagoAccessToken: z.string().min(1).optional(),
+  mercadoPagoWebhookSecret: z.string().min(16).optional(),
 });
 
 export type ApiConfig = z.infer<typeof apiEnvSchema> & {
@@ -49,6 +58,8 @@ export function parseApiConfig(env: EnvSource): ApiConfig {
       fanIdentitySecret: env["FAN_IDENTITY_SECRET"],
       webOrigin: env["WEB_ORIGIN"],
       adminOrigin: env["ADMIN_ORIGIN"],
+      mercadoPagoAccessToken: env["MERCADO_PAGO_ACCESS_TOKEN"],
+      mercadoPagoWebhookSecret: env["MERCADO_PAGO_WEBHOOK_SECRET"],
     },
     "apps/api",
   );

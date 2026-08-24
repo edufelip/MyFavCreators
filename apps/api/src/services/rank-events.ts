@@ -40,7 +40,13 @@ export async function recordOvertakes(
   const rankBefore =
     amountBefore <= 0
       ? null
-      : (await countCreatorsWithScoreAbove(database, { ...window, amountCents: amountBefore })) + 1;
+      : (await countCreatorsWithScoreAbove(database, {
+          ...window,
+          amountCents: amountBefore,
+          // The creator's own new total is not a rival standing ahead of their
+          // old one; counting it would post an overtake that never happened.
+          excludeCreatorId: input.creatorId,
+        })) + 1;
 
   // Entering the ranking is not an overtake, and neither is standing still.
   if (rankBefore === null || rankBefore <= standing.rank) {

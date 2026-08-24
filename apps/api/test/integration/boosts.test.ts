@@ -107,6 +107,47 @@ async function providerPaymentIdFor(paymentId: string): Promise<string> {
   return String(row?.["provider_payment_id"] ?? "");
 }
 
+/** A second approved creator, so the ranking has someone to move against. */
+async function insertRival(slug = "rival") {
+  const category = await insertCategory(testDatabase.db, { slug: "outros", name: "Outros" });
+  return insertCreator(testDatabase.db, {
+    categoryId: category.id,
+    slug,
+    moderationStatus: "APPROVED",
+  });
+}
+
+/** Opens a checkout for an already-existing creator and confirms it. */
+async function confirmBoostFor(slug: string, amountCents: number, eventId: string) {
+  const checkout = parseContract(
+    CheckoutDto,
+    (await post("/v1/boosts", {
+      creatorSlug: slug,
+      amountCents,
+      supporterKey: `${slug}-${amountCents}`,
+    }).then((response) => response.json())) as unknown,
+    "Checkout",
+  );
+  await deliverWebhook({
+    eventId,
+    providerPaymentId: await providerPaymentIdFor(checkout.paymentId),
+    status: "CONFIRMED",
+  });
+  return checkout.paymentId;
+}
+
+async function confirmMyBoost(amountCents: number, eventId: string) {
+  return confirmBoostFor(creatorSlug, amountCents, eventId);
+}
+
+async function paymentStatus(paymentId: string) {
+  return parseContract(
+    PaymentStatusResponseDto,
+    await (await call(`/v1/payments/${paymentId}/status`)).json(),
+    "PaymentStatusResponse",
+  );
+}
+
 async function weeklyEntries() {
   const payload = parseContract(
     LeaderboardResponseDto,
@@ -341,6 +382,41 @@ describe("payment confirmation", () => {
     // Entered the ranking at #2 rather than reaching #1.
     expect(status.movement?.toRank).toBe(2);
     expect(status.movement?.fromRank).toBeNull();
+  });
+
+  test("never invents a climb for a boost that moved nobody", async () => {
+    // The most dangerous thing this screen could do is tell someone their money
+    // bought a position it did not buy. A second boost that leaves the creator
+    // exactly where they were has to say so.
+    await insertRival();
+    await confirmBoostFor("rival", 10_000, "evt-rival-still");
+    await confirmMyBoost(3_000, "evt-mine-first");
+    const second = await confirmMyBoost(2_000, "evt-mine-second");
+
+    const status = await paymentStatus(second);
+    expect(status.movement).toEqual({
+      fromRank: 2,
+      toRank: 2,
+      positionsGained: 0,
+      direction: "NONE",
+    });
+  });
+
+  test("counts the positions a repeat customer actually gained", async () => {
+    await insertRival();
+    await confirmBoostFor("rival", 10_000, "evt-rival-passed");
+    await confirmMyBoost(3_000, "evt-mine-entry");
+    const winning = await confirmMyBoost(9_000, "evt-mine-winning");
+
+    // Second to first: one position, not two. The creator's own new total is
+    // not somebody standing ahead of their old one.
+    const status = await paymentStatus(winning);
+    expect(status.movement).toEqual({
+      fromRank: 2,
+      toRank: 1,
+      positionsGained: 1,
+      direction: "UP",
+    });
   });
 });
 
