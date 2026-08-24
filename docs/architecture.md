@@ -213,6 +213,11 @@ a new ADR rather than as a silent change.
   Phase 3 rather than linking nowhere. `VER PERFIL` and the `Regras` navigation item are
   omitted entirely until the creator page and the rules page exist, so the Phase 1 homepage
   contains no dead links.
+- **Preinstalled browsers.** `playwright.config.ts` honours an optional
+  `PLAYWRIGHT_CHROMIUM_EXECUTABLE` for environments that already ship a Chromium build
+  (containers, air-gapped runners); it is declared in `turbo.json` because Turborepo runs tasks
+  in strict environment mode. CI installs the browser Playwright pins instead and needs no
+  override.
 - **Graphify.** The published `graphify` npm package is a random-graph generator, not the
   AST knowledge-graph tool the specification refers to, so no dependency was invented. When the
   correct CLI is available, add a root `graphify` script that writes to `graphify-out/`, which
