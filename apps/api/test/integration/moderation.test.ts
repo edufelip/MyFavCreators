@@ -31,6 +31,7 @@ const app = createApp({
   product: PRODUCT_DEFAULTS,
   allowedOrigins: ["http://localhost:3000"],
   adminApiSecret: ADMIN_SECRET,
+  fanIdentitySecret: "um-segredo-de-identidade-de-fa-com-32-bytes",
   rateLimiter,
   now: () => NOW,
 });

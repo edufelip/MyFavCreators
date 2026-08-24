@@ -13,9 +13,11 @@ external engagement. See [`docs/product.md`](docs/product.md).
 
 ## Status
 
-**Phases 1–2 complete.** The public leaderboard, the current #1 billboard, creator pages, the
-weekly countdown and the Take #1 calculation are live, and creators can be submitted,
-moderated, reported and removed. There is no payment flow yet; see
+**Phases 1–3 complete.** The public leaderboard, the current #1 billboard, creator pages, the
+weekly countdown and the Take #1 calculation are live; creators can be submitted, moderated,
+reported and removed; and the full boost loop runs against a fake PIX provider — checkout with
+QR and copia-e-cola, webhook confirmation, transactional activation, real rank movement and
+refunds. A production PIX provider arrives in Phase 5; see
 [Phase boundaries](#phase-boundaries).
 
 ## Requirements
@@ -111,14 +113,28 @@ The browser only ever talks to the admin Next.js server. Every mutation is a ser
 call into the API's `/internal/admin/*` surface, authenticated with `ADMIN_API_SECRET`, which
 the browser never receives.
 
+## Trying the boost flow locally
+
+The fake PIX provider settles nothing, and its simulation surface is mounted **only** outside
+production:
+
+```bash
+# Start a boost from the UI, then read its provider payment id:
+curl localhost:3001/dev/pix/lookup/<paymentId>
+
+# Settle it the way a provider would (CONFIRMED, FAILED, EXPIRED, REFUNDED, ...):
+curl -X POST localhost:3001/dev/pix/<providerPaymentId>/CONFIRMED
+```
+
+The simulation delivers a properly signed webhook to the real webhook route, so the local flow
+exercises the same authentication and the same idempotency the production one will.
+
 ## Phase boundaries
 
 Not yet implemented:
 
-- PIX payments, the fake PIX provider, boost creation and checkout (Phase 3)
-- Rotation, sharing, dynamic OG images, the overtake ticker and weekly rollover (Phase 4)
-- The public rules page, which arrives with the boost flow it has to explain
-- Boost calls to action render disabled with an "Em breve" state until Phase 3
-
-The mandatory `<BoostDisclosure />` component already exists with its exact wording so that
-Phase 3 only has to place it on the four surfaces that require it.
+- Rotation and the *Impulsionados agora* feed, dynamic OG images, the overtake ticker and the
+  weekly rollover job (Phase 4)
+- A production PIX provider, reconciliation and stuck-payment recovery (Phase 5)
+- The public Torcida, analytics ingestion and dethrone notifications (Phase 6)
+- Creator claiming, Hall da Fama and embeds (Phase 7)

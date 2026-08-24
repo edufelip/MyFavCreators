@@ -6,6 +6,7 @@ import { parseApiConfig, parseWebConfig } from "../src/runtime";
 const VALID_API_ENV = {
   DATABASE_URL: "postgres://user:pass@localhost:5432/creator_outdoor",
   ADMIN_API_SECRET: "a-server-only-admin-secret",
+  FAN_IDENTITY_SECRET: "um-segredo-de-identidade-de-fa-com-32-bytes",
 };
 
 describe("product configuration", () => {
@@ -77,19 +78,26 @@ describe("product configuration", () => {
 
 describe("api configuration", () => {
   test("fails immediately when the database URL is missing", () => {
-    expect(() => parseApiConfig({ ADMIN_API_SECRET: "a-server-only-admin-secret" })).toThrow(
-      ConfigurationError,
-    );
-    expect(() => parseApiConfig({ ADMIN_API_SECRET: "a-server-only-admin-secret" })).toThrow(
-      /databaseUrl/,
-    );
+    const withoutDatabase = { ...VALID_API_ENV, DATABASE_URL: undefined };
+    expect(() => parseApiConfig(withoutDatabase)).toThrow(ConfigurationError);
+    expect(() => parseApiConfig(withoutDatabase)).toThrow(/databaseUrl/);
   });
 
   test("refuses to boot without a strong internal admin secret", () => {
-    const withoutSecret = { DATABASE_URL: VALID_API_ENV.DATABASE_URL };
+    const withoutSecret = { ...VALID_API_ENV, ADMIN_API_SECRET: undefined };
     expect(() => parseApiConfig(withoutSecret)).toThrow(/adminApiSecret/);
-    expect(() => parseApiConfig({ ...withoutSecret, ADMIN_API_SECRET: "curto" })).toThrow(
+    expect(() => parseApiConfig({ ...VALID_API_ENV, ADMIN_API_SECRET: "curto" })).toThrow(
       /adminApiSecret/,
+    );
+  });
+
+  test("refuses to boot without a strong fan identity secret", () => {
+    // A weak secret would make supporter grouping keys guessable from an email.
+    expect(() => parseApiConfig({ ...VALID_API_ENV, FAN_IDENTITY_SECRET: undefined })).toThrow(
+      /fanIdentitySecret/,
+    );
+    expect(() => parseApiConfig({ ...VALID_API_ENV, FAN_IDENTITY_SECRET: "curto" })).toThrow(
+      /fanIdentitySecret/,
     );
   });
 

@@ -3,6 +3,9 @@ import "server-only";
 import { webConfig } from "@creator-outdoor/config/web";
 import {
   AcknowledgementDto,
+  type CheckoutDto,
+  CheckoutDto as CheckoutSchema,
+  type CreateBoostRequestDto,
   type CreatorDetailDto,
   CreatorDetailDto as CreatorDetailSchema,
   type CreatorReportRequestDto,
@@ -14,6 +17,8 @@ import {
   OptOutChallengeDto as OptOutChallengeSchema,
   type OptOutVerificationResponseDto,
   OptOutVerificationResponseDto as OptOutVerificationSchema,
+  type PaymentStatusResponseDto,
+  PaymentStatusResponseDto as PaymentStatusSchema,
   parseContract,
 } from "@creator-outdoor/contracts";
 import { headers } from "next/headers";
@@ -175,4 +180,46 @@ export function verifyCreatorOptOut(
     OptOutVerificationSchema,
     "OptOutVerificationResponse",
   );
+}
+
+/** Creates a boost and its PIX payment. Never called from a client component. */
+export function createBoost(body: CreateBoostRequestDto): Promise<CheckoutDto> {
+  return postJson("/v1/boosts", body, CheckoutSchema, "Checkout");
+}
+
+/**
+ * Reads the authoritative payment state.
+ *
+ * The checkout screen polls this; what the browser believes about a payment is
+ * never authoritative, and only the API and the provider decide the truth.
+ */
+export async function fetchPaymentStatus(
+  paymentId: string,
+): Promise<PaymentStatusResponseDto | null> {
+  const response = await fetch(
+    new URL(`/v1/payments/${encodeURIComponent(paymentId)}/status`, webConfig.apiOrigin),
+    { headers: { accept: "application/json" }, cache: "no-store" },
+  );
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`Payment status request failed with status ${response.status}`);
+  }
+  return parseContract(PaymentStatusSchema, await response.json(), "PaymentStatusResponse");
+}
+
+/** The stored checkout payload for a payment. */
+export async function fetchCheckout(paymentId: string): Promise<CheckoutDto | null> {
+  const response = await fetch(
+    new URL(`/v1/payments/${encodeURIComponent(paymentId)}/checkout`, webConfig.apiOrigin),
+    { headers: { accept: "application/json" }, cache: "no-store" },
+  );
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`Checkout request failed with status ${response.status}`);
+  }
+  return parseContract(CheckoutSchema, await response.json(), "Checkout");
 }

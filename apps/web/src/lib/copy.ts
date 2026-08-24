@@ -27,6 +27,7 @@ export const copy = {
   nav: {
     ranking: "Ranking",
     submit: "Enviar perfil",
+    rules: "Regras",
   },
 
   cta: {
@@ -34,7 +35,6 @@ export const copy = {
     viewProfile: "VER PERFIL",
     /** The quote is calculated against the ranking at this moment. */
     takeFirstPlace: (amount: string) => `Assuma o #1 por ${amount}`,
-    comingSoon: "Em breve",
   },
 
   /**
@@ -99,6 +99,53 @@ export const copy = {
 
   heatMode: {
     label: "DECIDE HOJE",
+  },
+
+  boostForm: {
+    title: "Impulsione um perfil",
+    creatorLabel: "Perfil",
+    amountLabel: "Valor",
+    customAmount: "Outro valor",
+    quickValues: "Valores rápidos",
+    supporterName: "Seu nome (opcional)",
+    supporterMessage: "Mensagem (opcional)",
+    anonymous: "Impulsionar como Anônimo",
+    email: "E-mail (opcional)",
+    emailHint: "Usado só para o comprovante e para avisos que você pedir.",
+    notifyOnDethrone: "Me avise se este perfil perder o topo",
+    submit: "IMPULSIONAR",
+    submitting: "Gerando PIX...",
+    chooseCreator: "Escolha um perfil no ranking para impulsionar.",
+    failed: "Não foi possível gerar o PIX agora. Tente novamente em instantes.",
+  },
+
+  checkout: {
+    title: "Pague com PIX",
+    scan: "Aponte a câmera do seu banco para o QR Code",
+    copyPaste: "Ou use o PIX copia e cola",
+    copy: "Copiar código",
+    copied: "Código copiado",
+    expiresAt: (time: string) => `O código expira em ${time}`,
+    expired: "Este código PIX expirou. Gere um novo para impulsionar.",
+    waiting: "Aguardando a confirmação do PIX...",
+    waitingHint: "Assim que o banco confirmar, o ranking é atualizado.",
+    failed: "O pagamento não foi concluído.",
+    refunded: "Este pagamento foi estornado.",
+    voided: "O impulso não foi ativado e o valor será devolvido.",
+    backToRanking: "Voltar ao ranking",
+  },
+
+  success: {
+    title: "Impulso confirmado",
+    enteredRanking: (rank: number) => `Entrou no ranking em #${rank}`,
+    share: "Compartilhar",
+    shareCopied: "Texto copiado",
+    seeProfile: "Ver perfil",
+  },
+
+  rules: {
+    title: "Regras",
+    updatedAt: "Estas regras valem para todos os impulsos no Creator Outdoor.",
   },
 
   submission: {

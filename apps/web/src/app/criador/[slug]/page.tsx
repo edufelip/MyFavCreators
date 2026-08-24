@@ -1,6 +1,7 @@
 import { creatorPlatformLabel } from "@creator-outdoor/domain";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { BoostForm } from "@/components/boost-form";
 import { CreatorAvatar } from "@/components/creator-avatar";
 import { CreatorOwnershipPanel } from "@/components/creator-ownership-panel";
 import { SiteHeader } from "@/components/site-header";
@@ -123,15 +124,23 @@ export default async function CreatorPage({ params }: CreatorPageProps) {
           </p>
         )}
 
-        <button
-          type="button"
-          disabled
-          aria-disabled="true"
-          className="w-full cursor-not-allowed rounded-xl bg-amber-400/90 px-5 py-3 text-base font-black uppercase tracking-wide text-neutral-950 opacity-70 sm:w-auto sm:px-10"
+        <section
+          id="impulsionar"
+          aria-label={copy.boostForm.title}
+          className="flex flex-col gap-4 scroll-mt-20"
         >
-          {copy.cta.boost}
-          <span className="ml-2 text-xs font-semibold normal-case">({copy.cta.comingSoon})</span>
-        </button>
+          <h2 className="text-lg font-black tracking-tight text-white">{copy.boostForm.title}</h2>
+          <BoostForm
+            creators={[
+              {
+                slug: creator.slug,
+                displayName: creator.displayName,
+                takeFirstPlaceAmountCents: creator.weekly.takeFirstPlaceAmountCents,
+              },
+            ]}
+            fixedCreatorSlug={creator.slug}
+          />
+        </section>
 
         {creator.links.length === 0 ? null : (
           <section aria-label={copy.creatorPage.links}>

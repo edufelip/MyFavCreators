@@ -29,6 +29,12 @@ export function SiteHeader({ periodEndsAt, countdownLabel }: SiteHeaderProps) {
         >
           {copy.nav.submit}
         </a>
+        <a
+          href="/regras"
+          className="text-sm font-medium text-white/70 transition-colors hover:text-white"
+        >
+          {copy.nav.rules}
+        </a>
         <div className="ml-auto basis-full sm:basis-auto">
           {periodEndsAt !== null && countdownLabel !== null ? (
             <Countdown endsAt={periodEndsAt} initialLabel={countdownLabel} />

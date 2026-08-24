@@ -2,9 +2,14 @@ import type { ProductConfig } from "@creator-outdoor/config";
 import type { Database } from "@creator-outdoor/db";
 import { cors } from "@elysiajs/cors";
 import { Elysia } from "elysia";
+import { FakePixPaymentProvider } from "./payments/fake-pix";
+import type { PixPaymentProvider } from "./payments/provider";
+import { boostRoutes } from "./routes/boosts";
 import { creatorRoutes } from "./routes/creators";
+import { devPixRoutes } from "./routes/dev-pix";
 import { adminRoutes } from "./routes/internal/admin";
 import { rankingRoutes } from "./routes/rankings";
+import { webhookRoutes } from "./routes/webhooks";
 import { RateLimiter } from "./security/rate-limit";
 
 export type CreateAppOptions = {
@@ -14,6 +19,17 @@ export type CreateAppOptions = {
   readonly allowedOrigins: readonly string[];
   /** Server-only shared secret for the internal admin surface. */
   readonly adminApiSecret: string;
+  /** Server-only secret that derives supporter grouping keys. */
+  readonly fanIdentitySecret: string;
+  /** The provider that creates payments. Defaults to the fake PIX provider. */
+  readonly paymentProvider?: PixPaymentProvider;
+  /**
+   * Enables the development-only PIX simulation routes. Never true in
+   * production: the guard lives here rather than in the route, so a route file
+   * cannot accidentally be mounted by a future refactor.
+   */
+  readonly enableDevPixSimulation?: boolean;
+  readonly selfOrigin?: string;
   readonly now?: () => Date;
   readonly rateLimiter?: RateLimiter;
 };
@@ -27,8 +43,17 @@ export type CreateAppOptions = {
  */
 export function createApp(options: CreateAppOptions) {
   const rateLimiter = options.rateLimiter ?? new RateLimiter();
+  const provider =
+    options.paymentProvider ??
+    new FakePixPaymentProvider({
+      expirationMinutes: options.product.fakePixExpirationMinutes,
+      signingSecret: options.fanIdentitySecret,
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
+  const providers = new Map<string, PixPaymentProvider>([[provider.name, provider]]);
+  const selfOrigin = options.selfOrigin ?? "http://localhost:3001";
 
-  return new Elysia()
+  const app = new Elysia()
     .use(
       cors({
         origin: [...options.allowedOrigins],
@@ -70,11 +95,40 @@ export function createApp(options: CreateAppOptions) {
       }),
     )
     .use(
+      boostRoutes({
+        database: options.database,
+        product: options.product,
+        provider,
+        fanIdentitySecret: options.fanIdentitySecret,
+        rateLimiter,
+        ...(options.now === undefined ? {} : { now: options.now }),
+      }),
+    )
+    .use(
+      webhookRoutes({
+        database: options.database,
+        product: options.product,
+        providers,
+        ...(options.now === undefined ? {} : { now: options.now }),
+      }),
+    )
+    .use(
       adminRoutes({
         database: options.database,
         adminApiSecret: options.adminApiSecret,
       }),
     );
+
+  if (options.enableDevPixSimulation === true && provider instanceof FakePixPaymentProvider) {
+    return app.use(
+      devPixRoutes({
+        provider,
+        database: options.database,
+        webhookUrl: new URL(`/v1/webhooks/payments/${provider.name}`, selfOrigin).toString(),
+      }),
+    );
+  }
+  return app;
 }
 
 export type App = ReturnType<typeof createApp>;

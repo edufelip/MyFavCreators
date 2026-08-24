@@ -22,6 +22,11 @@ const apiEnvSchema = z.object({
    * A production deployment must set a real one; the browser never sees it.
    */
   adminApiSecret: z.string().min(16, "ADMIN_API_SECRET must be at least 16 characters"),
+  /**
+   * Derives supporter grouping keys. Rotating it re-partitions the Torcida, so
+   * it is set once per environment and never regenerated casually.
+   */
+  fanIdentitySecret: z.string().min(32, "FAN_IDENTITY_SECRET must be at least 32 characters"),
   webOrigin: originSchema.default("http://localhost:3000"),
   adminOrigin: originSchema.default("http://localhost:3002"),
 });
@@ -41,6 +46,7 @@ export function parseApiConfig(env: EnvSource): ApiConfig {
       port: env["API_PORT"],
       databaseUrl: env["DATABASE_URL"],
       adminApiSecret: env["ADMIN_API_SECRET"],
+      fanIdentitySecret: env["FAN_IDENTITY_SECRET"],
       webOrigin: env["WEB_ORIGIN"],
       adminOrigin: env["ADMIN_ORIGIN"],
     },

@@ -55,15 +55,13 @@ export function Billboard({ leader }: BillboardProps) {
         </div>
       </div>
 
-      <button
-        type="button"
-        disabled
-        aria-disabled="true"
-        className="mt-6 w-full cursor-not-allowed rounded-xl bg-amber-400/90 px-5 py-3 text-base font-black uppercase tracking-wide text-neutral-950 opacity-70 sm:w-auto sm:px-10"
+      <a
+        href={`/criador/${creator.slug}#impulsionar`}
+        data-testid="billboard-boost-cta"
+        className="mt-6 inline-block w-full rounded-xl bg-amber-400 px-5 py-3 text-center text-base font-black uppercase tracking-wide text-neutral-950 sm:w-auto sm:px-10"
       >
         {copy.cta.boost}
-        <span className="ml-2 text-xs font-semibold normal-case">({copy.cta.comingSoon})</span>
-      </button>
+      </a>
     </section>
   );
 }

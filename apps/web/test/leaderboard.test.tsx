@@ -115,7 +115,11 @@ describe("Billboard", () => {
     expect(within(billboard).getByText("R$487")).toBeDefined();
     expect(within(billboard).getByText("Música · YouTube")).toBeDefined();
     expect(within(billboard).getByText(/47 impulsionadores/)).toBeDefined();
-    expect(within(billboard).getByRole("button").textContent).toContain("IMPULSIONAR");
+    // The call to action is a real link into the creator's boost area, not a
+    // disabled placeholder.
+    const cta = within(billboard).getByTestId("billboard-boost-cta");
+    expect(cta.textContent).toBe("IMPULSIONAR");
+    expect(cta.getAttribute("href")).toBe("/criador/luna-verso#impulsionar");
   });
 });
 

@@ -29,6 +29,7 @@ const app = createApp({
   product: PRODUCT_DEFAULTS,
   allowedOrigins: ["http://localhost:3000"],
   adminApiSecret: "integration-admin-secret-value",
+  fanIdentitySecret: "um-segredo-de-identidade-de-fa-com-32-bytes",
   now: () => NOW,
 });
 
@@ -496,6 +497,7 @@ describe("the weekly window is derived from the instant", () => {
       product: PRODUCT_DEFAULTS,
       allowedOrigins: ["http://localhost:3000"],
       adminApiSecret: "integration-admin-secret-value",
+      fanIdentitySecret: "um-segredo-de-identidade-de-fa-com-32-bytes",
       now: () => instant,
     });
   }

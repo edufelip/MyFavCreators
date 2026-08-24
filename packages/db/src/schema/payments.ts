@@ -1,6 +1,12 @@
 import { sql } from "drizzle-orm";
-import { index, integer, jsonb, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import { createdAtColumn, primaryKeyColumn, timestampColumn, updatedAtColumn } from "./columns";
+import { index, integer, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  createdAtColumn,
+  jsonbObject,
+  primaryKeyColumn,
+  timestampColumn,
+  updatedAtColumn,
+} from "./columns";
 import { paymentStatusEnum } from "./enums";
 
 export const payments = pgTable(
@@ -13,7 +19,7 @@ export const payments = pgTable(
     amountCents: integer("amount_cents").notNull(),
     currency: text("currency").notNull().default("BRL"),
     status: paymentStatusEnum("status").notNull().default("CREATED"),
-    rawMetadata: jsonb("raw_metadata").notNull().default(sql`'{}'::jsonb`),
+    rawMetadata: jsonbObject("raw_metadata").notNull().default(sql`'{}'::jsonb`),
     createdAt: createdAtColumn(),
     updatedAt: updatedAtColumn(),
     confirmedAt: timestampColumn("confirmed_at"),
@@ -47,7 +53,7 @@ export const paymentEvents = pgTable(
     eventFingerprint: text("event_fingerprint").notNull(),
     fromStatus: paymentStatusEnum("from_status"),
     toStatus: paymentStatusEnum("to_status").notNull(),
-    payload: jsonb("payload").notNull().default(sql`'{}'::jsonb`),
+    payload: jsonbObject("payload").notNull().default(sql`'{}'::jsonb`),
     createdAt: createdAtColumn(),
   },
   (table) => [

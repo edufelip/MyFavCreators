@@ -171,3 +171,42 @@ export async function getLeaderboardPage(
 
   return { entries, leader, total };
 }
+
+export type ScoreAboveQuery = {
+  readonly startsAt: Date;
+  readonly endsAt: Date;
+  readonly amountCents: number;
+};
+
+/**
+ * How many eligible creators hold strictly more than an amount in a window.
+ *
+ * Used to reconstruct the position a creator held before a specific boost, so
+ * the success screen can show real movement without storing a snapshot that a
+ * later refund would invalidate.
+ */
+export async function countCreatorsWithScoreAbove(
+  executor: DatabaseExecutor,
+  query: ScoreAboveQuery,
+): Promise<number> {
+  const result: unknown[] = await executor.execute(sql`
+    with contribution as (
+      select b.creator_id as creator_id, b.amount_cents as amount_cents
+      from boosts b
+      inner join payments p on p.id = b.payment_id
+      inner join creators c on c.id = b.creator_id and c.moderation_status = 'APPROVED'
+      where b.status = 'ACTIVE'
+        and p.status = 'CONFIRMED'
+        and p.confirmed_at is not null
+        and p.confirmed_at >= ${query.startsAt}
+        and p.confirmed_at < ${query.endsAt}
+    ),
+    score as (
+      select creator_id, sum(amount_cents)::bigint as amount_cents
+      from contribution
+      group by creator_id
+    )
+    select count(*)::int as ahead from score where amount_cents > ${query.amountCents}
+  `);
+  return requireInteger(requireRecord(result[0]), "ahead");
+}

@@ -46,6 +46,10 @@ Public surface:
 | `POST /v1/creators/:slug/reports` | Report a creator (rate limited) |
 | `POST /v1/creators/:slug/opt-out` | Open a removal challenge (rate limited) |
 | `POST /v1/creators/:slug/opt-out/verify` | Complete a removal with proof (rate limited) |
+| `POST /v1/boosts` | Create a boost and its PIX payment (rate limited) |
+| `GET /v1/payments/:id/checkout` | The stored PIX payload for a payment |
+| `GET /v1/payments/:id/status` | Authoritative payment state and real rank movement |
+| `POST /v1/webhooks/payments/:provider` | Provider events, authenticated by the provider |
 
 Internal surface, reached only server-to-server from apps/admin and authorized by
 `ADMIN_API_SECRET` on every route before any handler work:
@@ -186,6 +190,30 @@ colon separators and base64url — because the value lives in an environment fil
 The session is an HMAC-signed, expiring token in an HttpOnly, `SameSite=Strict` cookie owned by
 apps/admin. It carries an issue time, an expiry and a nonce, and no credential at all. Server
 actions validate the request origin in addition to Next.js's own check.
+
+## Payments
+
+A boost and the payment that funds it are created together, both `PENDING`. Nothing about a
+ranking changes until a provider says the money settled: a customer closing the tab, or a
+frontend that decides on its own that a payment worked, cannot move a centavo of anyone's score.
+
+`PixPaymentProvider` is the only thing the rest of the code knows about a provider. Domain logic
+never sees a provider SDK, so choosing a production provider is writing one adapter rather than
+touching the ranking, the boost lifecycle or the payment state machine.
+
+`FakePixPaymentProvider` settles nothing but signs its own webhooks, so the development flow
+exercises the same authentication and the same idempotency as production. Its simulation routes
+are mounted only outside production, and the guard lives in `createApp` rather than in the route
+file, so a future refactor cannot mount them by accident.
+
+Exactly-once processing, the payment state machine and the boost lifecycle are described in
+ADR 0008. The short version: lock the payment row, claim the event fingerprint against a unique
+index, validate the transition, then move payment and boost together in one transaction.
+
+The PIX payload never carries the provider payment id — the payload is pasted into a banking app
+and is effectively public, while the provider payment id is the server-side idempotency and
+lookup key. The checkout screen reads the payload back from the API by payment id rather than
+carrying it in a URL, where it would land in browser history, referrer headers and access logs.
 
 ## Money
 

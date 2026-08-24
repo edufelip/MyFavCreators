@@ -1,106 +1,16 @@
-export {
-  BOOST_STATUSES,
-  type BoostStatus,
-  contributesToRanking,
-  isBoostStatus,
-  isRankableBoostStatus,
-} from "./boost";
-export {
-  allowedModerationTransitions,
-  assertModerationTransition,
-  CLAIM_STATUSES,
-  type ClaimStatus,
-  CREATOR_PLATFORMS,
-  type CreatorPlatform,
-  canTransitionModeration,
-  creatorPlatformLabel,
-  creatorSlugCandidate,
-  formatOwnershipCode,
-  InvalidModerationTransitionError,
-  isCreatorPlatform,
-  isModerationStatus,
-  isPubliclyEligible,
-  isWellFormedOwnershipCode,
-  MODERATION_STATUSES,
-  type ModerationStatus,
-  OWNERSHIP_CODE_ALPHABET,
-  OWNERSHIP_CODE_LENGTH,
-  OWNERSHIP_CODE_PREFIX,
-  REJECTION_REASONS,
-  type RejectionReason,
-  requiresSuppression,
-  SLUG_MAX_LENGTH,
-  slugify,
-  textContainsOwnershipCode,
-  withSlugDiscriminator,
-} from "./creator";
-export {
-  addCents,
-  CURRENCY,
-  type Currency,
-  centsValue,
-  InvalidMoneyError,
-  isMoneyCents,
-  type MoneyCents,
-  maxCents,
-  moneyCents,
-  parseMoneyCents,
-  subtractCents,
-  sumCents,
-  ZERO_CENTS,
-} from "./money";
-export {
-  isPaymentStatus,
-  isRankablePaymentStatus,
-  PAYMENT_STATUSES,
-  type PaymentStatus,
-} from "./payment";
-export {
-  getWeeklyPeriod,
-  isWithinPeriod,
-  millisecondsRemainingInPeriod,
-  RANKING_PERIOD_STATUSES,
-  RANKING_PERIOD_TYPES,
-  type RankingPeriodStatus,
-  type RankingPeriodType,
-  timeZoneOffsetMs,
-  toWallClock,
-  type WallClock,
-  type WeeklyPeriod,
-  wallClockDayOfWeek,
-  wallClockToInstant,
-} from "./periods";
-export {
-  calculateRankMovement,
-  calculateTakeFirstPlace,
-  deriveCurrentScore,
-  deriveCurrentScoreReachedAt,
-  RANK_MOVEMENT_DIRECTIONS,
-  type RankableCreator,
-  type Ranked,
-  type RankMovement,
-  type RankMovementDirection,
-  rankCreators,
-  type ScoreContribution,
-  type TakeFirstPlaceInput,
-  type TakeFirstPlaceQuoteInput,
-  takeFirstPlaceQuote,
-} from "./ranking";
-export { calculateRotationWindow, isRotationActive, type RotationWindow } from "./rotation";
-export {
-  ANONYMOUS_SUPPORTER_DISPLAY_NAME,
-  resolveSupporterDisplayName,
-  type SupporterDisplayInput,
-} from "./supporter";
-export {
-  type CreatorUrlResult,
-  isUnsafeHost,
-  matchPlatform,
-  type NormalizedCreatorUrl,
-  normalizeCreatorUrl,
-  type PlatformMatch,
-  parseIpv4,
-  type RejectedCreatorUrl,
-  URL_REJECTION_REASONS,
-  type UrlRejectionReason,
-} from "./url";
+/**
+ * The domain package's public surface.
+ *
+ * Re-exported wholesale from each area rather than as a hand-maintained list:
+ * a curated barrel silently drops symbols whenever the list is edited, and the
+ * only signal is a build failure somewhere else in the monorepo.
+ */
+export * from "./boost";
+export * from "./creator";
+export * from "./money";
+export * from "./payment";
+export * from "./periods";
+export * from "./ranking";
+export * from "./rotation";
+export * from "./supporter";
+export * from "./url";

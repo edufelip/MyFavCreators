@@ -1,6 +1,7 @@
 import { webConfig } from "@creator-outdoor/config/web";
 import { getWeeklyPeriod, millisecondsRemainingInPeriod } from "@creator-outdoor/domain";
 import { Billboard } from "@/components/billboard";
+import { BoostForm, type BoostFormCreator } from "@/components/boost-form";
 import { Leaderboard } from "@/components/leaderboard";
 import { SiteHeader } from "@/components/site-header";
 import { loadLeaderboard, type RankingTab } from "@/lib/api";
@@ -47,6 +48,16 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   const leader = weekly.ok ? weekly.data.leader : null;
 
+  // The boost form offers the creators currently on the leaderboard, each with
+  // the Take #1 quote calculated by the API at this instant.
+  const boostableCreators: BoostFormCreator[] = (weekly.ok ? weekly.data.entries : []).map(
+    (entry) => ({
+      slug: entry.creator.slug,
+      displayName: entry.creator.displayName,
+      takeFirstPlaceAmountCents: entry.takeFirstPlaceAmountCents,
+    }),
+  );
+
   return (
     <>
       <SiteHeader periodEndsAt={period.endsAt.toISOString()} countdownLabel={countdownLabel} />
@@ -60,6 +71,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </section>
 
         {leader === null ? null : <Billboard leader={leader} />}
+
+        {boostableCreators.length === 0 ? null : (
+          <section aria-label={copy.boostForm.title} className="flex flex-col gap-4">
+            <h2 className="text-lg font-black tracking-tight text-white">{copy.boostForm.title}</h2>
+            <BoostForm creators={boostableCreators} />
+          </section>
+        )}
 
         <Leaderboard
           tab={tab}

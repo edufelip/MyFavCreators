@@ -91,3 +91,30 @@ export function optionalEnum<const TValues extends readonly string[]>(
   const value = row[key];
   return value === null || value === undefined ? null : requireEnum(row, key, allowed);
 }
+
+/**
+ * Reads a `jsonb` column from a raw SQL result.
+ *
+ * Drizzle's query builder parses `jsonb` for you, but `execute` with a raw
+ * statement hands the column back as a JSON *string*. Treating the two paths
+ * alike here means a repository that switches between them cannot silently
+ * start seeing `{}` where it expected data.
+ */
+export function readJsonObject(row: Record<string, unknown>, key: string): Record<string, unknown> {
+  const value = row[key];
+  if (isRecord(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      return isRecord(parsed) ? parsed : {};
+    } catch {
+      throw new DatabaseRowError(`Column "${key}" is not valid JSON`);
+    }
+  }
+  if (value === null || value === undefined) {
+    return {};
+  }
+  throw new DatabaseRowError(`Column "${key}" should be a JSON object`);
+}

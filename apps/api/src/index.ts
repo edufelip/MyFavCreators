@@ -7,6 +7,10 @@ const app = createApp({
   product: apiConfig.product,
   allowedOrigins: apiConfig.corsAllowedOrigins,
   adminApiSecret: apiConfig.adminApiSecret,
+  fanIdentitySecret: apiConfig.fanIdentitySecret,
+  // The PIX simulation surface never exists in a production process.
+  enableDevPixSimulation: !apiConfig.isProduction,
+  selfOrigin: `http://localhost:${apiConfig.port}`,
 });
 
 app.listen(apiConfig.port);
