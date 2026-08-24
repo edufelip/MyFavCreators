@@ -20,7 +20,7 @@ import {
   isPubliclyEligible,
   validateImpressionBatch,
 } from "@creator-outdoor/domain";
-import { describeErrorMessage } from "../observability/errors";
+import { log } from "../observability/logger";
 
 /**
  * Delivery measurement.
@@ -87,9 +87,7 @@ export async function resolveOutboundClick(
         referrer: input.referrer,
       }));
   } catch (error) {
-    console.error("outbound_click_not_recorded", {
-      message: describeErrorMessage(error),
-    });
+    log.error("outbound_click_not_recorded", error);
   }
 
   return { url: target.url, creatorSlug: target.creatorSlug, counted };

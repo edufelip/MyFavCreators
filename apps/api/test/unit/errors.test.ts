@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { describeError, describeErrorMessage } from "../../src/observability/errors";
+import { describeError } from "../../src/observability/errors";
 
 describe("describing an error for a log", () => {
   test("keeps the name and the message of an ordinary error", () => {
@@ -66,9 +66,5 @@ describe("describing an error for a log", () => {
     }
     // Bounded on purpose; what matters is that it terminates and says something.
     expect(describeError(error).message.length).toBeGreaterThan(0);
-  });
-
-  test("offers a one-line form for a log field that takes a string", () => {
-    expect(describeErrorMessage(new TypeError("nope"))).toBe("TypeError: nope");
   });
 });

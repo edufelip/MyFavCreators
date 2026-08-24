@@ -21,6 +21,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:unit": "turbo run test:unit",
+    "test:mutation": "bun run --cwd packages/domain test:mutation",
     "test:integration": "turbo run test:integration",
     "test:e2e": "turbo run test:e2e",
     "db:up": "docker compose up -d postgres",

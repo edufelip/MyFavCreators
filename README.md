@@ -13,7 +13,7 @@ external engagement. See [`docs/product.md`](docs/product.md).
 
 ## Status
 
-**Phases 1–7 complete.** The public leaderboard, the current #1 billboard, creator pages, the
+**Phases 1–8 complete.** The public leaderboard, the current #1 billboard, creator pages, the
 weekly countdown and the Take #1 calculation are live; creators can be submitted, moderated,
 reported and removed; and the full boost loop runs end to end — checkout with QR and
 copia-e-cola, webhook confirmation, transactional activation, real rank movement and refunds.
@@ -24,7 +24,9 @@ whose webhook never arrived. Creator pages carry the Torcida, delivery is measur
 impressions and tracked outbound clicks, and supporters who leave an address hear when the
 creator they follow loses the top spot. Creators can claim their own profile with a code in the
 bio, edit it, read their delivery numbers, embed a rank badge and appear in the Hall da Fama.
-See [Phase boundaries](#phase-boundaries) for what is still to come.
+Logging is
+structured and correlated by request id, the domain rules are mutation-tested, and the public
+pages pass a WCAG 2.1 AA scan. See [Phase boundaries](#phase-boundaries) for the open items.
 
 ## Requirements
 
@@ -109,6 +111,15 @@ bun run test:e2e                      # builds apps/web, boots the stack, drives
 Integration tests run against a real PostgreSQL database and never mock it: ranking rules
 live partly in SQL and in database constraints, which a fake would not exercise.
 
+## Mutation and accessibility
+
+`bun run test:mutation` mutates the domain rules where a wrong answer costs money or exposes
+somebody, and fails under 80%. It is what surfaced that a zero-padded numeric host could be
+read as octal here and decimal by whatever resolves it later.
+
+The accessibility scan runs inside the Playwright suite (`e2e/accessibility.spec.ts`) against
+the real rendered pages, at WCAG 2.1 A and AA.
+
 ## Administration
 
 `apps/admin` on port 3002 owns the administrator session. Sign in with the password whose
@@ -182,13 +193,18 @@ Before launch, one real R$5 charge has to be confirmed end to end against a live
 `docs/decisions/0012-pix-provider-selection.md` — it is recorded as an open item, not an
 assumption.
 
+## Documentation
+
+| Document | What it answers |
+| --- | --- |
+| [`docs/product.md`](docs/product.md) | What the product is, and the business rules it may never break |
+| [`docs/domain-model.md`](docs/domain-model.md) | The ubiquitous language, the bounded contexts, the aggregates and their invariants |
+| [`docs/architecture.md`](docs/architecture.md) | How it is built, and why each decision went the way it did |
+| [`docs/operations.md`](docs/operations.md) | Running it: processes, backups, the runbook |
+| [`docs/security-and-privacy.md`](docs/security-and-privacy.md) | What it defends against, and what it knows about people |
+| [`docs/decisions/`](docs/decisions/) | One file per decision, in order |
+
 ## Phase boundaries
-
-Not yet implemented:
-
-- Hardening: structured logging with request ids, error tracking, a backup and restore
-  strategy, mutation testing and the performance, accessibility, SEO and privacy audits
-  (Phase 8)
 
 Recorded as open items rather than assumed done:
 

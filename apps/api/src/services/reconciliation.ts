@@ -2,7 +2,7 @@ import type { ProductConfig } from "@creator-outdoor/config";
 import { type Database, listUnsettledPayments } from "@creator-outdoor/db";
 import { isTerminalPaymentStatus } from "@creator-outdoor/domain";
 import type { EmailProvider } from "../email/provider";
-import { describeErrorMessage } from "../observability/errors";
+import { log } from "../observability/logger";
 import { PaymentProviderError, type PixPaymentProvider } from "../payments/provider";
 import { runPaymentFollowUps } from "./payment-follow-ups";
 import { applyPaymentEvent, type PaymentEventOutcome } from "./payment-transitions";
@@ -84,9 +84,8 @@ export async function reconcilePayments(
       });
     } catch (error) {
       failed += 1;
-      console.error("reconciliation_failed", {
+      log.error("reconciliation_failed", error, {
         provider: provider.name,
-        message: describeErrorMessage(error),
         recoverable: !(error instanceof PaymentProviderError),
       });
       continue;
@@ -105,7 +104,7 @@ export async function reconcilePayments(
         outcome,
         options.now,
       );
-      console.info("reconciliation_applied", {
+      log.info("reconciliation_applied", {
         provider: provider.name,
         from: outcome.from,
         to: outcome.to,

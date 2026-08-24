@@ -1,4 +1,5 @@
 import { redactEmail } from "@creator-outdoor/domain";
+import { log } from "../observability/logger";
 import type { EmailMessage, EmailProvider } from "./provider";
 
 /**
@@ -19,7 +20,7 @@ export class ConsoleEmailProvider implements EmailProvider {
 
   send(message: EmailMessage): Promise<void> {
     this.delivered.push(message);
-    console.info("email_sent", {
+    log.info("email_sent", {
       provider: this.name,
       to: redactEmail(message.to),
       subject: message.subject,

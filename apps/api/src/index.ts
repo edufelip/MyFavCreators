@@ -2,6 +2,7 @@ import { apiConfig } from "@creator-outdoor/config/api";
 import { createApp } from "./app";
 import { database } from "./database";
 import { resolveEmailProvider } from "./email/resolve";
+import { log } from "./observability/logger";
 import { resolvePaymentProvider } from "./payments/resolve";
 
 const app = createApp({
@@ -20,4 +21,4 @@ const app = createApp({
 
 app.listen(apiConfig.port);
 
-console.info(`Creator Outdoor API listening on http://localhost:${apiConfig.port}`);
+log.info(`Creator Outdoor API listening on http://localhost:${apiConfig.port}`);

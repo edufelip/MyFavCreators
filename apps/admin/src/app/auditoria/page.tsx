@@ -21,7 +21,7 @@ export default async function AuditPage() {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[40rem] text-left text-sm">
-            <thead className="text-xs uppercase tracking-wide text-white/40">
+            <thead className="text-xs uppercase tracking-wide text-white/55">
               <tr>
                 <th className="py-2 pr-4">{adminCopy.audit.when}</th>
                 <th className="py-2 pr-4">{adminCopy.audit.actor}</th>

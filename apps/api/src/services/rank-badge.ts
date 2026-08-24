@@ -11,7 +11,7 @@ import {
   hourBucket,
   isPubliclyEligible,
 } from "@creator-outdoor/domain";
-import { describeErrorMessage } from "../observability/errors";
+import { log } from "../observability/logger";
 
 export type RankBadge = {
   readonly svg: string;
@@ -58,9 +58,7 @@ export async function renderRankBadge(
         entries: [{ creatorId: creator.id, surface: "EMBED" }],
       });
     } catch (error) {
-      console.error("embed_impression_failed", {
-        message: describeErrorMessage(error),
-      });
+      log.error("embed_impression_failed", error);
     }
   }
 

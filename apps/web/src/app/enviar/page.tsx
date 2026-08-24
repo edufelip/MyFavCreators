@@ -14,7 +14,7 @@ export default function SubmitPage() {
   return (
     <>
       <SiteHeader periodEndsAt={null} countdownLabel={null} />
-      <main className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-10">
+      <main id="conteudo" className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-10">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-white">{copy.submission.title}</h1>
           <p className="mt-2 text-sm text-white/60">{copy.submission.intro}</p>

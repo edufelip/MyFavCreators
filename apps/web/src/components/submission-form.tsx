@@ -28,7 +28,7 @@ export function SubmissionForm() {
         aria-describedby="url-hint"
         className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-base text-white outline-none focus:border-amber-300"
       />
-      <p id="url-hint" className="text-xs text-white/40">
+      <p id="url-hint" className="text-xs text-white/55">
         {copy.submission.urlHint}
       </p>
 

@@ -41,7 +41,7 @@ export function Billboard({ leader }: BillboardProps) {
               {formatHandle(creator.primaryHandle, creator.primaryPlatform)}
             </p>
           ) : null}
-          <p className="mt-1 text-xs uppercase tracking-wide text-white/50 sm:text-sm">
+          <p className="mt-1 text-xs uppercase tracking-wide text-white/60 sm:text-sm">
             {[creator.category.name, platform].filter((value) => value !== null).join(" · ")}
           </p>
 

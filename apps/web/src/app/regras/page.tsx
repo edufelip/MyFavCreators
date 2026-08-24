@@ -34,7 +34,7 @@ export default function RulesPage() {
   return (
     <>
       <SiteHeader periodEndsAt={null} countdownLabel={null} />
-      <main className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-4 py-10">
+      <main id="conteudo" className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-4 py-10">
         <header className="flex flex-col gap-3">
           <h1 className="text-3xl font-black tracking-tight text-white">{copy.rules.title}</h1>
           <p className="text-sm text-white/60">{copy.rules.updatedAt}</p>

@@ -36,6 +36,8 @@ import {
   RankEventListDto as RankEventListSchema,
   type RotationResponseDto,
   RotationResponseDto as RotationSchema,
+  type SitemapDto,
+  SitemapDto as SitemapSchema,
   type TorcidaDto,
   TorcidaDto as TorcidaSchema,
   type UnsubscribeResponseDto,
@@ -334,6 +336,22 @@ export async function setCreatorNotifications(
   if (!response.ok && response.status !== 401) {
     throw new Error(`Notification preference failed with status ${response.status}`);
   }
+}
+
+/** Every profile a sitemap may list. Only APPROVED creators come back. */
+export async function fetchSitemapEntries(limit = 5_000): Promise<SitemapDto> {
+  const url = new URL("/v1/creators/sitemap", webConfig.apiOrigin);
+  url.searchParams.set("limit", String(limit));
+  const response = await fetch(url, {
+    headers: { accept: "application/json" },
+    // A sitemap is read by crawlers, not by people; an hour stale is fine and
+    // keeps a crawl from becoming a load test.
+    next: { revalidate: 3_600 },
+  });
+  if (!response.ok) {
+    throw new Error(`Sitemap request failed with status ${response.status}`);
+  }
+  return parseContract(SitemapSchema, await response.json(), "Sitemap");
 }
 
 /** Past weekly champions, most recent first. */

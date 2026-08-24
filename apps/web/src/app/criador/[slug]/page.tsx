@@ -72,7 +72,7 @@ export default async function CreatorPage({ params }: CreatorPageProps) {
     <>
       <SiteHeader periodEndsAt={creator.period.endsAt} countdownLabel={countdownLabel} />
 
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-16 pt-6">
+      <main id="conteudo" className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-16 pt-6">
         <section className="flex items-start gap-4 sm:gap-6">
           <CreatorAvatar
             displayName={creator.displayName}
@@ -96,7 +96,7 @@ export default async function CreatorPage({ params }: CreatorPageProps) {
                 {formatHandle(primary.handle, primary.platform)}
               </p>
             )}
-            <p className="mt-1 text-xs uppercase tracking-wide text-white/50">
+            <p className="mt-1 text-xs uppercase tracking-wide text-white/60">
               {[
                 creator.category.name,
                 primary === undefined ? null : creatorPlatformLabel(primary.platform),
@@ -167,7 +167,7 @@ export default async function CreatorPage({ params }: CreatorPageProps) {
 
         {creator.links.length === 0 ? null : (
           <section aria-label={copy.creatorPage.links}>
-            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-white/50">
+            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-white/60">
               {copy.creatorPage.links}
             </h2>
             <ul className="flex flex-wrap gap-2">
@@ -208,7 +208,7 @@ function Stat({
 }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-      <p className="text-xs uppercase tracking-wide text-white/40">{label}</p>
+      <p className="text-xs uppercase tracking-wide text-white/55">{label}</p>
       <p data-testid={testId} className="mt-1 text-lg font-black tabular-nums text-white">
         {value}
       </p>

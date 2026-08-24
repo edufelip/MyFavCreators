@@ -55,7 +55,7 @@ export function CreatorManagePanel({ dashboard, webOrigin }: CreatorManagePanelP
       className="flex flex-col gap-6"
     >
       <section className={PANEL_CLASS} aria-label={copy.manage.ranking}>
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-white/50">
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-white/60">
           {copy.manage.ranking}
         </h2>
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -88,7 +88,7 @@ export function CreatorManagePanel({ dashboard, webOrigin }: CreatorManagePanelP
       </section>
 
       <section className={PANEL_CLASS} aria-label={copy.manage.delivery}>
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-white/50">
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-white/60">
           {copy.manage.delivery}
         </h2>
         <dl className="grid grid-cols-3 gap-3">
@@ -147,7 +147,7 @@ export function CreatorManagePanel({ dashboard, webOrigin }: CreatorManagePanelP
       </section>
 
       <section className={PANEL_CLASS} aria-label={copy.manage.notifications}>
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-white/50">
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-white/60">
           {copy.manage.notifications}
         </h2>
         <form action={saveNotifications} className="flex flex-col gap-3">
@@ -189,7 +189,7 @@ export function CreatorManagePanel({ dashboard, webOrigin }: CreatorManagePanelP
       </section>
 
       <section className={PANEL_CLASS} aria-label={copy.manage.embed}>
-        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-white/50">
+        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-white/60">
           {copy.manage.embed}
         </h2>
         <p className="mb-2 text-sm text-white/60">{copy.manage.embedHelp}</p>
@@ -225,7 +225,7 @@ function Stat({
 }) {
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wide text-white/40">{label}</dt>
+      <dt className="text-xs uppercase tracking-wide text-white/55">{label}</dt>
       <dd data-testid={testId} className="mt-1 text-lg font-black tabular-nums text-white">
         {value}
       </dd>

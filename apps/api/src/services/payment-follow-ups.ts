@@ -1,7 +1,7 @@
 import type { ProductConfig } from "@creator-outdoor/config";
 import type { Database } from "@creator-outdoor/db";
 import type { EmailProvider } from "../email/provider";
-import { describeErrorMessage } from "../observability/errors";
+import { log } from "../observability/logger";
 import type { PixPaymentProvider } from "../payments/provider";
 import { notifyDethrone, subscribeToDethrone } from "./notifications";
 import type { PaymentEventOutcome } from "./payment-transitions";
@@ -118,7 +118,7 @@ async function attemptValue<TValue>(
   try {
     return await work();
   } catch (error) {
-    console.error(label, { message: describeErrorMessage(error) });
+    log.error(label, error);
     return null;
   }
 }

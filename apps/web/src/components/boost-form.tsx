@@ -109,7 +109,7 @@ export function BoostForm({ creators, fixedCreatorSlug }: BoostFormProps) {
           )}
         </div>
 
-        <label htmlFor={`${fieldId}-custom`} className="mt-1 text-xs text-white/50">
+        <label htmlFor={`${fieldId}-custom`} className="mt-1 text-xs text-white/60">
           {copy.boostForm.customAmount}
         </label>
         <input
@@ -181,7 +181,7 @@ export function BoostForm({ creators, fixedCreatorSlug }: BoostFormProps) {
               data-testid="boost-email"
               className={FIELD_CLASS}
             />
-            <span className="text-white/40">{copy.boostForm.emailHint}</span>
+            <span className="text-white/55">{copy.boostForm.emailHint}</span>
           </label>
           <label className="flex items-center gap-2 text-sm text-white/80">
             <input type="checkbox" name="notifyOnDethrone" className="h-4 w-4" />

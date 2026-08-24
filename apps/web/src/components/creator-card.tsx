@@ -28,7 +28,7 @@ export function CreatorCard({ entry, tab }: CreatorCardProps) {
       data-testid="creator-card"
       className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 sm:gap-4 sm:p-4"
     >
-      <span className="w-8 shrink-0 pt-1 text-lg font-black tabular-nums text-white/40 sm:text-xl">
+      <span className="w-8 shrink-0 pt-1 text-lg font-black tabular-nums text-white/55 sm:text-xl">
         #{entry.rank}
       </span>
 
@@ -47,12 +47,12 @@ export function CreatorCard({ entry, tab }: CreatorCardProps) {
             {formatHandle(creator.primaryHandle, creator.primaryPlatform)}
           </p>
         ) : null}
-        <p className="truncate text-xs uppercase tracking-wide text-white/40">
+        <p className="truncate text-xs uppercase tracking-wide text-white/55">
           {[creator.category.name, platform].filter((value) => value !== null).join(" · ")}
         </p>
 
         <p className="mt-2 text-sm font-semibold tabular-nums text-amber-300">{amountLabel}</p>
-        <p className="text-xs text-white/50">{copy.leaderboard.supporters(entry.supporterCount)}</p>
+        <p className="text-xs text-white/60">{copy.leaderboard.supporters(entry.supporterCount)}</p>
 
         {entry.takeFirstPlaceAmountCents === null ? null : (
           <p

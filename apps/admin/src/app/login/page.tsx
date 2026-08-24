@@ -13,7 +13,7 @@ export default async function LoginPage() {
     <main className="mx-auto flex w-full max-w-sm flex-col gap-6 px-4 py-24">
       <h1 className="text-2xl font-black tracking-tight">{adminCopy.brand}</h1>
       <LoginForm />
-      <p className="text-xs text-white/40">{adminCopy.boundary}</p>
+      <p className="text-xs text-white/55">{adminCopy.boundary}</p>
     </main>
   );
 }

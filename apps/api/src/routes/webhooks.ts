@@ -2,6 +2,7 @@ import type { ProductConfig } from "@creator-outdoor/config";
 import type { Database } from "@creator-outdoor/db";
 import { Elysia, t } from "elysia";
 import type { EmailProvider } from "../email/provider";
+import { log } from "../observability/logger";
 import type { PixPaymentProvider } from "../payments/provider";
 import { WebhookValidationError } from "../payments/provider";
 import { runPaymentFollowUps } from "../services/payment-follow-ups";
@@ -44,7 +45,7 @@ export function webhookRoutes(dependencies: WebhookRouteDependencies) {
         event = await provider.validateWebhook(request);
       } catch (error) {
         if (error instanceof WebhookValidationError) {
-          console.warn("webhook_rejected", { provider: params.provider, reason: error.message });
+          log.warn("webhook_rejected", { provider: params.provider, reason: error.message });
           return status(401, { received: false, outcome: "INVALID_SIGNATURE" as const });
         }
         throw error;

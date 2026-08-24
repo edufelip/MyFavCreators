@@ -179,3 +179,13 @@ export const AcknowledgementDto = t.Object(
   { $id: "Acknowledgement" },
 );
 export type AcknowledgementDto = Static<typeof AcknowledgementDto>;
+
+/** The minimum a sitemap needs. Deliberately not a creator summary. */
+export const SitemapEntryDto = t.Object(
+  { slug: Slug, updatedAt: IsoDateTime },
+  { $id: "SitemapEntry" },
+);
+export type SitemapEntryDto = Static<typeof SitemapEntryDto>;
+
+export const SitemapDto = t.Object({ entries: t.Array(SitemapEntryDto) }, { $id: "Sitemap" });
+export type SitemapDto = Static<typeof SitemapDto>;

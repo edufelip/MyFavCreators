@@ -85,7 +85,7 @@ export function CreatorOwnershipPanel({ slug }: { readonly slug: string }) {
                 >
                   {claimCode}
                 </p>
-                <p className="text-xs text-white/50">{claim.message ?? claimCheck.message}</p>
+                <p className="text-xs text-white/60">{claim.message ?? claimCheck.message}</p>
                 <form action={verifyClaim} className="flex flex-col gap-2">
                   <input type="hidden" name="slug" value={slug} />
                   <label htmlFor="claimProfileText" className="text-xs text-white/60">
@@ -137,7 +137,7 @@ export function CreatorOwnershipPanel({ slug }: { readonly slug: string }) {
 
             <ol className="flex flex-col gap-4">
               <li className="flex flex-col gap-2">
-                <p className="text-xs font-bold uppercase tracking-wide text-white/40">
+                <p className="text-xs font-bold uppercase tracking-wide text-white/55">
                   {copy.optOut.stepOne}
                 </p>
                 {challenge === null ? (
@@ -159,7 +159,7 @@ export function CreatorOwnershipPanel({ slug }: { readonly slug: string }) {
                     >
                       {challenge}
                     </p>
-                    <p className="mt-1 text-xs text-white/50">
+                    <p className="mt-1 text-xs text-white/60">
                       {ownership.message ?? verification.message}
                     </p>
                   </div>
@@ -173,7 +173,7 @@ export function CreatorOwnershipPanel({ slug }: { readonly slug: string }) {
                 depend on a code still being in this component's memory.
               */}
               <li className={verified ? "hidden" : "flex flex-col gap-2"}>
-                <p className="text-xs font-bold uppercase tracking-wide text-white/40">
+                <p className="text-xs font-bold uppercase tracking-wide text-white/55">
                   {copy.optOut.stepTwo}
                 </p>
                 <form action={verifyAction} className="flex flex-col gap-2">

@@ -23,7 +23,7 @@ export function RotationFeed({ rotation }: RotationFeedProps) {
     <section aria-label={copy.rotation.title} data-testid="rotation-feed">
       <div className="mb-3 flex items-baseline justify-between gap-3">
         <h2 className="text-lg font-black tracking-tight text-white">{copy.rotation.title}</h2>
-        <p className="text-xs text-white/40">{copy.rotation.entitlement(rotation.eligibleCount)}</p>
+        <p className="text-xs text-white/55">{copy.rotation.entitlement(rotation.eligibleCount)}</p>
       </div>
 
       {/* Horizontal on mobile: a marquee, not a second leaderboard. */}
@@ -43,7 +43,7 @@ export function RotationFeed({ rotation }: RotationFeedProps) {
                 {entry.creator.displayName}
               </span>
               {entry.creator.primaryHandle === null ? null : (
-                <span className="w-full truncate text-xs text-white/50">
+                <span className="w-full truncate text-xs text-white/60">
                   {formatHandle(entry.creator.primaryHandle, entry.creator.primaryPlatform)}
                 </span>
               )}

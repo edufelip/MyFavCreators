@@ -25,7 +25,7 @@ export function SupporterWall({ torcida }: SupporterWallProps) {
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h2 className="text-lg font-black tracking-tight text-white">{copy.torcida.title}</h2>
-        <p className="text-xs uppercase tracking-wide text-white/50">
+        <p className="text-xs uppercase tracking-wide text-white/60">
           {copy.torcida.supporters(torcida.supporterCount)}
         </p>
       </div>
@@ -52,7 +52,7 @@ export function SupporterWall({ torcida }: SupporterWallProps) {
                     <p className="mt-0.5 break-words text-sm text-white/70">{entry.message}</p>
                   )}
                   {entry.boostCount === 1 ? null : (
-                    <p className="mt-0.5 text-xs uppercase tracking-wide text-white/40">
+                    <p className="mt-0.5 text-xs uppercase tracking-wide text-white/55">
                       {copy.torcida.boostCount(entry.boostCount)}
                     </p>
                   )}
@@ -64,7 +64,7 @@ export function SupporterWall({ torcida }: SupporterWallProps) {
             ))}
           </ul>
           {hidden === 0 ? null : (
-            <p className="text-xs uppercase tracking-wide text-white/40">
+            <p className="text-xs uppercase tracking-wide text-white/55">
               {copy.torcida.more(hidden)}
             </p>
           )}

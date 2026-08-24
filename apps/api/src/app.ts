@@ -4,7 +4,7 @@ import { cors } from "@elysiajs/cors";
 import { Elysia } from "elysia";
 import { ConsoleEmailProvider } from "./email/console";
 import type { EmailProvider } from "./email/provider";
-import { describeErrorMessage } from "./observability/errors";
+import { enterRequestId, log, resolveRequestId, withRequestId } from "./observability/logger";
 import { FakePixPaymentProvider } from "./payments/fake-pix";
 import type { PixPaymentProvider } from "./payments/provider";
 import { analyticsRoutes } from "./routes/analytics";
@@ -52,6 +52,19 @@ export type CreateAppOptions = {
  * Every endpoint still validates its own input and serializes through an
  * explicit allowlist.
  */
+/**
+ * The id of an in-flight request.
+ *
+ * A weak map keyed by the request itself, so nothing is left behind when the
+ * request is collected and two concurrent requests cannot read each other's id.
+ */
+const REQUEST_IDS = new WeakMap<Request, string>();
+
+function withRequestIdOf<TResult>(request: Request, work: () => TResult): TResult {
+  const requestId = REQUEST_IDS.get(request);
+  return requestId === undefined ? work() : withRequestId(requestId, work);
+}
+
 export function createApp(options: CreateAppOptions) {
   const rateLimiter = options.rateLimiter ?? new RateLimiter();
   const email = options.emailProvider ?? new ConsoleEmailProvider();
@@ -67,6 +80,20 @@ export function createApp(options: CreateAppOptions) {
   const selfOrigin = options.selfOrigin ?? "http://localhost:3001";
 
   const app = new Elysia()
+    /**
+     * Every request gets an id, and every log line inside it carries that id.
+     *
+     * A payment, its webhook, the follow-ups it triggers and the failure three
+     * layers down are otherwise unrelated lines in a log nobody can correlate.
+     * An upstream `x-request-id` is honoured so a trace spans the whole hop,
+     * and echoed back so a client can quote it in a bug report.
+     */
+    .onRequest(({ request, set }) => {
+      const requestId = resolveRequestId(request.headers.get("x-request-id"));
+      set.headers["x-request-id"] = requestId;
+      REQUEST_IDS.set(request, requestId);
+      enterRequestId(requestId);
+    })
     .use(
       cors({
         origin: [...options.allowedOrigins],
@@ -74,7 +101,11 @@ export function createApp(options: CreateAppOptions) {
         credentials: false,
       }),
     )
-    .onError(({ code, error, set }) => {
+    .onError(({ code, error, request, set }) => {
+      const requestId = REQUEST_IDS.get(request);
+      if (requestId !== undefined) {
+        set.headers["x-request-id"] = requestId;
+      }
       if (code === "VALIDATION") {
         set.status = 400;
         return { error: { code: "BAD_REQUEST", message: "Requisição inválida." } };
@@ -84,10 +115,7 @@ export function createApp(options: CreateAppOptions) {
         return { error: { code: "NOT_FOUND", message: "Recurso não encontrado." } };
       }
       // Never leak a driver message, a stack trace or an internal identifier.
-      console.error("api_error", {
-        code,
-        message: describeErrorMessage(error),
-      });
+      withRequestIdOf(request, () => log.error("api_error", error, { code }));
       set.status = 500;
       return { error: { code: "INTERNAL", message: "Erro interno." } };
     })

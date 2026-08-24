@@ -104,7 +104,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         heatMode={heat}
       />
 
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 pb-16 pt-6">
+      <main id="conteudo" className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 pb-16 pt-6">
         <section className="flex flex-col gap-1">
           <h2 className="text-xl font-black tracking-tight text-white sm:text-2xl">
             {copy.hero.headline}

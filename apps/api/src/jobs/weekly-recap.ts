@@ -2,6 +2,7 @@ import { apiConfig } from "@creator-outdoor/config/api";
 import { closeDatabase } from "@creator-outdoor/db";
 import { database } from "../database";
 import { resolveEmailProvider } from "../email/resolve";
+import { log } from "../observability/logger";
 import { sendWeeklyRecaps } from "../services/weekly-recap";
 
 /**
@@ -22,7 +23,7 @@ const summary = await sendWeeklyRecaps(
   },
 );
 
-console.info(
+log.info(
   `Weekly recap: considered ${summary.considered}, sent ${summary.sent}, ` +
     `skipped ${summary.skipped}, failed ${summary.failed}.`,
 );

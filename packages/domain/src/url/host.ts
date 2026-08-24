@@ -34,7 +34,10 @@ export function parseIpv4(host: string): number[] | null {
       value = Number.parseInt(part.slice(2), 16);
     } else if (/^0[0-7]+$/.test(part)) {
       value = Number.parseInt(part.slice(1), 8);
-    } else if (/^\d+$/.test(part)) {
+    } else if (/^(?:0|[1-9]\d*)$/.test(part)) {
+      // A leading zero means octal, so "0178" is not decimal 178 — it is not a
+      // valid address at all. Reading it as decimal is how "010.0.0.1" becomes
+      // 8.0.0.1 here and 10.0.0.1 in whatever resolves it later.
       value = Number.parseInt(part, 10);
     } else {
       return null;
@@ -96,6 +99,23 @@ function isPrivateIpv6(host: string): boolean {
   return false;
 }
 
+/**
+ * A host written entirely as a number, in any base a URL parser might accept.
+ *
+ * Detected separately from parsing it, because the dangerous case is exactly
+ * the one that does *not* parse cleanly: parsers disagree about zero-padded and
+ * malformed numeric hosts, and a host this code cannot pin down is a host that
+ * might resolve somewhere private.
+ */
+function looksNumeric(host: string): boolean {
+  return /^[0-9a-fx.]+$/i.test(host) && /^\d/.test(host);
+}
+
+/** True when any label is zero-padded, which parsers read as octal or decimal. */
+function hasAmbiguousLabel(host: string): boolean {
+  return host.split(".").some((label) => label.length > 1 && label.startsWith("0"));
+}
+
 /** True when the host must never be stored, linked to, or fetched. */
 export function isUnsafeHost(hostname: string): boolean {
   const host = hostname.toLowerCase();
@@ -113,9 +133,18 @@ export function isUnsafeHost(hostname: string): boolean {
     return true;
   }
 
-  const octets = parseIpv4(host);
-  if (octets !== null) {
-    return isPrivateIpv4(octets);
+  if (looksNumeric(host)) {
+    /*
+     * A numeric host is refused unless it parses to a definitely public
+     * address. Zero padding is refused outright: "010.0.0.1" is octal 8 to one
+     * parser and decimal 10 — a private address — to another, and a check that
+     * has to guess which reader comes next is not a check.
+     */
+    if (hasAmbiguousLabel(host)) {
+      return true;
+    }
+    const octets = parseIpv4(host);
+    return octets === null || isPrivateIpv4(octets);
   }
 
   // A bare label with no dot is an intranet name, never a public site.

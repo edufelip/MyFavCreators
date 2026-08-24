@@ -34,7 +34,7 @@ export function CreatorModerationCard({ creator }: { readonly creator: AdminCrea
     >
       <header className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="text-lg font-bold">{creator.displayName}</h2>
-        <span className="text-sm text-white/50">/{creator.slug}</span>
+        <span className="text-sm text-white/60">/{creator.slug}</span>
         <span
           data-testid="moderation-status"
           className="ml-auto rounded-md border border-white/15 px-2 py-0.5 text-xs font-semibold text-white/70"

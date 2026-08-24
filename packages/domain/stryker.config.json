@@ -1,0 +1,36 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Mutation testing, scoped to the rules where a wrong answer costs money or exposes somebody. Stryker runs `bun test` through the command runner: Bun is the test runner everywhere else in this repo, and a second runner would mean a second set of results to reconcile.",
+  "packageManager": "npm",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test test"
+  },
+  "coverageAnalysis": "off",
+  "mutate": [
+    "src/payment/transitions.ts",
+    "src/boost/transitions.ts",
+    "src/boost/contribution.ts",
+    "src/ranking/take-first-place.ts",
+    "src/ranking/rank.ts",
+    "src/money/money.ts",
+    "src/periods/weekly.ts",
+    "src/url/host.ts",
+    "src/analytics/ctr.ts",
+    "src/notifications/email.ts"
+  ],
+  "reporters": ["progress", "clear-text", "json"],
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "thresholds": {
+    "high": 95,
+    "low": 85,
+    "break": 80
+  },
+  "timeoutMS": 20000,
+  "concurrency": 2,
+  "tempDirName": ".stryker-tmp",
+  "tsconfigFile": "stryker-no-tsconfig.json",
+  "_tsconfigComment": "Deliberately points at a file that does not exist. Stryker rewrites tsconfig paths for its sandbox using `ts.parseConfigFileTextToJson`, which TypeScript 7 no longer exposes; the rewrite is unnecessary here because the command runner uses Bun, which resolves the workspace directly."
+}

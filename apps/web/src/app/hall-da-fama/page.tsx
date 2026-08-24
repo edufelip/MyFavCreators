@@ -33,7 +33,7 @@ export default async function HallOfFamePage() {
   return (
     <>
       <SiteHeader periodEndsAt={null} countdownLabel={null} />
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10">
+      <main id="conteudo" className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10">
         <header className="flex flex-col gap-1">
           <h1 className="text-2xl font-black text-white sm:text-3xl">{copy.hallOfFame.title}</h1>
           <p className="text-sm text-white/60">{copy.hallOfFame.subtitle}</p>
@@ -63,7 +63,7 @@ export default async function HallOfFamePage() {
                   >
                     {champion.creator.displayName}
                   </a>
-                  <p className="truncate text-xs uppercase tracking-wide text-white/40">
+                  <p className="truncate text-xs uppercase tracking-wide text-white/55">
                     {copy.hallOfFame.week} {WEEK_FORMAT.format(new Date(champion.periodStartsAt))}
                   </p>
                 </div>

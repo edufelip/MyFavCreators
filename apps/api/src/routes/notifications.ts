@@ -6,6 +6,7 @@ import {
 } from "@creator-outdoor/contracts";
 import { type Database, disableSubscriptionByToken } from "@creator-outdoor/db";
 import { Elysia } from "elysia";
+import { log } from "../observability/logger";
 import {
   clientKey,
   type RateLimitDecision,
@@ -53,7 +54,7 @@ export function notificationRoutes(dependencies: NotificationRouteDependencies) 
 
       const disabled = await disableSubscriptionByToken(dependencies.database, body.token, now());
       if (disabled) {
-        console.info("notification_unsubscribed", { type: "DETHRONE" });
+        log.info("notification_unsubscribed", { type: "DETHRONE" });
       }
       return { acknowledged: true as const };
     },

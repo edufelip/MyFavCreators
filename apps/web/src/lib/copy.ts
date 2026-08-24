@@ -25,6 +25,7 @@ export const copy = {
   },
 
   nav: {
+    skipToContent: "Ir para o conteúdo",
     ranking: "Ranking",
     submit: "Enviar perfil",
     hallOfFame: "Hall da Fama",

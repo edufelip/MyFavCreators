@@ -100,6 +100,30 @@ export async function findCreatorBySlug(
   return withLinks[0] ?? null;
 }
 
+export type PublicCreatorRef = {
+  readonly slug: string;
+  readonly updatedAt: Date;
+};
+
+/**
+ * Every profile that may appear in a sitemap.
+ *
+ * Only APPROVED, for the same reason every other public read is: a sitemap
+ * listing a pending or removed profile would publish the moderation queue and
+ * would point search engines at pages that 404.
+ */
+export async function listPublicCreatorRefs(
+  executor: DatabaseExecutor,
+  limit: number,
+): Promise<readonly PublicCreatorRef[]> {
+  return executor
+    .select({ slug: creators.slug, updatedAt: creators.updatedAt })
+    .from(creators)
+    .where(eq(creators.moderationStatus, "APPROVED"))
+    .orderBy(desc(creators.updatedAt))
+    .limit(limit);
+}
+
 export async function findCreatorById(
   executor: DatabaseExecutor,
   id: string,

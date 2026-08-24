@@ -129,7 +129,7 @@ export function CheckoutView({ checkout, initialStatus, qrSvg }: CheckoutViewPro
           <p className="text-center text-sm text-white/60">{copy.checkout.scan}</p>
 
           <div className="flex flex-col gap-2">
-            <p className="text-xs uppercase tracking-wide text-white/40">
+            <p className="text-xs uppercase tracking-wide text-white/55">
               {copy.checkout.copyPaste}
             </p>
             <code
@@ -151,8 +151,8 @@ export function CheckoutView({ checkout, initialStatus, qrSvg }: CheckoutViewPro
           <p data-testid="checkout-waiting" className="text-sm text-white/70">
             {copy.checkout.waiting}
           </p>
-          <p className="text-xs text-white/40">{copy.checkout.waitingHint}</p>
-          <p className="text-xs text-white/40">
+          <p className="text-xs text-white/55">{copy.checkout.waitingHint}</p>
+          <p className="text-xs text-white/55">
             {remaining > 0
               ? copy.checkout.expiresAt(formatDuration(remaining))
               : copy.checkout.expired}

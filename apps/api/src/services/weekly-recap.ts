@@ -8,7 +8,7 @@ import {
 } from "@creator-outdoor/db";
 import { centsValue, getWeeklyPeriod, redactEmail } from "@creator-outdoor/domain";
 import type { EmailProvider } from "../email/provider";
-import { describeErrorMessage } from "../observability/errors";
+import { log } from "../observability/logger";
 import { weeklyRecapEmail } from "./notification-templates";
 
 export type WeeklyRecapSummary = {
@@ -84,10 +84,7 @@ export async function sendWeeklyRecaps(
         dedupeKey,
       });
       failed += 1;
-      console.error("weekly_recap_failed", {
-        to: redactEmail(subscription.email),
-        message: describeErrorMessage(error),
-      });
+      log.error("weekly_recap_failed", error, { to: redactEmail(subscription.email) });
     }
   }
 

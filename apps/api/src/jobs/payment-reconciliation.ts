@@ -2,6 +2,7 @@ import { apiConfig } from "@creator-outdoor/config/api";
 import { closeDatabase } from "@creator-outdoor/db";
 import { database } from "../database";
 import { resolveEmailProvider } from "../email/resolve";
+import { log } from "../observability/logger";
 import { resolvePaymentProvider } from "../payments/resolve";
 import { reconcilePayments } from "../services/reconciliation";
 
@@ -20,7 +21,7 @@ const summary = await reconcilePayments(database, apiConfig.product, provider, {
   webOrigin: apiConfig.webOrigin,
 });
 
-console.info(
+log.info(
   `Reconciliation (${provider.name}): examined ${summary.examined}, ` +
     `changed ${summary.changed}, unchanged ${summary.unchanged}, failed ${summary.failed}.`,
 );

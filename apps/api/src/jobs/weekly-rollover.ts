@@ -1,6 +1,7 @@
 import { apiConfig } from "@creator-outdoor/config/api";
 import { closeDatabase } from "@creator-outdoor/db";
 import { database } from "../database";
+import { log } from "../observability/logger";
 import { runWeeklyRollover } from "../services/rollover";
 
 /**
@@ -12,7 +13,7 @@ import { runWeeklyRollover } from "../services/rollover";
  *   bun run job:weekly-rollover
  */
 const summary = await runWeeklyRollover(database, apiConfig.product, new Date());
-console.info(
+log.info(
   `Weekly rollover: closed ${summary.closedPeriods} period(s), ` +
     `snapshotted ${summary.snapshotted} creator ranking(s)` +
     (summary.champion === null ? "." : `, champion @${summary.champion}.`),

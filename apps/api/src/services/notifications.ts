@@ -15,7 +15,7 @@ import {
   redactEmail,
 } from "@creator-outdoor/domain";
 import type { EmailProvider } from "../email/provider";
-import { describeErrorMessage } from "../observability/errors";
+import { log } from "../observability/logger";
 import { dethroneEmail } from "./notification-templates";
 import type { LeaderChange } from "./rank-events";
 
@@ -110,10 +110,7 @@ export async function notifyDethrone(
         subscriptionId: subscriber.id,
         dedupeKey,
       });
-      console.error("dethrone_email_failed", {
-        to: redactEmail(subscriber.email),
-        message: describeErrorMessage(error),
-      });
+      log.error("dethrone_email_failed", error, { to: redactEmail(subscriber.email) });
     }
   }
   return sent;

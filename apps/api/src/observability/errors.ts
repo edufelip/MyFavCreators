@@ -33,12 +33,6 @@ export function describeError(error: unknown): DescribedError {
   return { name: deepest.name, message: sanitize(deepest.message) };
 }
 
-/** The one-line form, for a log field that takes a string. */
-export function describeErrorMessage(error: unknown): string {
-  const described = describeError(error);
-  return `${described.name}: ${described.message}`;
-}
-
 function deepestCause(error: Error): Error {
   let current = error;
   // Bounded: a cause chain long enough to loop is itself a bug, not a log line.

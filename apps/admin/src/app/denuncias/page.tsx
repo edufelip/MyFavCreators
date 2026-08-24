@@ -31,9 +31,9 @@ export default async function ReportsPage() {
                 <p className="text-sm font-bold">/{report.creatorSlug}</p>
                 <p className="text-sm text-white/70">{report.reason}</p>
                 {report.details === null ? null : (
-                  <p className="mt-1 text-sm text-white/50">{report.details}</p>
+                  <p className="mt-1 text-sm text-white/60">{report.details}</p>
                 )}
-                <p className="mt-1 text-xs text-white/40">
+                <p className="mt-1 text-xs text-white/55">
                   {new Date(report.createdAt).toLocaleString("pt-BR")}
                 </p>
               </div>
