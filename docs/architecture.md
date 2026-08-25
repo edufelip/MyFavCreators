@@ -465,6 +465,12 @@ promise about what Creator Outdoor puts on other people's pages, and the smalles
 possible promise is a picture. Display names are XML-escaped before they reach
 that markup.
 
+A badge on somebody else's site is not counted as an impression, and that is
+deliberate. The analytics session is `SameSite=lax`, so a cross-site image
+request does not carry it; recognising a viewer across other people's pages is
+what a tracking pixel does, and this is not one. `EMBED` impressions only ever
+come from a same-site render.
+
 ## Public copy
 
 Interface strings live in `apps/web/src/lib/copy.ts`, and a unit test walks every

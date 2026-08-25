@@ -8,9 +8,14 @@ export const dynamic = "force-dynamic";
  *
  * Creators paste this URL into their own pages, so it has to be the address
  * people already trust — the API origin is an implementation detail that a
- * deployment may not even expose. Proxying here also lets the badge count an
- * EMBED impression when the viewer already has a session, without the embedding
- * page ever seeing a cookie.
+ * deployment may not even expose.
+ *
+ * The analytics session is forwarded when the browser sends one, which for a
+ * badge on somebody else's site it will not: the cookie is `SameSite=lax` and a
+ * cross-site image request is not a navigation. So a real embed goes uncounted,
+ * and that is the right trade. A badge that could recognise a viewer across
+ * other people's pages is a tracking pixel, and this product does not have one.
+ * EMBED impressions therefore only ever come from a same-site render.
  */
 export async function GET(
   _request: Request,

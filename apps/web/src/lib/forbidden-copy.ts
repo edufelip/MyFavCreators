@@ -24,7 +24,13 @@ export const FORBIDDEN_TERMS = [
   "contribuicao",
   "gorjeta",
   "repasse",
+  // The English terms the specification names too. A word boundary keeps them
+  // from firing on Portuguese words that merely contain them — "fund" does not
+  // match "fundo", "tip" does not match "múltiplo".
+  "support",
   "donate",
+  "tip",
+  "fund",
   "sorteio",
   "concorra",
   "prêmio em dinheiro",

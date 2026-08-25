@@ -129,7 +129,7 @@ export async function setNotificationsAction(
 
   const email = textOf(formData, "email").trim();
   try {
-    await setCreatorNotifications(
+    const applied = await setCreatorNotifications(
       token,
       {
         notifyDethrone: formData.get("notifyDethrone") === "on",
@@ -137,6 +137,11 @@ export async function setNotificationsAction(
       },
       email === "" ? null : email,
     );
+    if (!applied) {
+      // The session expired. Saying "saved" here would leave somebody believing
+      // they had turned a notification off when they had not.
+      return { message: copy.manage.signedOut, saved: false };
+    }
   } catch (error) {
     console.error("notification_pref_failed", error instanceof Error ? error.message : "unknown");
     return { message: copy.manage.unavailable, saved: false };

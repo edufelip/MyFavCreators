@@ -1,5 +1,15 @@
-import type { TSchema } from "@sinclair/typebox";
+import type { Static, TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
+
+/**
+ * A contract schema, and the shape it validates to.
+ *
+ * Re-exported so a consumer can write a helper that is generic over a contract
+ * without depending on TypeBox itself — and, more to the point, without falling
+ * back on a cast to say "this is the type I asked for".
+ */
+export type { Static, TSchema };
+export type ContractOf<TSchemaType extends TSchema> = Static<TSchemaType>;
 
 export class ContractViolationError extends Error {
   override readonly name = "ContractViolationError";
@@ -9,6 +19,11 @@ export class ContractViolationError extends Error {
       `Payload does not satisfy the ${label} contract:\n${issues.map((i) => `  - ${i}`).join("\n")}`,
     );
   }
+}
+
+/** Whether a caught value is a contract violation rather than any other fault. */
+export function isContractViolation(error: unknown): error is ContractViolationError {
+  return error instanceof ContractViolationError;
 }
 
 /**

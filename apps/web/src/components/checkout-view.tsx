@@ -1,6 +1,11 @@
 "use client";
 
-import type { CheckoutDto, PaymentStatusResponseDto } from "@creator-outdoor/contracts";
+import {
+  type CheckoutDto,
+  isContractViolation,
+  PaymentStatusResponseDto,
+  parseContract,
+} from "@creator-outdoor/contracts";
 import { useCallback, useEffect, useState } from "react";
 import { BoostDisclosure } from "@/components/boost-disclosure";
 import { copy } from "@/lib/copy";
@@ -46,11 +51,23 @@ export function CheckoutView({ checkout, initialStatus, qrSvg }: CheckoutViewPro
           cache: "no-store",
         });
         if (response.ok && !cancelled) {
-          setStatus((await response.json()) as PaymentStatusResponseDto);
+          // Validated rather than asserted. The proxy this polls already checks
+          // the contract, but an assertion here would trust that hop instead of
+          // checking it, and what is being trusted is the state of somebody's
+          // payment. A payload that does not match is ignored; the next poll
+          // reads the state again.
+          setStatus(
+            parseContract(PaymentStatusResponseDto, await response.json(), "PaymentStatus"),
+          );
         }
-      } catch {
-        // A failed poll is not an error the customer needs to see; the next
-        // one will succeed, and the payment state is unaffected either way.
+      } catch (error) {
+        // A failed poll is not an error the customer needs to see; the next one
+        // will succeed, and the payment state is unaffected either way. A
+        // payload that violated the contract is worth a line in the console,
+        // because it means the two sides have drifted apart.
+        if (isContractViolation(error)) {
+          console.error("payment_status_contract_violation");
+        }
       }
       if (!cancelled) {
         timer = setTimeout(poll, document.hidden ? HIDDEN_POLL_INTERVAL_MS : POLL_INTERVAL_MS);

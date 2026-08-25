@@ -1,26 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { copy } from "../src/lib/copy";
-
-/** Wording that would imply money reaches a creator, or a game of chance. */
-const FORBIDDEN_TERMS = [
-  "apoie",
-  "apoio",
-  "apoiar",
-  "doe",
-  "doação",
-  "vaquinha",
-  "contribuição",
-  "gorjeta",
-  "repasse",
-  "support",
-  "donate",
-  "tip",
-  "fund",
-  "sorteio",
-  "concorra",
-  "prêmio em dinheiro",
-  "chance de ganhar",
-];
+// One list, shared with the rendered-page scan. A second copy is a second thing
+// to forget to update, and the two drifted: the page scan was missing three of
+// the specification's English terms while this one had them.
+import { FORBIDDEN_TERMS } from "../src/lib/forbidden-copy";
 
 /** Every string the copy bank can produce, with sample arguments applied. */
 function allCopyStrings(): string[] {

@@ -1,14 +1,12 @@
 "use client";
 
+import type { ImpressionBatchRequestDto, ImpressionEntryDto } from "@creator-outdoor/contracts";
 import { useEffect, useRef } from "react";
 
-export type DeliverySurfaceName = "MARQUEE" | "LEADERBOARD" | "ROTATION" | "CREATOR_PAGE" | "EMBED";
+export type DeliverySurfaceName = ImpressionEntryDto["surface"];
 
 export type ImpressionReporterProps = {
-  readonly entries: ReadonlyArray<{
-    readonly creatorId: string;
-    readonly surface: DeliverySurfaceName;
-  }>;
+  readonly entries: readonly ImpressionEntryDto[];
 };
 
 /**
@@ -36,7 +34,14 @@ export function ImpressionReporter({ entries }: ImpressionReporterProps) {
   // the bare array meant every real page view was rejected at the edge and
   // silently dropped: the route answers 204 whatever happens, so nothing about
   // a page or a log said the delivery report was being built from nothing.
-  const payload = JSON.stringify({ entries });
+  /*
+   * Typed against the contract the ingest route validates, so the two sides
+   * cannot disagree about the shape again. They did: this sent a bare array
+   * while the route parsed `{ entries }`, and because the route answers 204
+   * whatever it decides, every real page view was dropped without a trace.
+   */
+  const body: ImpressionBatchRequestDto = { entries: [...entries] };
+  const payload = JSON.stringify(body);
 
   useEffect(() => {
     if (entries.length === 0) {

@@ -20,6 +20,13 @@ export const adminCopy = {
     invalid: "Operador, senha ou código incorretos.",
     throttled: "Muitas tentativas. Aguarde alguns minutos.",
   },
+  error: {
+    title: "A ação não foi concluída",
+    body: "Nada foi alterado. Tente de novo; se continuar, use a referência abaixo ao relatar.",
+    retry: "Tentar de novo",
+    back: "Voltar para a moderação",
+    reference: (digest: string) => `Referência: ${digest}`,
+  },
   payments: {
     title: "Pagamentos",
     empty: "Nenhum pagamento registrado.",

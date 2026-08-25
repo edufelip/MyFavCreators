@@ -54,6 +54,14 @@ export const copy = {
     previousChampion: "Campeão da semana passada",
   },
 
+  error: {
+    title: "Algo saiu do ar por aqui",
+    body: "A falha é nossa, não sua. O ranking continua valendo e nada do que você fez foi perdido.",
+    retry: "Tentar de novo",
+    home: "Voltar para o início",
+    /** Shown so somebody reporting the problem can name this exact failure. */
+    reference: (digest: string) => `Referência: ${digest}`,
+  },
   category: {
     heading: (name: string) => `${name} em destaque`,
     title: (name: string) => `${name} — Creator Outdoor`,

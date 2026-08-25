@@ -10,6 +10,7 @@ import {
   ClaimChallengeDto as ClaimChallengeSchema,
   type ClaimVerificationResponseDto,
   ClaimVerificationResponseDto as ClaimVerificationSchema,
+  type ContractOf,
   type CreateBoostRequestDto,
   type CreatorDashboardDto,
   CreatorDashboardDto as CreatorDashboardSchema,
@@ -22,6 +23,7 @@ import {
   HallOfFameDto as HallOfFameSchema,
   type ImpressionBatchResponseDto,
   ImpressionBatchResponseDto as ImpressionBatchSchema,
+  type ImpressionEntryDto,
   type LeaderboardResponseDto,
   LeaderboardResponseDto as LeaderboardSchema,
   type OptOutChallengeDto,
@@ -41,6 +43,7 @@ import {
   SitemapDto as SitemapSchema,
   type TorcidaDto,
   TorcidaDto as TorcidaSchema,
+  type TSchema,
   type UnsubscribeResponseDto,
   UnsubscribeResponseDto as UnsubscribeSchema,
 } from "@creator-outdoor/contracts";
@@ -120,12 +123,20 @@ async function forwardedClientHeaders(): Promise<Record<string, string>> {
   return forwarded === null ? {} : { "x-forwarded-for": forwarded };
 }
 
-async function postJson<TResult>(
+/**
+ * A public write, forwarded to the API.
+ *
+ * Every non-ok status is a failure. An earlier version let a 404 through to the
+ * contract check, which then threw about a payload shape rather than about the
+ * thing not existing — the caller still showed the right message, but every log
+ * line about it named the wrong problem.
+ */
+async function postJson<TSchemaType extends TSchema>(
   path: string,
   body: unknown,
-  schema: Parameters<typeof parseContract>[0],
+  schema: TSchemaType,
   label: string,
-): Promise<TResult> {
+): Promise<ContractOf<TSchemaType>> {
   const response = await fetch(new URL(path, webConfig.apiOrigin), {
     method: "POST",
     headers: {
@@ -139,10 +150,10 @@ async function postJson<TResult>(
   if (response.status === 429) {
     throw new RateLimitedError(`${path} is rate limited`);
   }
-  if (!response.ok && response.status !== 404) {
+  if (!response.ok) {
     throw new Error(`${path} responded ${response.status}`);
   }
-  return parseContract(schema, await response.json(), label) as TResult;
+  return parseContract(schema, await response.json(), label);
 }
 
 /** The public creator page. Returns null for anything that is not APPROVED. */
@@ -163,10 +174,8 @@ export async function fetchCreatorDetail(slug: string): Promise<CreatorDetailDto
   return parseContract(CreatorDetailSchema, await response.json(), "CreatorDetail");
 }
 
-export type ImpressionEntry = {
-  readonly creatorId: string;
-  readonly surface: "MARQUEE" | "LEADERBOARD" | "ROTATION" | "CREATOR_PAGE" | "EMBED";
-};
+/** The contract's own shape, so no third copy of the surface list exists. */
+export type ImpressionEntry = ImpressionEntryDto;
 
 /**
  * Reports what a page displayed.
@@ -323,11 +332,18 @@ export type NotificationPreferences = {
   readonly notifyWeeklyRecap: boolean;
 };
 
+/**
+ * Records what a creator agreed to be written about.
+ *
+ * Returns `false` for a session the API refused, so the caller can say so.
+ * Swallowing a 401 here told the creator their preference had been saved when
+ * nothing had been: the one answer a consent switch must never give.
+ */
 export async function setCreatorNotifications(
   token: string,
   preferences: NotificationPreferences,
   email: string | null,
-): Promise<void> {
+): Promise<boolean> {
   const response = await fetch(new URL("/v1/creators/me/notifications", webConfig.apiOrigin), {
     method: "PUT",
     headers: {
@@ -339,9 +355,13 @@ export async function setCreatorNotifications(
     body: JSON.stringify({ ...preferences, ...(email === null ? {} : { email }) }),
     cache: "no-store",
   });
-  if (!response.ok && response.status !== 401) {
+  if (response.status === 401) {
+    return false;
+  }
+  if (!response.ok) {
     throw new Error(`Notification preference failed with status ${response.status}`);
   }
+  return true;
 }
 
 /** Every profile a sitemap may list. Only APPROVED creators come back. */
