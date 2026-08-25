@@ -40,7 +40,7 @@ fails on any of them.
 
 ## Bounded contexts
 
-Six contexts, each owning a set of decisions nothing else may make.
+Seven contexts, each owning a set of decisions nothing else may make.
 
 ### Catalog
 
@@ -106,6 +106,27 @@ the email provider adapters.
 **Key rule:** exactly once per happening per subscriber, enforced by a unique
 index rather than by application logic.
 
+### Administration
+
+**Owns** who may act on the platform's behalf, and the record of what they did.
+Operators, the administrator session, the audit log, and the two decisions no
+rule can make on its own: whether a profile belongs here, and whether a payment
+should be sent back.
+
+**Language:** operator, actor, audit entry, moderation decision, refund
+instruction.
+
+**Key rule:** every action names a person. The operator identifier comes from a
+signed session and is carried into the API on every call, which refuses one that
+does not have it — there is no shared account to file an action under. Removing
+an operator from the registry ends their authority at the next request, not when
+their cookie expires.
+
+**What it does not own:** any transition. An operator instructs; the Payments
+context decides. A refund ordered here goes through the same transition service
+a webhook uses, with the same fingerprint and the same state machine, so an
+instruction cannot produce a state the automatic path could not.
+
 ## Context map
 
 ```
@@ -113,11 +134,17 @@ Catalog ──"only APPROVED is public"──▶ Ranking, Delivery, Torcida, Not
 Payments ──"the money settled"──▶ Ranking (activation) ──▶ Notifications (leader change)
 Ranking ──"a creator's standing"──▶ Torcida, Notifications, Delivery (badge)
 Delivery ────────────────────────✗────▶ Ranking     (deliberately absent)
+Administration ──"an instruction"──▶ Catalog (moderation), Payments (refund)
 ```
 
 Payments is **upstream** of everything: a ranking change is a consequence of a
 payment transition, never the other way round. Delivery is **downstream of
 everything and upstream of nothing** — the missing arrow is the point.
+
+Administration is upstream of Catalog and Payments but is not a peer of them: it
+supplies *instructions*, never transitions. There is no rule an operator can
+apply that the domain does not already own, which is why an operator refund and
+a provider refund end in exactly the same place.
 
 ## Aggregates and their invariants
 
@@ -135,9 +162,15 @@ and change together, in one transaction.
 3. A payment moves only along `ALLOWED_TRANSITIONS`. `CONFIRMED` accepts only
    `REFUNDED`; `FAILED`, `EXPIRED`, `CANCELLED` and `REFUNDED` accept nothing.
    Money that failed can never quietly become money that counts.
-4. The boost's status is a function of the payment's:
-   `boostStatusForPayment` — CREATED/PENDING → PENDING, CONFIRMED → ACTIVE,
-   FAILED/EXPIRED/CANCELLED → VOID, REFUNDED → REVERSED.
+4. The payment's status *proposes* the boost's — `boostStatusForPayment`:
+   CREATED/PENDING → PENDING, CONFIRMED → ACTIVE, FAILED/EXPIRED/CANCELLED →
+   VOID, REFUNDED → REVERSED — and the boost's own machine decides whether that
+   move is legal. `VOID` and `REVERSED` are terminal, so a boost voided for an
+   ineligible creator stays VOID when its payment is later refunded: REVERSED
+   means "the promotion was live and was undone", and that one never ran. The
+   money still moves; what stays true is the promotion's own history. A refused
+   move is written to the audit log as `boost.transition_refused` rather than
+   passed over in silence.
 5. A boost activates only for a creator who is publicly eligible **at the moment
    of confirmation**. Otherwise it is VOID and a refund is flagged.
 6. An event is applied at most once. Enforced by a unique index on
@@ -213,6 +246,9 @@ with exactly one place that reacts to it.
 | Leader changed | `detectLeaderChange` | dethrone notification |
 | Payment refunded | `applyPaymentEvent` | closed-period recomputation |
 | Creator became ineligible mid-flight | `applyPaymentEvent` | boost voided, refund issued; retried by `settleOwedRefunds` if that call fails |
+| Operator ordered a refund | `refundPaymentOnRequest` | the same transition service a webhook uses; audited as `payment.refunded_by_operator` with the operator's name and their reason |
+| A refund instruction went unanswered | `refundPaymentOnRequest` | audited as `payment.refund_uncertain`, which is what makes `settleOwedRefunds` look at a payment whose boost is still ACTIVE |
+| A boost transition was refused | `applyBoostSideEffect` | audited as `boost.transition_refused`; the payment still moves, the promotion's own history does not |
 | Weekly period ended | `runWeeklyRollover` | snapshots, champion, weekly recap |
 
 Follow-ups run **after** the payment transaction commits, never inside it, and

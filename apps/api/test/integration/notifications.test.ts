@@ -285,6 +285,38 @@ describe("unsubscribing", () => {
     expect(email.outbox()).toHaveLength(0);
   });
 
+  test("the token in the emailed link is the one that works", async () => {
+    /*
+     * Taken out of the URL rather than out of the table. Everywhere else the two
+     * sides of this boundary agree by memory — the template builds a path, the
+     * web route parses one, and a test that reads the token from the database
+     * would pass even if the URL mangled it. What a person actually clicks is a
+     * link, so that is what is exercised here.
+     */
+    const leader = await approvedCreator("dona-do-link");
+    const rival = await approvedCreator("rival-do-link");
+    await boost(leader.slug, 5_000, {
+      supporterEmail: "clicou@example.com",
+      notifyOnDethrone: true,
+    });
+    email.clear();
+    await boost(rival.slug, 9_000);
+
+    const link = email.outbox()[0]?.unsubscribeUrl ?? "";
+    expect(link).toContain("/descadastrar/");
+    const fromLink = decodeURIComponent(new URL(link).pathname.split("/").pop() ?? "");
+    expect(fromLink).toBe(await tokenFor("clicou@example.com"));
+
+    const response = await post("/v1/notifications/unsubscribe", { token: fromLink });
+    expect(response.status).toBe(200);
+
+    // And it really switched something off, rather than merely answering.
+    const rows = (await testDatabase.db.execute(
+      `select disabled_at from notification_subscriptions where email = 'clicou@example.com'` as never,
+    )) as Array<Record<string, unknown>>;
+    expect(rows[0]?.["disabled_at"]).not.toBeNull();
+  });
+
   test("answers the same for a token that never existed", async () => {
     // A differing answer would let anybody holding a forwarded email test
     // whether an address is subscribed.

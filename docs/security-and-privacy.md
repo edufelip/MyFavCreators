@@ -191,3 +191,17 @@ different conversation from these two.
   anonymous option is the control offered.
 - **Bot traffic inflating impressions.** Deduplication bounds it per session and
   hour, and impressions buy nothing — no ranking query reads them.
+- **Somebody spending an operator's login budget to keep them out.** Failures are
+  counted per operator name, because a budget keyed on a client-supplied address
+  caps nothing. The cost is that whoever knows a name can close it for ten
+  minutes. Other operators are unaffected, so the platform never loses every
+  administrator at once, and ten minutes is judged cheaper than a password
+  guessing budget an attacker can sidestep by rotating a header.
+- **Counting a badge embedded on somebody else's site.** The analytics session is
+  `SameSite=lax`, so a cross-site image request does not carry it and the
+  impression goes uncounted. Recognising a viewer across other people's pages is
+  what a tracking pixel does; the measurement is worth less than not being one.
+- **A second process doubling the login budget.** The attempt counter and the
+  spent-TOTP set are per process, so N admin workers mean N times the budget and
+  one replay of a code per worker. At this size the admin app runs as one
+  process; a deployment that scales it needs a shared store first.
