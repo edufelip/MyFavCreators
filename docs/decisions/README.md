@@ -10,3 +10,5 @@ Write an ADR before, not after, doing any of these:
 - introducing a new application, service or worker
 - introducing shared infrastructure such as Redis
 - changing the ranking model, the money representation or the payment state machine
+- changing how somebody is authenticated, or what an action is recorded against
+- changing the order in which money moves and the record of it is written

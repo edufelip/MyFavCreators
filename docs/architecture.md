@@ -185,9 +185,9 @@ throttling key only, never an authentication claim.
 
 ## Administrator authentication
 
-Named operators, two factors each. No customer identity provider is warranted at this size, but
-a shared password was not honest either: it cannot answer "who removed this creator", and an
-audit log that names everybody `admin` is not an audit log.
+ADR 0014. Named operators, two factors each. No customer identity provider is warranted at this
+size, but a shared password was not honest either: it cannot answer "who removed this creator",
+and an audit log that names everybody `admin` is not an audit log.
 
 `ADMIN_OPERATORS` carries the registry — one entry per person, each with their own scrypt
 password hash and their own TOTP secret — as a single base64url-encoded JSON document. That
