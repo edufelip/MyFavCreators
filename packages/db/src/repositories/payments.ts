@@ -10,6 +10,7 @@ import {
   optionalDate,
   optionalString,
   readJsonObject,
+  requireBoolean,
   requireEnum,
   requireMoneyCents,
   requireRecord,
@@ -51,6 +52,9 @@ export type PaymentWithBoost = {
   readonly creatorModerationStatus: ModerationStatus;
   /** Private. Used to record a notification interest; never serialized. */
   readonly supporterEmail: string | null;
+  /** What the payer agreed to be written about. Never serialized. */
+  readonly notifyOnDethrone: boolean;
+  readonly notifyWeeklyRecap: boolean;
 };
 
 function toPaymentWithBoost(value: unknown): PaymentWithBoost {
@@ -68,6 +72,8 @@ function toPaymentWithBoost(value: unknown): PaymentWithBoost {
     creatorSlug: requireString(row, "creator_slug"),
     creatorModerationStatus: requireEnum(row, "moderation_status", MODERATION_STATUS_VALUES),
     supporterEmail: optionalString(row, "supporter_email"),
+    notifyOnDethrone: requireBoolean(row, "notify_on_dethrone"),
+    notifyWeeklyRecap: requireBoolean(row, "notify_weekly_recap"),
   };
 }
 
@@ -95,6 +101,8 @@ export async function lockPaymentByProviderId(
       b.id::text as boost_id,
       b.status as boost_status,
       b.supporter_email as supporter_email,
+      b.notify_on_dethrone as notify_on_dethrone,
+      b.notify_weekly_recap as notify_weekly_recap,
       c.id::text as creator_id,
       c.slug as creator_slug,
       c.moderation_status as moderation_status
@@ -123,6 +131,8 @@ export async function findPaymentByIdWithBoost(
       b.id::text as boost_id,
       b.status as boost_status,
       b.supporter_email as supporter_email,
+      b.notify_on_dethrone as notify_on_dethrone,
+      b.notify_weekly_recap as notify_weekly_recap,
       c.id::text as creator_id,
       c.slug as creator_slug,
       c.moderation_status as moderation_status
@@ -146,6 +156,9 @@ export type CreatePaymentWithBoostInput = {
   readonly anonymous: boolean;
   readonly supporterEmail: string | null;
   readonly fanIdentityKey: string | null;
+  /** Recorded on the boost, because consent belongs to the purchase. */
+  readonly notifyOnDethrone: boolean;
+  readonly notifyWeeklyRecap: boolean;
   readonly rawMetadata: Record<string, unknown>;
 };
 
@@ -186,6 +199,8 @@ export async function insertPaymentWithBoost(
       anonymous: input.anonymous,
       supporterEmail: input.supporterEmail,
       fanIdentityKey: input.fanIdentityKey,
+      notifyOnDethrone: input.notifyOnDethrone,
+      notifyWeeklyRecap: input.notifyWeeklyRecap,
       paymentId: payment.id,
       status: "PENDING",
     })
@@ -352,6 +367,51 @@ export async function getPaymentStatusView(
 }
 
 /** Payments that never settled and are old enough to be reconciled. */
+export type OwedRefund = {
+  readonly paymentId: string;
+  readonly providerPaymentId: string;
+  readonly creatorId: string;
+};
+
+/**
+ * Money taken for a promotion that was never delivered.
+ *
+ * A boost is VOID behind a CONFIRMED payment in exactly one situation: the
+ * creator stopped being publicly eligible while the PIX was in flight, so the
+ * boost was refused and a refund was owed. If that refund call failed, this is
+ * the only record that it is still owed — the payment is CONFIRMED, so the
+ * unsettled sweep will never look at it, and without this query the platform
+ * simply keeps the money.
+ */
+export async function listOwedRefunds(
+  executor: DatabaseExecutor,
+  provider: string,
+  limit: number,
+): Promise<readonly OwedRefund[]> {
+  const result: unknown[] = await executor.execute(sql`
+    select
+      p.id::text as payment_id,
+      p.provider_payment_id as provider_payment_id,
+      b.creator_id::text as creator_id
+    from payments p
+    inner join boosts b on b.payment_id = p.id
+    where p.provider = ${provider}
+      and p.status = 'CONFIRMED'
+      and p.refunded_at is null
+      and b.status = 'VOID'
+    order by p.confirmed_at asc
+    limit ${limit}
+  `);
+  return result.map((value) => {
+    const row = requireRecord(value);
+    return {
+      paymentId: requireString(row, "payment_id"),
+      providerPaymentId: requireString(row, "provider_payment_id"),
+      creatorId: requireString(row, "creator_id"),
+    };
+  });
+}
+
 export async function listUnsettledPayments(
   executor: DatabaseExecutor,
   provider: string,

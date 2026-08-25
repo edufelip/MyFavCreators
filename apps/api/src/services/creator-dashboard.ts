@@ -34,19 +34,27 @@ export async function getCreatorDashboard(
   const period = getWeeklyPeriod(now, product.timezone);
   const window = { startsAt: period.startsAt, endsAt: period.endsAt };
 
-  const [weekly, allTime, delivery, championWeeks, notifyDethrone] = await Promise.all([
-    getCreatorStanding(database, creator.id, window),
-    getCreatorStanding(database, creator.id, null),
-    getCreatorDelivery(database, creator.id, null),
-    countChampionWeeks(database, creator.id),
-    claimed.email === null
-      ? Promise.resolve(false)
-      : hasActiveSubscription(database, {
-          email: claimed.email,
-          creatorId: creator.id,
-          type: "DETHRONE",
-        }),
-  ]);
+  const [weekly, allTime, delivery, championWeeks, notifyDethrone, notifyWeeklyRecap] =
+    await Promise.all([
+      getCreatorStanding(database, creator.id, window),
+      getCreatorStanding(database, creator.id, null),
+      getCreatorDelivery(database, creator.id, null),
+      countChampionWeeks(database, creator.id),
+      claimed.email === null
+        ? Promise.resolve(false)
+        : hasActiveSubscription(database, {
+            email: claimed.email,
+            creatorId: creator.id,
+            type: "DETHRONE",
+          }),
+      claimed.email === null
+        ? Promise.resolve(false)
+        : hasActiveSubscription(database, {
+            email: claimed.email,
+            creatorId: creator.id,
+            type: "WEEKLY_RECAP",
+          }),
+    ]);
 
   return {
     creatorSlug: creator.slug,
@@ -62,5 +70,6 @@ export async function getCreatorDashboard(
     clickThroughRate: clickThroughRate(delivery.clicks, delivery.impressions),
     championWeeks,
     notifyDethrone,
+    notifyWeeklyRecap,
   };
 }

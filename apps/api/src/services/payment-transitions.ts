@@ -33,6 +33,9 @@ export type PaymentEventOutcome =
       readonly confirmedAt: Date | null;
       /** Private. Recorded as a notification interest; never serialized. */
       readonly supporterEmail: string | null;
+      /** What the payer agreed to be written about. Never serialized. */
+      readonly notifyOnDethrone: boolean;
+      readonly notifyWeeklyRecap: boolean;
     }
   | { readonly kind: "DUPLICATE"; readonly providerPaymentId: string }
   | {
@@ -170,6 +173,8 @@ export async function applyPaymentEvent(
       amountCents: payment.amountCents,
       confirmedAt: payment.confirmedAt,
       supporterEmail: payment.supporterEmail,
+      notifyOnDethrone: payment.notifyOnDethrone,
+      notifyWeeklyRecap: payment.notifyWeeklyRecap,
     };
   });
 }

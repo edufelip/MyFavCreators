@@ -51,6 +51,7 @@ export async function startBoostAction(
       supporterKey: await readOrCreateSupporterKey(),
       anonymous: formData.get("anonymous") === "on",
       notifyOnDethrone: formData.get("notifyOnDethrone") === "on",
+      notifyWeeklyRecap: formData.get("notifyWeeklyRecap") === "on",
       ...(supporterName === undefined ? {} : { supporterName }),
       ...(supporterMessage === undefined ? {} : { supporterMessage }),
       ...(supporterEmail === undefined ? {} : { supporterEmail }),

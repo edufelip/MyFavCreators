@@ -4,6 +4,7 @@ import {
   CREATOR_PLATFORMS,
   DELIVERY_SURFACES,
   MODERATION_STATUSES,
+  NOTIFICATION_TYPES,
   PAYMENT_STATUSES,
   RANKING_PERIOD_STATUSES,
   RANKING_PERIOD_TYPES,
@@ -28,8 +29,6 @@ export const rankingPeriodStatusEnum = pgEnum("ranking_period_status", RANKING_P
 /** Where a creator was displayed when an impression was counted. */
 export const impressionSurfaceEnum = pgEnum("impression_surface", DELIVERY_SURFACES);
 
-export const NOTIFICATION_TYPES = ["DETHRONE"] as const;
-export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 export const notificationTypeEnum = pgEnum("notification_type", NOTIFICATION_TYPES);
 
 export const REPORT_STATUSES = ["OPEN", "RESOLVED"] as const;

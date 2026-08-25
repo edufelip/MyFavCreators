@@ -15,7 +15,7 @@ import {
   type EmailMessage,
   type EmailProvider,
 } from "../../src/email/provider";
-import { subscribeToDethrone } from "../../src/services/notifications";
+import { subscribeToNotifications } from "../../src/services/notifications";
 import { sendWeeklyRecaps } from "../../src/services/weekly-recap";
 
 /** A Monday morning, just after the week the recap describes ended. */
@@ -63,7 +63,11 @@ async function creatorWithFollower(
       confirmedAt: LAST_WEEK,
     });
   }
-  await subscribeToDethrone(testDatabase.db, { email: followerEmail, creatorId: creator.id });
+  await subscribeToNotifications(testDatabase.db, {
+    email: followerEmail,
+    creatorId: creator.id,
+    types: ["WEEKLY_RECAP"],
+  });
   return creator;
 }
 

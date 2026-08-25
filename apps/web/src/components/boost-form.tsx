@@ -184,9 +184,29 @@ export function BoostForm({ creators, fixedCreatorSlug }: BoostFormProps) {
             <span className="text-white/55">{copy.boostForm.emailHint}</span>
           </label>
           <label className="flex items-center gap-2 text-sm text-white/80">
-            <input type="checkbox" name="notifyOnDethrone" className="h-4 w-4" />
+            <input
+              type="checkbox"
+              name="notifyOnDethrone"
+              data-testid="boost-notify-dethrone"
+              className="h-4 w-4"
+            />
             {copy.boostForm.notifyOnDethrone}
           </label>
+          {/*
+            Two questions, not one. Agreeing to hear when a profile loses the
+            top spot is not agreeing to a weekly summary, and one box covering
+            both would be consent for one used as permission for the other.
+          */}
+          <label className="flex items-center gap-2 text-sm text-white/80">
+            <input
+              type="checkbox"
+              name="notifyWeeklyRecap"
+              data-testid="boost-notify-recap"
+              className="h-4 w-4"
+            />
+            {copy.boostForm.notifyWeeklyRecap}
+          </label>
+          <p className="text-xs text-white/55">{copy.boostForm.notifyHelp}</p>
         </div>
       ) : null}
 

@@ -108,9 +108,10 @@ export default function RulesPage() {
             qualquer engajamento fora da plataforma.
           </p>
           <p>
-            O direito ao rodízio significa participar do sorteio de exibição entre os perfis
-            elegíveis durante o período. Não significa aparecer sem parar por{" "}
-            {product.rotationHours} horas.
+            O direito ao rodízio significa entrar no grupo de perfis elegíveis durante o período.
+            Quem aparece a cada momento é decidido por um cálculo fixo, igual para todos e sem acaso
+            — não é uma disputa de sorte e não pode ser comprado. Entrar no grupo não significa
+            aparecer sem parar por {product.rotationHours} horas.
           </p>
         </Rule>
 

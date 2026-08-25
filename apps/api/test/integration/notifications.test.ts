@@ -88,13 +88,19 @@ async function providerPaymentIdFor(paymentId: string): Promise<string> {
 async function boost(
   creatorSlug: string,
   amountCents: number,
-  options: { readonly supporterEmail?: string; readonly eventId?: string } = {},
+  options: {
+    readonly supporterEmail?: string;
+    /** Defaults to true, because these tests are about what subscribers get. */
+    readonly notifyOnDethrone?: boolean;
+    readonly eventId?: string;
+  } = {},
 ) {
   const response = await post("/v1/boosts", {
     creatorSlug,
     amountCents,
     supporterKey: `browser-${creatorSlug}-${amountCents}`,
     ...(options.supporterEmail === undefined ? {} : { supporterEmail: options.supporterEmail }),
+    notifyOnDethrone: options.notifyOnDethrone ?? true,
   });
   const checkout = parseContract(CheckoutDto, await response.json(), "Checkout");
   const providerPaymentId = await providerPaymentIdFor(checkout.paymentId);
@@ -124,11 +130,23 @@ async function subscriptionCount(): Promise<number> {
 }
 
 describe("who hears about a creator", () => {
-  test("a supporter who left an address is subscribed when their boost confirms", async () => {
+  test("a supporter who asked to hear is subscribed when their boost confirms", async () => {
     const creator = await approvedCreator("luna-verso");
     await boost(creator.slug, 5_000, { supporterEmail: "ana@example.com" });
 
     expect(await subscriptionCount()).toBe(1);
+  });
+
+  test("an address alone subscribes nobody", async () => {
+    // The address is for the receipt. Being written to is a separate thing to
+    // agree to, and it was not agreed to here.
+    const creator = await approvedCreator("so-recibo");
+    await boost(creator.slug, 5_000, {
+      supporterEmail: "ana@example.com",
+      notifyOnDethrone: false,
+    });
+
+    expect(await subscriptionCount()).toBe(0);
   });
 
   test("a supporter who left no address is not subscribed to anything", async () => {

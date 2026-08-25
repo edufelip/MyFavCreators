@@ -76,13 +76,14 @@ export const CreatorDashboardDto = t.Object(
     clickThroughRate: t.Union([t.Number({ minimum: 0, maximum: 1 }), t.Null()]),
     championWeeks: t.Integer({ minimum: 0 }),
     notifyDethrone: t.Boolean(),
+    notifyWeeklyRecap: t.Boolean(),
   },
   { $id: "CreatorDashboard" },
 );
 export type CreatorDashboardDto = Static<typeof CreatorDashboardDto>;
 
 export const NotificationPreferenceDto = t.Object(
-  { notifyDethrone: t.Boolean() },
+  { notifyDethrone: t.Boolean(), notifyWeeklyRecap: t.Boolean() },
   { $id: "NotificationPreference" },
 );
 export type NotificationPreferenceDto = Static<typeof NotificationPreferenceDto>;

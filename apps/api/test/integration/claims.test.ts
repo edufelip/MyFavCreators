@@ -311,10 +311,26 @@ describe("a claimed creator's own notifications", () => {
     const response = await call("/v1/creators/me/notifications", {
       method: "PUT",
       headers: { "content-type": "application/json", ...authorized(token) },
-      body: JSON.stringify({ notifyDethrone: true }),
+      body: JSON.stringify({ notifyDethrone: true, notifyWeeklyRecap: false }),
     });
-    expect(await response.json()).toEqual({ notifyDethrone: true });
+    expect(await response.json()).toEqual({ notifyDethrone: true, notifyWeeklyRecap: false });
     expect((await dashboard(token)).notifyDethrone).toBe(true);
+  });
+
+  test("switches each notification independently", async () => {
+    // One switch off must not take the other with it.
+    const verified = await verifyClaim(await requestClaim(), { email: "luna@example.com" });
+    const token = verified.manageToken ?? "";
+    const response = await call("/v1/creators/me/notifications", {
+      method: "PUT",
+      headers: { "content-type": "application/json", ...authorized(token) },
+      body: JSON.stringify({ notifyDethrone: false, notifyWeeklyRecap: true }),
+    });
+    expect(await response.json()).toEqual({ notifyDethrone: false, notifyWeeklyRecap: true });
+
+    const board = await dashboard(token);
+    expect(board.notifyDethrone).toBe(false);
+    expect(board.notifyWeeklyRecap).toBe(true);
   });
 
   test("are switched off again on request", async () => {
@@ -324,7 +340,7 @@ describe("a claimed creator's own notifications", () => {
       call("/v1/creators/me/notifications", {
         method: "PUT",
         headers: { "content-type": "application/json", ...authorized(token) },
-        body: JSON.stringify({ notifyDethrone }),
+        body: JSON.stringify({ notifyDethrone, notifyWeeklyRecap: false }),
       });
 
     await put(true);
@@ -337,9 +353,9 @@ describe("a claimed creator's own notifications", () => {
     const response = await call("/v1/creators/me/notifications", {
       method: "PUT",
       headers: { "content-type": "application/json", ...authorized(token) },
-      body: JSON.stringify({ notifyDethrone: true }),
+      body: JSON.stringify({ notifyDethrone: true, notifyWeeklyRecap: true }),
     });
-    expect(await response.json()).toEqual({ notifyDethrone: false });
+    expect(await response.json()).toEqual({ notifyDethrone: false, notifyWeeklyRecap: false });
   });
 
   test("never appear on the public page", async () => {
@@ -348,7 +364,7 @@ describe("a claimed creator's own notifications", () => {
     await call("/v1/creators/me/notifications", {
       method: "PUT",
       headers: { "content-type": "application/json", ...authorized(token) },
-      body: JSON.stringify({ notifyDethrone: true }),
+      body: JSON.stringify({ notifyDethrone: true, notifyWeeklyRecap: true }),
     });
 
     const body = await (await call("/v1/creators/luna-verso")).text();

@@ -41,6 +41,9 @@ export type CreateBoostInput = {
   readonly supporterMessage?: string | undefined;
   readonly anonymous?: boolean | undefined;
   readonly supporterEmail?: string | undefined;
+  /** What the payer agreed to be written about. Absent means agreed to nothing. */
+  readonly notifyOnDethrone?: boolean | undefined;
+  readonly notifyWeeklyRecap?: boolean | undefined;
   readonly supporterKey: string;
   readonly now: Date;
 };
@@ -100,6 +103,12 @@ export async function createBoost(
       // Stored privately for receipts and notifications; never public.
       supporterEmail: input.supporterEmail ?? null,
       fanIdentityKey,
+      /*
+       * Silence is not agreement: an absent answer records a "no", so an API
+       * client that says nothing about notifications has asked for none.
+       */
+      notifyOnDethrone: input.notifyOnDethrone === true,
+      notifyWeeklyRecap: input.notifyWeeklyRecap === true,
       // The PIX payload lives with the payment so the checkout screen can be
       // reloaded, or reopened on another device, without ever putting it in a URL.
       rawMetadata: {

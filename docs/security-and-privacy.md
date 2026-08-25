@@ -122,11 +122,18 @@ and it should be revisited before anybody else is given the password.
 | Data | Why it exists | Where it can appear |
 | --- | --- | --- |
 | Supporter name and message | The payer chose to show them | The public Torcida, if not anonymous |
-| Supporter email | Receipts and notifications | Nowhere public. Never a log line in full |
+| Supporter email | Receipts, and only the notifications they ticked | Nowhere public. Never a log line in full |
 | Fan identity key | Grouping one supporter's boosts | Nowhere public, ever |
 | Analytics session id | Deduplicating impressions and clicks | Nowhere public; not readable by any script |
 | Claim contact email | Reaching a claimed creator | Nowhere public |
 | Client address | Rate limiting | Not stored |
+
+**Consent is per notification and per purchase.** Leaving an address subscribes
+nobody to anything: the boxes on the boost form are separate questions, the
+answers are recorded on the boost that carried them, and an absent answer counts
+as a no. A subscription is revived only by fresh explicit consent, never by an
+address reappearing — otherwise the one-click unsubscribe every message carries
+would quietly undo itself on the next purchase.
 
 **Anonymity is honoured per boost, not per person.** An anonymous boost is never
 folded into the same person's named row on the wall: doing so would publish,

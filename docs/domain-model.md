@@ -176,12 +176,21 @@ window. The ranking needs no update — committing *is* the ranking change.
 
 **Invariants**
 
-1. Unique per (email, creator, type). Two spellings of one inbox are one
+1. **Consent is per notification and per purchase.** An address is not
+   agreement: it is what a receipt goes to. A subscription exists only because
+   somebody ticked a box on a boost they paid for, the answer is recorded on
+   that boost, and an absent answer is a no. Agreeing to hear when a profile
+   loses the top spot is not agreeing to a weekly summary, so each is its own
+   subscription with its own unsubscribe token.
+2. Unique per (email, creator, type). Two spellings of one inbox are one
    subscription and therefore one copy of every message.
-2. A delivery is unique per (subscription, dedupe key), claimed *before*
+3. A delivery is unique per (subscription, dedupe key), claimed *before*
    sending. A crash between claim and send costs one email nobody receives,
    which is the cheaper of the two mistakes.
-3. An unsubscribed row is re-enabled, never duplicated.
+4. An unsubscribed row is re-enabled, never duplicated — and only ever on fresh
+   explicit consent. Reviving one because an address reappeared would quietly
+   undo an unsubscribe, which is the one thing every message promises it will
+   not do.
 
 ### Creator claim
 
@@ -203,7 +212,7 @@ with exactly one place that reacts to it.
 | Boost activated | `applyPaymentEvent` | subscription capture, overtake ticker, dethrone notification |
 | Leader changed | `detectLeaderChange` | dethrone notification |
 | Payment refunded | `applyPaymentEvent` | closed-period recomputation |
-| Creator became ineligible mid-flight | `applyPaymentEvent` | boost voided, refund issued |
+| Creator became ineligible mid-flight | `applyPaymentEvent` | boost voided, refund issued; retried by `settleOwedRefunds` if that call fails |
 | Weekly period ended | `runWeeklyRollover` | snapshots, champion, weekly recap |
 
 Follow-ups run **after** the payment transaction commits, never inside it, and

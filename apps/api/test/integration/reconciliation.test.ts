@@ -203,7 +203,7 @@ describe("recovering a payment whose webhook never arrived", () => {
     await backdatePayments();
     const summary = await reconcile();
 
-    expect(summary).toEqual({ examined: 1, changed: 1, unchanged: 0, failed: 0 });
+    expect(summary).toEqual({ examined: 1, changed: 1, unchanged: 0, failed: 0, refunded: 0 });
     const view = await paymentView(paymentId);
     expect(view.status).toBe("CONFIRMED");
     expect(view.boostStatus).toBe("ACTIVE");
@@ -317,7 +317,13 @@ describe("recovering a payment whose webhook never arrived", () => {
     provider.simulate(providerPaymentId, "EXPIRED");
     await backdatePayments();
 
-    expect(await reconcile()).toEqual({ examined: 1, changed: 1, unchanged: 0, failed: 0 });
+    expect(await reconcile()).toEqual({
+      examined: 1,
+      changed: 1,
+      unchanged: 0,
+      failed: 0,
+      refunded: 0,
+    });
     const view = await paymentView(paymentId);
     expect(view.status).toBe("EXPIRED");
     expect(view.boostStatus).toBe("VOID");
@@ -330,7 +336,13 @@ describe("what reconciliation refuses to touch", () => {
     const { paymentId } = await openCheckout("ainda-pagando");
     await backdatePayments();
 
-    expect(await reconcile()).toEqual({ examined: 1, changed: 0, unchanged: 1, failed: 0 });
+    expect(await reconcile()).toEqual({
+      examined: 1,
+      changed: 0,
+      unchanged: 1,
+      failed: 0,
+      refunded: 0,
+    });
     expect((await paymentView(paymentId)).status).toBe("PENDING");
     expect(await weeklyEntries()).toHaveLength(0);
   });
@@ -341,7 +353,13 @@ describe("what reconciliation refuses to touch", () => {
     const { providerPaymentId } = await openCheckout("recem-aberto");
     provider.simulate(providerPaymentId, "CONFIRMED");
 
-    expect(await reconcile()).toEqual({ examined: 0, changed: 0, unchanged: 0, failed: 0 });
+    expect(await reconcile()).toEqual({
+      examined: 0,
+      changed: 0,
+      unchanged: 0,
+      failed: 0,
+      refunded: 0,
+    });
     expect(await weeklyEntries()).toHaveLength(0);
   });
 
@@ -360,7 +378,13 @@ describe("what reconciliation refuses to touch", () => {
     await backdatePayments();
 
     // The fixture writes provider "test"; this job speaks only for its own.
-    expect(await reconcile()).toEqual({ examined: 0, changed: 0, unchanged: 0, failed: 0 });
+    expect(await reconcile()).toEqual({
+      examined: 0,
+      changed: 0,
+      unchanged: 0,
+      failed: 0,
+      refunded: 0,
+    });
   });
 
   test("leaves a settled payment alone", async () => {
@@ -371,7 +395,13 @@ describe("what reconciliation refuses to touch", () => {
     await backdatePayments();
 
     // Nothing left to ask about: a confirmed payment is no longer a candidate.
-    expect(await reconcile()).toEqual({ examined: 0, changed: 0, unchanged: 0, failed: 0 });
+    expect(await reconcile()).toEqual({
+      examined: 0,
+      changed: 0,
+      unchanged: 0,
+      failed: 0,
+      refunded: 0,
+    });
     expect((await paymentView(paymentId)).status).toBe("CONFIRMED");
   });
 });
@@ -402,7 +432,13 @@ describe("when the provider misbehaves", () => {
     await reconcile(new FailingForOneProvider(provider, providerPaymentId));
     expect((await paymentView(paymentId)).status).toBe("PENDING");
 
-    expect(await reconcile()).toEqual({ examined: 1, changed: 1, unchanged: 0, failed: 0 });
+    expect(await reconcile()).toEqual({
+      examined: 1,
+      changed: 1,
+      unchanged: 0,
+      failed: 0,
+      refunded: 0,
+    });
     expect((await paymentView(paymentId)).status).toBe("CONFIRMED");
   });
 });
@@ -414,14 +450,20 @@ describe("a creator who stopped being eligible while the PIX was in flight", () 
     provider.simulate(providerPaymentId, "CONFIRMED");
     await backdatePayments();
 
-    expect((await reconcile()).changed).toBe(1);
+    const summary = await reconcile();
+    expect(summary.changed).toBe(1);
+    expect(summary.refunded).toBe(1);
 
+    /*
+     * The money goes back and the record says so. The refund used to be issued
+     * at the provider while our own payment stayed CONFIRMED forever — a
+     * discrepancy nothing would ever have reconciled, because a CONFIRMED
+     * payment is not something the unsettled sweep looks at.
+     */
     const view = await paymentView(paymentId);
-    expect(view.status).toBe("CONFIRMED");
-    expect(view.boostStatus).toBe("VOID");
+    expect(view.status).toBe("REFUNDED");
+    expect(view.boostStatus).toBe("REVERSED");
     expect(await weeklyEntries()).toHaveLength(0);
-    // Reconciliation owes the customer the same refund the webhook path issues;
-    // a recovered payment must not leave money taken for nothing.
     expect(await provider.getPaymentStatus(providerPaymentId)).toBe("REFUNDED");
   });
 });

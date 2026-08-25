@@ -161,6 +161,16 @@ export function CreatorManagePanel({ dashboard, webOrigin }: CreatorManagePanelP
             />
             {copy.manage.notifyDethrone}
           </label>
+          <label className="flex items-center gap-2 text-sm text-white/80">
+            <input
+              type="checkbox"
+              name="notifyWeeklyRecap"
+              defaultChecked={dashboard.notifyWeeklyRecap}
+              data-testid="manage-notify-recap"
+              className="h-4 w-4"
+            />
+            {copy.manage.notifyWeeklyRecap}
+          </label>
           <label htmlFor="notifyEmail" className="text-xs text-white/60">
             {copy.manage.notifyEmail}
           </label>

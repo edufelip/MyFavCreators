@@ -11,6 +11,7 @@ import {
 import {
   createUnsubscribeToken,
   isEmail,
+  type NotificationType,
   normalizeEmail,
   redactEmail,
 } from "@creator-outdoor/domain";
@@ -28,28 +29,58 @@ export type NotificationDependencies = {
 };
 
 /**
- * Records that somebody wants to hear when a creator loses the top spot.
+ * Records that somebody agreed to be written to about a creator.
  *
- * Called when a boost confirms and the payer left an address. The address is
- * theirs to give: it is stored privately, never published on the Torcida, and
- * every message it receives carries a one-click unsubscribe.
+ * Called when a boost confirms, with the answers the payer actually gave. An
+ * address alone is not agreement — it is what a receipt goes to — so nothing is
+ * recorded for a notification nobody asked for, and an absent answer is a no.
+ *
+ * One subscription per type, each with its own unsubscribe token, so stopping
+ * one leaves the other running.
  *
  * A bad address is not an error worth failing a payment over — the boost is
  * already paid and activated — so it is dropped quietly.
  */
-export async function subscribeToDethrone(
+export async function subscribeToNotifications(
   database: Database,
-  input: { readonly email: string | null; readonly creatorId: string },
-): Promise<SubscriptionRow | null> {
-  if (input.email === null || !isEmail(input.email)) {
-    return null;
+  input: {
+    readonly email: string | null;
+    readonly creatorId: string;
+    readonly types: readonly NotificationType[];
+  },
+): Promise<readonly SubscriptionRow[]> {
+  if (input.email === null || !isEmail(input.email) || input.types.length === 0) {
+    return [];
   }
-  return upsertNotificationSubscription(database, {
-    email: normalizeEmail(input.email),
-    creatorId: input.creatorId,
-    type: "DETHRONE",
-    unsubToken: createUnsubscribeToken(),
-  });
+  const email = normalizeEmail(input.email);
+
+  const rows: SubscriptionRow[] = [];
+  for (const type of input.types) {
+    rows.push(
+      await upsertNotificationSubscription(database, {
+        email,
+        creatorId: input.creatorId,
+        type,
+        unsubToken: createUnsubscribeToken(),
+      }),
+    );
+  }
+  return rows;
+}
+
+/** The notifications a set of answers agreed to. Absent answers agree to nothing. */
+export function consentedNotificationTypes(input: {
+  readonly notifyOnDethrone: boolean;
+  readonly notifyWeeklyRecap: boolean;
+}): readonly NotificationType[] {
+  const types: NotificationType[] = [];
+  if (input.notifyOnDethrone) {
+    types.push("DETHRONE");
+  }
+  if (input.notifyWeeklyRecap) {
+    types.push("WEEKLY_RECAP");
+  }
+  return types;
 }
 
 /**

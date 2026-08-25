@@ -1,5 +1,5 @@
 import type { ProductConfig } from "@creator-outdoor/config";
-import { type Database, listUnsettledPayments } from "@creator-outdoor/db";
+import { type Database, listOwedRefunds, listUnsettledPayments } from "@creator-outdoor/db";
 import { isTerminalPaymentStatus } from "@creator-outdoor/domain";
 import type { EmailProvider } from "../email/provider";
 import { log } from "../observability/logger";
@@ -12,6 +12,8 @@ export type ReconciliationSummary = {
   readonly changed: number;
   readonly unchanged: number;
   readonly failed: number;
+  /** Refunds the platform owed and has now actually made. */
+  readonly refunded: number;
 };
 
 export type ReconcileOptions = {
@@ -19,6 +21,8 @@ export type ReconcileOptions = {
   /** Only look at payments untouched for at least this long. */
   readonly staleAfterMinutes?: number;
   readonly limit?: number;
+  /** How many owed refunds to work through in one run. */
+  readonly refundLimit?: number;
   /** Absent in a process that does not send mail; notifications are skipped. */
   readonly email?: EmailProvider;
   readonly webOrigin?: string;
@@ -116,5 +120,94 @@ export async function reconcilePayments(
     }
   }
 
-  return { examined: candidates.length, changed, unchanged, failed };
+  const refunds = await settleOwedRefunds(database, product, provider, options);
+
+  return {
+    examined: candidates.length + refunds.examined,
+    changed,
+    unchanged,
+    failed: failed + refunds.failed,
+    refunded: refunds.refunded,
+  };
+}
+
+/**
+ * Pays back money the platform owes and still holds.
+ *
+ * A boost voided for an ineligible creator flags a refund, and the webhook path
+ * issues it immediately — but that call can fail, and when it does the money
+ * stays with a payment that is `CONFIRMED`. The unsettled sweep above will
+ * never look at it, because it is not unsettled. Without this, "a refund was
+ * flagged" is the last thing that ever happens to it.
+ *
+ * The provider is asked first. A refund it has already made is recorded rather
+ * than requested again, which is what makes a crash between the call and the
+ * write recoverable instead of a double refund.
+ */
+async function settleOwedRefunds(
+  database: Database,
+  product: ProductConfig,
+  provider: PixPaymentProvider,
+  options: ReconcileOptions,
+): Promise<{ readonly examined: number; readonly refunded: number; readonly failed: number }> {
+  const owed = await listOwedRefunds(database, provider.name, options.refundLimit ?? 100);
+
+  let refunded = 0;
+  let failed = 0;
+
+  for (const candidate of owed) {
+    try {
+      const status = await provider.getPaymentStatus(candidate.providerPaymentId);
+      if (status !== "REFUNDED") {
+        await provider.refundPayment(candidate.providerPaymentId);
+      }
+
+      const outcome = await applyPaymentEvent(database, product, {
+        provider: provider.name,
+        event: {
+          // Stable for this payment, so recording it twice is a duplicate
+          // rather than a second refund.
+          providerEventId: "reconcile:owed-refund",
+          providerPaymentId: candidate.providerPaymentId,
+          status: "REFUNDED",
+          occurredAt: options.now,
+          rawPayload: { source: "reconciliation", reason: "owed-refund" },
+        },
+        now: options.now,
+      });
+
+      if (outcome.kind === "APPLIED") {
+        refunded += 1;
+        await runPaymentFollowUps(
+          {
+            database,
+            product,
+            ...(options.email === undefined ? {} : { email: options.email }),
+            ...(options.webOrigin === undefined ? {} : { webOrigin: options.webOrigin }),
+          },
+          provider,
+          outcome,
+          options.now,
+        );
+        log.info("owed_refund_settled", {
+          provider: provider.name,
+          creatorId: candidate.creatorId,
+        });
+      }
+    } catch (error) {
+      failed += 1;
+      // Still owed, so the next run tries again. Money is never written off by
+      // a failed attempt.
+      log.error("owed_refund_failed", error, {
+        provider: provider.name,
+        creatorId: candidate.creatorId,
+      });
+    }
+  }
+
+  if (owed.length === (options.refundLimit ?? 100)) {
+    log.warn("owed_refunds_truncated", { provider: provider.name, limit: owed.length });
+  }
+
+  return { examined: owed.length, refunded, failed };
 }

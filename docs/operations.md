@@ -11,7 +11,7 @@ when something breaks. Written to be read at 3am.
 | Web | `next start` in `apps/web` | The public site is down. Payments already in flight still settle: webhooks reach the API directly. |
 | Admin | `next start` in `apps/admin` | Moderation stops. Nothing public is affected. |
 | Weekly rollover | `bun run job:weekly-rollover` | Nothing immediate. **The live ranking never depends on it** — it computes the period from the instant. Hall da Fama stops gaining weeks until it runs, and a late run closes everything it missed. |
-| Payment reconciliation | `bun run job:payment-reconcile` | Payments whose webhook was lost stay pending. Customers who really paid keep seeing a spinner. This is the one whose absence is silently visible to a paying customer. |
+| Payment reconciliation | `bun run job:payment-reconcile` | Two things stop happening: payments whose webhook was lost stay pending, so customers who really paid keep seeing a spinner; and refunds the platform owes but failed to make are never retried, so it keeps money for promotions it never delivered. The one whose absence costs a customer directly. |
 | Weekly recap | `bun run job:weekly-recap` | Nobody gets the weekly email. No other effect. |
 
 Suggested schedule: rollover hourly, reconciliation every five minutes, recap
@@ -72,8 +72,17 @@ somebody's consent to be contacted.
    It asks the provider and applies the answer through the same transition
    service the webhook uses, so this is safe and repeatable.
 3. If it is `CONFIRMED` but the boost is `VOID`, the creator became ineligible
-   while the payment was in flight. A refund was flagged and issued; check
-   `audit_logs` for `boost.voided_ineligible_creator`.
+   while the payment was in flight, so the boost was refused and a refund is
+   owed. Check `audit_logs` for `boost.voided_ineligible_creator`.
+
+   A refund is *attempted* at that moment; it can fail. `bun run
+   job:payment-reconcile` finds every payment still in that shape — CONFIRMED,
+   boost VOID, no refund recorded — asks the provider, and refunds or records
+   what the provider already did. Run it, then re-check `refunded_at`.
+
+   An operator can also issue one directly: `POST
+   /internal/admin/payments/:id/refund`, which goes through the same transition
+   service, so the ranking and the closed-period history correct themselves.
 
 ### The ranking looks wrong
 

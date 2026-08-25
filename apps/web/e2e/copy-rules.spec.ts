@@ -66,11 +66,19 @@ function offendingTerms(text: string): string[] {
 }
 
 /**
- * `/regras` is deliberately absent: it is the one surface whose job is to name
- * these words and deny them ("não é vaquinha, não é doação"). It gets its own
- * test, which checks the denial rather than the absence.
+ * `/regras` is deliberately absent from the plain scan: it is the one surface
+ * whose job is to name these words and deny them ("não é vaquinha, não é
+ * doação"). It gets a stricter test instead — every occurrence must sit inside
+ * a denial — because "exempt" was being read as "unchecked", and an affirmative
+ * "sorteio de exibição" survived there for exactly that reason.
  */
-const PUBLIC_PAGES = ["/", "/enviar", "/hall-da-fama"];
+const PUBLIC_PAGES = [
+  "/",
+  "/enviar",
+  "/hall-da-fama",
+  "/gerenciar",
+  "/descadastrar/aaaaaaaaaaaaaaaa",
+];
 
 test.describe("what the platform says", () => {
   for (const path of PUBLIC_PAGES) {
@@ -129,6 +137,26 @@ test.describe("what the platform says", () => {
     expect(text).toContain("não é apoio financeiro");
     expect(text).toContain("nunca entra em sorteio");
     expect(text).toContain("nenhum valor é repassado ao criador");
+  });
+
+  test("the rules page never uses a forbidden word affirmatively", async ({ page }) => {
+    /*
+     * The exemption is "may name them to deny them", not "is unchecked". Every
+     * sentence carrying one of these words has to carry a denial with it —
+     * without this, `/regras` was the one public page with no copy check at
+     * all, and an affirmative "sorteio de exibição" lived there.
+     */
+    await page.goto("/regras");
+    const text = (await platformText(page)).toLowerCase();
+    const denial = /\b(não|nao|nunca|nenhum|nenhuma|jamais|sem)\b/;
+
+    const offending: string[] = [];
+    for (const sentence of text.split(/[.!?]/)) {
+      if (offendingTerms(sentence).length > 0 && !denial.test(sentence)) {
+        offending.push(sentence.trim());
+      }
+    }
+    expect(offending).toEqual([]);
   });
 
   test("carries the disclosure verbatim on every surface that must have it", async ({ page }) => {

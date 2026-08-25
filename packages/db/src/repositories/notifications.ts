@@ -1,7 +1,7 @@
+import type { NotificationType } from "@creator-outdoor/domain";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { DatabaseExecutor } from "../client";
 import { creators, notificationDeliveries, notificationSubscriptions } from "../schema";
-import type { NotificationType } from "../schema/enums";
 
 /**
  * Who asked to hear about a creator, and what has already been sent to them.
@@ -22,9 +22,13 @@ export type SubscriptionRow = {
  *
  * Unique on (email, creator, type), so the same person boosting the same
  * creator five times is one subscription and therefore one email per happening.
+ *
  * A previously unsubscribed row is re-enabled rather than duplicated: somebody
  * who opts back in should not end up with two rows, one of them permanently
- * dead.
+ * dead. **This only ever runs on fresh, explicit consent** — the caller reaches
+ * here because somebody ticked a box on a purchase they just made. Calling it
+ * on the mere presence of an address would quietly undo an unsubscribe, which
+ * is the one thing every message this system sends promises it will not do.
  */
 export async function upsertNotificationSubscription(
   executor: DatabaseExecutor,

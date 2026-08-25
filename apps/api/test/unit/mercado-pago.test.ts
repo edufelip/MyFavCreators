@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createHmac } from "node:crypto";
+import { requireInteger, requireRecord } from "@creator-outdoor/db";
 import { PAYMENT_STATUSES } from "@creator-outdoor/domain";
 import {
   isMercadoPagoConfigured,
@@ -177,13 +178,18 @@ describe("provider adapter", () => {
   }
 
   test("creates a PIX charge and returns the payload", async () => {
-    let seen: { url: string; body: unknown; idempotencyKey: string | null } | null = null;
+    /*
+     * Collected into an array rather than a nullable local: TypeScript cannot
+     * see that a callback assigned it, so a nullable local narrows to `null`
+     * here and the only way to read it is a cast. An array needs none.
+     */
+    const seen: Array<{ url: string; body: unknown; idempotencyKey: string | null }> = [];
     const provider = providerWith(async (request) => {
-      seen = {
+      seen.push({
         url: request.url,
         body: await request.json(),
         idempotencyKey: request.headers.get("x-idempotency-key"),
-      };
+      });
       return json({
         id: 998877,
         status: "pending",
@@ -196,12 +202,12 @@ describe("provider adapter", () => {
     const created = await provider.createPixPayment({ amountCents: 2_500, externalRef: "ref-1" });
     expect(created.providerPaymentId).toBe("998877");
     expect(created.copyPaste).toBe("00020126-pix-payload");
+    const request = seen[0];
+    expect(request).toBeDefined();
     // Amounts cross the wire in reais; the boundary is the only place that happens.
-    expect(
-      (seen as unknown as { body: { transaction_amount: number } }).body.transaction_amount,
-    ).toBe(25);
+    expect(requireInteger(requireRecord(request?.body), "transaction_amount")).toBe(25);
     // A retried create must not produce a second charge for one boost.
-    expect((seen as unknown as { idempotencyKey: string }).idempotencyKey).toBe("ref-1");
+    expect(request?.idempotencyKey).toBe("ref-1");
   });
 
   test("refuses a create response without a usable charge", async () => {

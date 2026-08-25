@@ -15,7 +15,7 @@ import {
   disableSubscription,
   setClaimEmail,
 } from "@creator-outdoor/db";
-import { normalizeEmail } from "@creator-outdoor/domain";
+import { type NotificationType, normalizeEmail } from "@creator-outdoor/domain";
 import { Elysia, t } from "elysia";
 import {
   clientKey,
@@ -32,7 +32,7 @@ import {
   verifyClaim,
 } from "../services/claims";
 import { getCreatorDashboard } from "../services/creator-dashboard";
-import { subscribeToDethrone } from "../services/notifications";
+import { subscribeToNotifications } from "../services/notifications";
 
 export type ClaimRouteDependencies = {
   readonly database: Database;
@@ -195,30 +195,43 @@ export function claimRoutes(dependencies: ClaimRouteDependencies) {
         const email = readEmail(body.email) ?? claimed.email;
         if (email === null) {
           // Nothing to turn on without somewhere to send it.
-          return { notifyDethrone: false };
+          return { notifyDethrone: false, notifyWeeklyRecap: false };
         }
         if (email !== claimed.email) {
           await setClaimEmail(dependencies.database, claimed.creatorId, email);
         }
 
-        if (body.notifyDethrone) {
-          await subscribeToDethrone(dependencies.database, {
-            email,
-            creatorId: claimed.creatorId,
-          });
-        } else {
-          await disableSubscription(dependencies.database, {
-            email,
-            creatorId: claimed.creatorId,
-            type: "DETHRONE",
-            at: now(),
-          });
+        // Each notification is its own switch, so turning one off leaves the
+        // other running.
+        const wanted: ReadonlyArray<readonly [NotificationType, boolean]> = [
+          ["DETHRONE", body.notifyDethrone],
+          ["WEEKLY_RECAP", body.notifyWeeklyRecap],
+        ];
+        for (const [type, on] of wanted) {
+          if (on) {
+            await subscribeToNotifications(dependencies.database, {
+              email,
+              creatorId: claimed.creatorId,
+              types: [type],
+            });
+          } else {
+            await disableSubscription(dependencies.database, {
+              email,
+              creatorId: claimed.creatorId,
+              type,
+              at: now(),
+            });
+          }
         }
-        return { notifyDethrone: body.notifyDethrone };
+        return {
+          notifyDethrone: body.notifyDethrone,
+          notifyWeeklyRecap: body.notifyWeeklyRecap,
+        };
       },
       {
         body: t.Object({
           notifyDethrone: t.Boolean(),
+          notifyWeeklyRecap: t.Boolean(),
           email: t.Optional(t.String({ maxLength: 254 })),
         }),
         response: { 200: NotificationPreferenceDto, 401: ApiErrorDto },

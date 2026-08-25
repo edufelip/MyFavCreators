@@ -127,10 +127,16 @@ export async function setNotificationsAction(
     return { message: copy.manage.signedOut, saved: false };
   }
 
-  const notify = formData.get("notifyDethrone") === "on";
   const email = textOf(formData, "email").trim();
   try {
-    await setCreatorNotifications(token, notify, email === "" ? null : email);
+    await setCreatorNotifications(
+      token,
+      {
+        notifyDethrone: formData.get("notifyDethrone") === "on",
+        notifyWeeklyRecap: formData.get("notifyWeeklyRecap") === "on",
+      },
+      email === "" ? null : email,
+    );
   } catch (error) {
     console.error("notification_pref_failed", error instanceof Error ? error.message : "unknown");
     return { message: copy.manage.unavailable, saved: false };

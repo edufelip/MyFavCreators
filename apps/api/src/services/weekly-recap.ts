@@ -45,7 +45,11 @@ export async function sendWeeklyRecaps(
   const window = { startsAt: period.startsAt, endsAt: period.endsAt };
   const dedupeKey = `recap:${period.startsAt.toISOString()}`;
 
-  const subscriptions = await listActiveSubscriptions(database, "DETHRONE", options.limit ?? 1_000);
+  const subscriptions = await listActiveSubscriptions(
+    database,
+    "WEEKLY_RECAP",
+    options.limit ?? 1_000,
+  );
 
   let sent = 0;
   let skipped = 0;
@@ -54,7 +58,7 @@ export async function sendWeeklyRecaps(
   for (const subscription of subscriptions) {
     const claimed = await claimNotificationDelivery(database, {
       subscriptionId: subscription.id,
-      type: "DETHRONE",
+      type: "WEEKLY_RECAP",
       dedupeKey,
       metadata: { periodStartsAt: period.startsAt.toISOString() },
     });

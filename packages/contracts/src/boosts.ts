@@ -23,7 +23,13 @@ export const CreateBoostRequestDto = t.Object(
     supporterEmail: t.Optional(t.String({ maxLength: 254 })),
     /** Persistent browser identifier for the supporter. Never the analytics sid. */
     supporterKey: t.Optional(t.String({ minLength: 8, maxLength: 128 })),
+    /**
+     * What the payer agrees to be written about. Each notification is its own
+     * question, because agreeing to hear about one is not agreeing to the
+     * other. Absent means agreed to nothing.
+     */
     notifyOnDethrone: t.Optional(t.Boolean()),
+    notifyWeeklyRecap: t.Optional(t.Boolean()),
   },
   { $id: "CreateBoostRequest" },
 );

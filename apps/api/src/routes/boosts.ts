@@ -67,6 +67,8 @@ export function boostRoutes(dependencies: BoostRouteDependencies) {
               supporterMessage: body.supporterMessage,
               anonymous: body.anonymous,
               supporterEmail: body.supporterEmail,
+              notifyOnDethrone: body.notifyOnDethrone,
+              notifyWeeklyRecap: body.notifyWeeklyRecap,
               // A caller that sends no supporter key still gets a stable
               // identity for this boost alone, rather than being merged with
               // every other anonymous supporter.

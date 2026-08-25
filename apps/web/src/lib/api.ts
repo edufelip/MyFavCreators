@@ -317,9 +317,14 @@ export async function updateCreatorProfile(
   return parseContract(CreatorDashboardSchema, await response.json(), "CreatorDashboard");
 }
 
+export type NotificationPreferences = {
+  readonly notifyDethrone: boolean;
+  readonly notifyWeeklyRecap: boolean;
+};
+
 export async function setCreatorNotifications(
   token: string,
-  notifyDethrone: boolean,
+  preferences: NotificationPreferences,
   email: string | null,
 ): Promise<void> {
   const response = await fetch(new URL("/v1/creators/me/notifications", webConfig.apiOrigin), {
@@ -330,7 +335,7 @@ export async function setCreatorNotifications(
       authorization: `Bearer ${token}`,
       ...(await forwardedClientHeaders()),
     },
-    body: JSON.stringify({ notifyDethrone, ...(email === null ? {} : { email }) }),
+    body: JSON.stringify({ ...preferences, ...(email === null ? {} : { email }) }),
     cache: "no-store",
   });
   if (!response.ok && response.status !== 401) {

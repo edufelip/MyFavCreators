@@ -27,6 +27,14 @@ export const boosts = pgTable(
     supporterEmail: text("supporter_email"),
     /** Private HMAC-derived grouping key. Never serialized into a public response. */
     fanIdentityKey: text("fan_identity_key"),
+    /**
+     * What the payer agreed to be written about, recorded on the boost that
+     * carried the answer. Consent belongs to the purchase somebody made, not to
+     * a session or a form that has since been closed — and defaulting to false
+     * means silence is never read as agreement.
+     */
+    notifyOnDethrone: boolean("notify_on_dethrone").notNull().default(false),
+    notifyWeeklyRecap: boolean("notify_weekly_recap").notNull().default(false),
     paymentId: uuid("payment_id")
       .notNull()
       .references(() => payments.id, { onDelete: "restrict" }),

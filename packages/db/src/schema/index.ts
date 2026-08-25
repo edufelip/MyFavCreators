@@ -7,8 +7,6 @@ export {
   creatorPlatformEnum,
   impressionSurfaceEnum,
   moderationStatusEnum,
-  NOTIFICATION_TYPES,
-  type NotificationType,
   notificationTypeEnum,
   paymentStatusEnum,
   REPORT_STATUSES,

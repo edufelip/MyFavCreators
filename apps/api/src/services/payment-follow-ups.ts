@@ -3,7 +3,11 @@ import type { Database } from "@creator-outdoor/db";
 import type { EmailProvider } from "../email/provider";
 import { log } from "../observability/logger";
 import type { PixPaymentProvider } from "../payments/provider";
-import { notifyDethrone, subscribeToDethrone } from "./notifications";
+import {
+  consentedNotificationTypes,
+  notifyDethrone,
+  subscribeToNotifications,
+} from "./notifications";
 import type { PaymentEventOutcome } from "./payment-transitions";
 import { detectLeaderChange, recordOvertakes } from "./rank-events";
 import { recomputeClosedPeriodFor } from "./rollover";
@@ -41,14 +45,15 @@ export async function runPaymentFollowUps(
 ): Promise<void> {
   if (outcome.boostActivated) {
     /*
-     * The person who paid asked to hear about this creator, so record that
-     * before anything else can fail: an interest lost because a ticker write
-     * threw would be silent and permanent.
+     * Whatever the payer agreed to is recorded before anything else can fail:
+     * an interest lost because a ticker write threw would be silent and
+     * permanent. Nothing is recorded for a notification nobody asked for.
      */
     await attempt("subscription_failed", () =>
-      subscribeToDethrone(dependencies.database, {
+      subscribeToNotifications(dependencies.database, {
         email: outcome.supporterEmail,
         creatorId: outcome.creatorId,
+        types: consentedNotificationTypes(outcome),
       }),
     );
 
@@ -99,9 +104,17 @@ export async function runPaymentFollowUps(
   }
 
   if (outcome.refundRequired) {
-    // The creator stopped being eligible while the payment was in flight, so the
-    // promotion was never delivered and the money goes back. A failure here is
-    // retried by the next reconciliation run; the boost is already VOID either way.
+    /*
+     * The creator stopped being eligible while the payment was in flight, so
+     * the promotion was never delivered and the money goes back. The boost is
+     * already VOID either way.
+     *
+     * A failure here is picked up by `settleOwedRefunds`, which finds exactly
+     * this shape — a CONFIRMED payment behind a VOID boost with no refund
+     * recorded — and tries again. That sweep exists because this comment used
+     * to promise a retry that nothing performed: the payment is CONFIRMED, so
+     * the unsettled sweep never looked at it, and the money stayed with us.
+     */
     await attempt("refund_failed", () => provider.refundPayment(outcome.providerPaymentId));
   }
 }
