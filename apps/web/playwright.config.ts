@@ -30,7 +30,17 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: isCi,
   retries: isCi ? 1 : 0,
-  workers: isCi ? 1 : undefined,
+  /*
+   * One worker, locally as well as in CI.
+   *
+   * The suite drives one stack against one database, and two things in it are
+   * genuinely global: the ranking, and the administrator's second factor. A
+   * TOTP code may be used once, so two workers signing in inside the same
+   * thirty-second window make each other fail — a flake with nothing to do with
+   * the code under test. Running the files in order costs about a minute and
+   * makes a local run mean the same thing a CI run means.
+   */
+  workers: 1,
   reporter: isCi ? [["list"], ["html", { open: "never" }]] : [["list"]],
   use: {
     baseURL: WEB_ORIGIN,

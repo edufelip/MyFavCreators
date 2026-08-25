@@ -4,10 +4,12 @@ import { adminCopy } from "@/lib/copy";
 
 export type AdminShellProps = {
   readonly title: string;
+  /** Who is signed in. Shown so a shared screen cannot hide whose account it is. */
+  readonly operator: string;
   readonly children: ReactNode;
 };
 
-export function AdminShell({ title, children }: AdminShellProps) {
+export function AdminShell({ title, operator, children }: AdminShellProps) {
   return (
     <div className="min-h-dvh">
       <header className="border-b border-white/10 bg-neutral-900/60">
@@ -20,11 +22,17 @@ export function AdminShell({ title, children }: AdminShellProps) {
             <a href="/denuncias" className="text-white/70 hover:text-white">
               {adminCopy.nav.reports}
             </a>
+            <a href="/pagamentos" className="text-white/70 hover:text-white">
+              {adminCopy.nav.payments}
+            </a>
             <a href="/auditoria" className="text-white/70 hover:text-white">
               {adminCopy.nav.audit}
             </a>
           </nav>
-          <form action={signOut} className="ml-auto">
+          <span data-testid="admin-operator" className="ml-auto text-sm text-white/50">
+            {operator}
+          </span>
+          <form action={signOut}>
             <button type="submit" className="text-sm text-white/60 underline hover:text-white">
               {adminCopy.nav.signOut}
             </button>

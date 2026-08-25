@@ -13,6 +13,7 @@ import {
   assertPaymentTransition,
   boostStatusForPayment,
   calculateRotationWindow,
+  canTransitionBoost,
   canTransitionPayment,
   isPubliclyEligible,
   type PaymentStatus,
@@ -239,7 +240,31 @@ async function applyBoostSideEffect(
   }
 
   const boostStatus = boostStatusForPayment(event.status);
-  if (boostStatus !== payment.boostStatus) {
-    await updateBoostStatus(tx, { boostId: payment.boostId, status: boostStatus, at: now });
+  if (boostStatus === payment.boostStatus) {
+    return;
   }
+
+  // The boost lifecycle is enforced here, the way the payment lifecycle is
+  // enforced above. Without this the payment machine is the only machine, and a
+  // payment reaching a legal state drags its boost through an illegal one — a
+  // boost VOIDed for an ineligible creator, then refunded, would be recorded as
+  // REVERSED, which means "the promotion was live and was undone". It never was.
+  // The money is still refunded; what stays true is the promotion's own history.
+  if (!canTransitionBoost(payment.boostStatus, boostStatus)) {
+    await writeAuditLog(tx, {
+      actor: `provider:${input.provider}`,
+      action: "boost.transition_refused",
+      targetType: "boost",
+      targetId: payment.boostId,
+      metadata: {
+        from: payment.boostStatus,
+        to: boostStatus,
+        paymentId: payment.paymentId,
+        paymentStatus: event.status,
+      },
+    });
+    return;
+  }
+
+  await updateBoostStatus(tx, { boostId: payment.boostId, status: boostStatus, at: now });
 }

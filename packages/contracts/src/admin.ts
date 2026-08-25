@@ -1,7 +1,13 @@
 import { type Static, Type as t } from "@sinclair/typebox";
 import { CategoryDto } from "./creator";
 import { CreatorLinkDto } from "./creators-detail";
-import { ClaimStatusSchema, ModerationStatusSchema, RejectionReasonSchema } from "./enums";
+import {
+  BoostStatusSchema,
+  ClaimStatusSchema,
+  ModerationStatusSchema,
+  PaymentStatusSchema,
+  RejectionReasonSchema,
+} from "./enums";
 import { IsoDateTime, Slug, Uuid } from "./primitives";
 
 /**
@@ -115,3 +121,58 @@ export const AdminAuditLogListDto = t.Object(
   { $id: "AdminAuditLogList" },
 );
 export type AdminAuditLogListDto = Static<typeof AdminAuditLogListDto>;
+
+/**
+ * A payment, as an operator sees it.
+ *
+ * Deliberately narrow. An operator needs enough to answer "did this person pay,
+ * and did they get what they paid for" and to send the money back when they did
+ * not — the amount, the state, the boost it bought, the timestamps. They do not
+ * need the supporter's identity, the provider's raw payload, or the PIX code,
+ * so none of it is here: a screen that cannot show a thing cannot leak it.
+ *
+ * The amount stays an integer number of centavos all the way to the screen,
+ * because money that becomes a float somewhere in the middle stops adding up.
+ */
+export const AdminPaymentDto = t.Object(
+  {
+    id: Uuid,
+    status: PaymentStatusSchema,
+    amountCents: t.Integer({ minimum: 0 }),
+    provider: t.String({ maxLength: 40 }),
+    /** The provider's own reference, for a support conversation with them. */
+    providerPaymentId: t.String({ maxLength: 120 }),
+    boostId: t.Union([Uuid, t.Null()]),
+    boostStatus: t.Union([BoostStatusSchema, t.Null()]),
+    creatorId: t.Union([Uuid, t.Null()]),
+    creatorSlug: t.Union([Slug, t.Null()]),
+    creatorDisplayName: t.Union([t.String({ maxLength: 120 }), t.Null()]),
+    createdAt: IsoDateTime,
+    confirmedAt: t.Union([IsoDateTime, t.Null()]),
+    refundedAt: t.Union([IsoDateTime, t.Null()]),
+  },
+  { $id: "AdminPayment" },
+);
+export type AdminPaymentDto = Static<typeof AdminPaymentDto>;
+
+export const AdminPaymentListDto = t.Object(
+  {
+    payments: t.Array(AdminPaymentDto),
+    total: t.Integer({ minimum: 0 }),
+  },
+  { $id: "AdminPaymentList" },
+);
+export type AdminPaymentListDto = Static<typeof AdminPaymentListDto>;
+
+/**
+ * A refund request.
+ *
+ * The reason is required and is written into the audit log. A refund moves real
+ * money on somebody else's word, and "why" is the one part of it that no later
+ * reader can reconstruct from the rows.
+ */
+export const AdminRefundRequestDto = t.Object(
+  { reason: t.String({ minLength: 3, maxLength: 500 }) },
+  { $id: "AdminRefundRequest" },
+);
+export type AdminRefundRequestDto = Static<typeof AdminRefundRequestDto>;

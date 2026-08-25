@@ -31,7 +31,7 @@
     "db:seed": "bun run --filter @creator-outdoor/db db:seed",
     "db:reset": "bun run --filter @creator-outdoor/db db:reset",
     "prepare": "husky || true",
-    "admin:hash": "bun run --cwd packages/config ../../scripts/hash-admin-password.ts",
+    "admin:operator": "bun run --cwd packages/config ../../scripts/enroll-admin-operator.ts",
     "job:weekly-rollover": "bun run --filter @creator-outdoor/api job:weekly-rollover",
     "job:weekly-recap": "bun run --filter @creator-outdoor/api job:weekly-recap",
     "job:payment-reconcile": "bun run --filter @creator-outdoor/api job:payment-reconcile"

@@ -6,11 +6,28 @@ import { adminCopy } from "@/lib/copy";
 
 const INITIAL: LoginState = { error: null };
 
+const FIELD =
+  "rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-base outline-none focus:border-white/40";
+
 export function LoginForm() {
   const [state, formAction, pending] = useActionState(signIn, INITIAL);
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
+      <label htmlFor="operator" className="text-sm font-medium text-white/80">
+        {adminCopy.login.operatorLabel}
+      </label>
+      <input
+        id="operator"
+        name="operator"
+        type="text"
+        autoComplete="username"
+        autoCapitalize="none"
+        spellCheck={false}
+        required
+        className={FIELD}
+      />
+
       <label htmlFor="password" className="text-sm font-medium text-white/80">
         {adminCopy.login.passwordLabel}
       </label>
@@ -20,8 +37,28 @@ export function LoginForm() {
         type="password"
         autoComplete="current-password"
         required
-        className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-base outline-none focus:border-white/40"
+        className={FIELD}
       />
+
+      <label htmlFor="code" className="text-sm font-medium text-white/80">
+        {adminCopy.login.codeLabel}
+      </label>
+      <input
+        id="code"
+        name="code"
+        type="text"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        pattern="[0-9]*"
+        maxLength={6}
+        required
+        aria-describedby="code-help"
+        className={FIELD}
+      />
+      <p id="code-help" className="text-xs text-white/50">
+        {adminCopy.login.codeHelp}
+      </p>
+
       {state.error === null ? null : (
         <p role="alert" data-testid="login-error" className="text-sm text-red-300">
           {state.error === "throttled" ? adminCopy.login.throttled : adminCopy.login.invalid}

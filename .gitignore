@@ -5,8 +5,14 @@ node_modules/
 dist/
 build/
 .next/
-out/
 *.tsbuildinfo
+# Anchored, so it means "a build directory at the root of a package" and not
+# "any directory called out, anywhere". Unanchored, it also swallowed
+# apps/web/src/app/out/[creatorLinkId] — the outbound redirect route — which
+# meant a fresh clone built a site where every creator's link 404ed.
+/out/
+apps/*/out/
+packages/*/out/
 
 # turbo
 .turbo/

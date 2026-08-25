@@ -185,14 +185,37 @@ throttling key only, never an authentication claim.
 
 ## Administrator authentication
 
-No customer identity provider for a single operator. The password is stored as a scrypt hash
-(`ADMIN_PASSWORD_HASH`), verified timing-safe, and the encoding is deliberately shell-safe —
-colon separators and base64url — because the value lives in an environment file people
-`source`, where a `$` would be silently expanded away. Failed attempts are throttled per client.
+Named operators, two factors each. No customer identity provider is warranted at this size, but
+a shared password was not honest either: it cannot answer "who removed this creator", and an
+audit log that names everybody `admin` is not an audit log.
+
+`ADMIN_OPERATORS` carries the registry — one entry per person, each with their own scrypt
+password hash and their own TOTP secret — as a single base64url-encoded JSON document. That
+encoding is deliberate: the value lives in an environment file people `source`, and a `$` or a
+`|` in it would be mangled by the shell before the process ever saw it. `bun run admin:operator`
+produces it, reading any existing registry so enrolling a name that already exists rotates that
+person's credentials and carries everybody else through untouched.
+
+Both factors are required and the failure message never distinguishes between them: "wrong
+password", "wrong code" and "no such operator" read identically, because telling them apart is
+free reconnaissance. A TOTP code is accepted once — within its thirty-second window a code read
+over a shoulder or lifted from a proxy log is otherwise still valid.
+
+Failed attempts are budgeted **per operator name**, not per client address. Every part of a
+client's identity in an HTTP request is a header the client writes, so a budget keyed on one
+caps nothing: an attacker rotates `x-forwarded-for` and guesses forever. The operator name is
+what is under attack and what the attacker cannot vary while attacking it. The trade-off is
+accepted: somebody who knows a name can spend that operator's budget and keep them out for ten
+minutes, and the other operators are unaffected.
 
 The session is an HMAC-signed, expiring token in an HttpOnly, `SameSite=Strict` cookie owned by
-apps/admin. It carries an issue time, an expiry and a nonce, and no credential at all. Server
-actions validate the request origin in addition to Next.js's own check.
+apps/admin. It carries an issue time, an expiry, a nonce and the operator's name — no credential
+at all. The name is inside the signature, so a browser can neither invent a session nor
+re-point one at a colleague. Every call into `/internal/admin/*` carries that name in
+`x-admin-actor`, read from the cookie rather than passed in by the caller, and the API refuses a
+call that carries the shared secret but names nobody. Server actions validate the request origin
+in addition to Next.js's own check, and an absent `Origin` header fails: every browser sends one
+on a server action, so "absent" is not privacy, it is something that is not the admin app.
 
 ## Payments
 

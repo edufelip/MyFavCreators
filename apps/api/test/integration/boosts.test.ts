@@ -503,7 +503,10 @@ describe("refunds", () => {
     await deliverWebhook({ eventId: "evt-r", providerPaymentId, status: "REFUNDED" });
 
     const logs = await call("/internal/admin/audit-logs", {
-      headers: { "x-admin-api-secret": "integration-admin-secret-value" },
+      headers: {
+        "x-admin-api-secret": "integration-admin-secret-value",
+        "x-admin-actor": "edu",
+      },
     });
     const body2 = (await logs.json()) as { entries: Array<{ action: string }> };
     expect(body2.entries.map((entry) => entry.action)).toContain("payment.refunded");
@@ -552,7 +555,10 @@ describe("a creator who stops being eligible mid-payment", () => {
     expect(await weeklyEntries()).toHaveLength(0);
 
     const logs = await call("/internal/admin/audit-logs", {
-      headers: { "x-admin-api-secret": "integration-admin-secret-value" },
+      headers: {
+        "x-admin-api-secret": "integration-admin-secret-value",
+        "x-admin-actor": "edu",
+      },
     });
     const auditBody = (await logs.json()) as { entries: Array<{ action: string }> };
     expect(auditBody.entries.map((entry) => entry.action)).toContain(

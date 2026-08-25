@@ -58,7 +58,7 @@ async function post(path: string, body: unknown, headers: Record<string, string>
   });
 }
 
-const adminHeaders = { "x-admin-api-secret": ADMIN_SECRET };
+const adminHeaders = { "x-admin-api-secret": ADMIN_SECRET, "x-admin-actor": "edu" };
 
 async function submit(url: string) {
   const response = await post("/v1/creators/submissions", { url });
@@ -168,7 +168,7 @@ describe("administration authorization", () => {
   test("refuses a wrong secret and one of a different length", async () => {
     for (const secret of ["", "wrong", `${ADMIN_SECRET}x`, ADMIN_SECRET.toUpperCase()]) {
       const response = await call("/internal/admin/creators", {
-        headers: { "x-admin-api-secret": secret },
+        headers: { "x-admin-api-secret": secret, "x-admin-actor": "edu" },
       });
       expect(response.status, secret).toBe(401);
     }

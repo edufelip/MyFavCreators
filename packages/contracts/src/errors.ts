@@ -6,6 +6,7 @@ export const API_ERROR_CODES = [
   "UNPROCESSABLE",
   "RATE_LIMITED",
   "UNAUTHORIZED",
+  "PROVIDER_UNAVAILABLE",
   "INTERNAL",
 ] as const;
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
@@ -24,6 +25,7 @@ export const ApiErrorCodeSchema = t.Union([
   t.Literal("UNPROCESSABLE"),
   t.Literal("RATE_LIMITED"),
   t.Literal("UNAUTHORIZED"),
+  t.Literal("PROVIDER_UNAVAILABLE"),
   t.Literal("INTERNAL"),
 ]);
 

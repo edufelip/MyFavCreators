@@ -1,7 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-
-const ADMIN_ORIGIN = process.env["ADMIN_ORIGIN"] ?? "http://localhost:3002";
-const ADMIN_PASSWORD = process.env["E2E_ADMIN_PASSWORD"] ?? "creator-outdoor-dev";
+import { signInToAdmin } from "./support/admin";
 
 function unique(prefix: string): string {
   return `${prefix}${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`;
@@ -16,10 +14,7 @@ async function createApprovedCreator(page: Page): Promise<string> {
   await page.getByRole("button", { name: "Enviar para análise" }).click();
   await expect(page.getByTestId("submission-result")).toHaveAttribute("data-outcome", "SUBMITTED");
 
-  await page.goto(`${ADMIN_ORIGIN}/login`);
-  await page.getByLabel("Senha").fill(ADMIN_PASSWORD);
-  await page.getByRole("button", { name: "Entrar" }).click();
-  await expect(page).toHaveURL(/\/moderacao/);
+  await signInToAdmin(page);
 
   const card = page.getByTestId("moderation-card").filter({ hasText: handle });
   await expect(card).toHaveCount(1);

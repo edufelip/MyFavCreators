@@ -3,7 +3,7 @@ import { AdminShell } from "@/components/admin-shell";
 import { CreatorModerationCard } from "@/components/creator-moderation-card";
 import { fetchModerationQueue } from "@/lib/api";
 import { adminCopy } from "@/lib/copy";
-import { hasAdminSession } from "@/lib/session";
+import { currentOperator } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -29,14 +29,15 @@ function resolveStatus(value: string | string[] | undefined): Status {
 }
 
 export default async function ModerationPage({ searchParams }: ModerationPageProps) {
-  if (!(await hasAdminSession())) {
+  const operator = await currentOperator();
+  if (operator === null) {
     redirect("/login");
   }
   const status = resolveStatus((await searchParams)["status"]);
   const queue = await fetchModerationQueue(status);
 
   return (
-    <AdminShell title={adminCopy.moderation.title}>
+    <AdminShell title={adminCopy.moderation.title} operator={operator}>
       <nav className="mb-6 flex flex-wrap gap-2" aria-label={adminCopy.moderation.status}>
         {STATUSES.map((candidate) => (
           <a

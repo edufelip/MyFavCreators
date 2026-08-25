@@ -249,6 +249,50 @@ describe("the notification consent box", () => {
     expect(rows[0]?.["notify_weekly_recap"]).toBe(false);
   });
 
+  test("an unsubscribe survives a later boost that does not ask again", async () => {
+    /*
+     * This is the regression itself. Somebody accepted, changed their mind and
+     * unsubscribed, then bought another boost — and the old code re-subscribed
+     * them from the address alone, silently undoing the choice they had just
+     * made. A boost that does not ask must not answer on their behalf.
+     */
+    await approvedCreator("volta-atras");
+    await boost("volta-atras", 1_000, {
+      supporterEmail: "quem.mudou@example.com",
+      notifyOnDethrone: true,
+    });
+    expect(await subscriptions()).toEqual([{ email: "quem.mudou@example.com", type: "DETHRONE" }]);
+
+    await testDatabase.db.execute(
+      `update notification_subscriptions set disabled_at = now()
+       where email = 'quem.mudou@example.com'` as never,
+    );
+    expect(await subscriptions()).toEqual([]);
+
+    await boost("volta-atras", 2_000, { supporterEmail: "quem.mudou@example.com" });
+
+    expect(await subscriptions()).toEqual([]);
+  });
+
+  test("an unsubscribe survives a later boost that explicitly declines", async () => {
+    await approvedCreator("declina-depois");
+    await boost("declina-depois", 1_000, {
+      supporterEmail: "declinou@example.com",
+      notifyWeeklyRecap: true,
+    });
+    await testDatabase.db.execute(
+      `update notification_subscriptions set disabled_at = now()
+       where email = 'declinou@example.com'` as never,
+    );
+
+    await boost("declina-depois", 2_000, {
+      supporterEmail: "declinou@example.com",
+      notifyWeeklyRecap: false,
+    });
+
+    expect(await subscriptions()).toEqual([]);
+  });
+
   test("a later boost that accepts revives a subscription an earlier one declined", async () => {
     const creator = await approvedCreator("mudou-de-ideia");
     await boost(creator.slug, 1_000, {

@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { affirmativeUses, forbiddenTerms } from "../src/lib/forbidden-copy";
 
 /**
  * The copy rules, checked against what a visitor actually sees.
@@ -8,25 +9,6 @@ import { expect, type Page, test } from "@playwright/test";
  * or one produced by formatting. Both are needed: neither sees what the other
  * sees.
  */
-const FORBIDDEN = [
-  "apoie",
-  "apoio",
-  "apoiar",
-  "doe",
-  "doação",
-  "doacao",
-  "vaquinha",
-  "contribuição",
-  "contribuicao",
-  "gorjeta",
-  "repasse",
-  "donate",
-  "sorteio",
-  "concorra",
-  "prêmio em dinheiro",
-  "chance de ganhar",
-];
-
 const DISCLOSURE =
   "Você está comprando destaque nesta plataforma. Nenhum valor é repassado ao criador.";
 
@@ -58,12 +40,12 @@ async function platformText(page: Page): Promise<string> {
   });
 }
 
-function offendingTerms(text: string): string[] {
-  const normalized = text.toLowerCase();
-  return FORBIDDEN.filter((term) =>
-    new RegExp(`(^|[^a-zà-ú])${term}([^a-zà-ú]|$)`, "i").test(normalized),
-  );
-}
+/*
+ * The rule itself lives in `src/lib/forbidden-copy.ts` and has its own unit
+ * test, so the sentences that could defeat it are checked directly rather than
+ * only through a browser. This spec is what applies it to what a visitor
+ * actually sees.
+ */
 
 /**
  * `/regras` is deliberately absent from the plain scan: it is the one surface
@@ -84,7 +66,7 @@ test.describe("what the platform says", () => {
   for (const path of PUBLIC_PAGES) {
     test(`${path} never implies a payout, a donation or a game of chance`, async ({ page }) => {
       await page.goto(path);
-      expect(offendingTerms(await platformText(page))).toEqual([]);
+      expect(forbiddenTerms(await platformText(page))).toEqual([]);
     });
   }
 
@@ -97,7 +79,7 @@ test.describe("what the platform says", () => {
       .getAttribute("href");
     await page.goto(href ?? "/");
 
-    expect(offendingTerms(await platformText(page))).toEqual([]);
+    expect(forbiddenTerms(await platformText(page))).toEqual([]);
   });
 
   test("the checkout screen never implies it either", async ({ page }) => {
@@ -106,7 +88,7 @@ test.describe("what the platform says", () => {
     await page.getByTestId("boost-submit").click();
     await expect(page).toHaveURL(/\/impulsionar\//);
 
-    expect(offendingTerms(await platformText(page))).toEqual([]);
+    expect(forbiddenTerms(await platformText(page))).toEqual([]);
   });
 
   test("never claims money reaches the creator", async ({ page }) => {
@@ -142,21 +124,13 @@ test.describe("what the platform says", () => {
   test("the rules page never uses a forbidden word affirmatively", async ({ page }) => {
     /*
      * The exemption is "may name them to deny them", not "is unchecked". Every
-     * sentence carrying one of these words has to carry a denial with it —
-     * without this, `/regras` was the one public page with no copy check at
-     * all, and an affirmative "sorteio de exibição" lived there.
+     * one of these words has to sit next to a denial — without this, `/regras`
+     * was the one public page with no copy check at all, and an affirmative
+     * "sorteio de exibição" lived there.
      */
     await page.goto("/regras");
-    const text = (await platformText(page)).toLowerCase();
-    const denial = /\b(não|nao|nunca|nenhum|nenhuma|jamais|sem)\b/;
-
-    const offending: string[] = [];
-    for (const sentence of text.split(/[.!?]/)) {
-      if (offendingTerms(sentence).length > 0 && !denial.test(sentence)) {
-        offending.push(sentence.trim());
-      }
-    }
-    expect(offending).toEqual([]);
+    const uses = affirmativeUses(await platformText(page));
+    expect(uses.map((use) => `${use.term}: ${use.context}`)).toEqual([]);
   });
 
   test("carries the disclosure verbatim on every surface that must have it", async ({ page }) => {

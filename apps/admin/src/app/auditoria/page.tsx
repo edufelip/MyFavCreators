@@ -2,18 +2,19 @@ import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
 import { fetchAuditLogs } from "@/lib/api";
 import { adminCopy } from "@/lib/copy";
-import { hasAdminSession } from "@/lib/session";
+import { currentOperator } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function AuditPage() {
-  if (!(await hasAdminSession())) {
+  const operator = await currentOperator();
+  if (operator === null) {
     redirect("/login");
   }
   const { entries } = await fetchAuditLogs();
 
   return (
-    <AdminShell title={adminCopy.audit.title}>
+    <AdminShell title={adminCopy.audit.title} operator={operator}>
       {entries.length === 0 ? (
         <p data-testid="audit-empty" className="text-sm text-white/60">
           {adminCopy.audit.empty}

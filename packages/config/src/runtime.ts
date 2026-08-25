@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { decodeOperators } from "./operators";
 import { originSchema, portSchema } from "./origins";
 import { type EnvSource, parseOrThrow } from "./parse";
 import { type ProductConfig, parseProductConfig } from "./product";
@@ -119,8 +120,25 @@ const adminEnvSchema = z.object({
   adminOrigin: originSchema.default("http://localhost:3002"),
   /** Server-only. Held by the admin Next.js server, never sent to a browser. */
   adminApiSecret: z.string().min(16, "ADMIN_API_SECRET must be at least 16 characters"),
-  /** scrypt hash of the administrator password, produced by `bun run admin:hash`. */
-  adminPasswordHash: z.string().min(16, "ADMIN_PASSWORD_HASH is required"),
+  /**
+   * The named administrators, produced by `bun run admin:operator`. Each one
+   * carries their own password hash and their own second factor so the audit
+   * log can name a person rather than a shared account.
+   */
+  adminOperators: z
+    .string()
+    .min(1, "ADMIN_OPERATORS is required")
+    .transform((encoded, context) => {
+      try {
+        return decodeOperators(encoded);
+      } catch (error) {
+        context.addIssue({
+          code: "custom",
+          message: error instanceof Error ? error.message : "ADMIN_OPERATORS is invalid",
+        });
+        return z.NEVER;
+      }
+    }),
   /** 32+ byte secret used to seal the administrator session cookie. */
   adminSessionSecret: z.string().min(32, "ADMIN_SESSION_SECRET must be at least 32 characters"),
 });
@@ -137,7 +155,7 @@ export function parseAdminConfig(env: EnvSource): AdminConfig {
       apiOrigin: env["API_ORIGIN"],
       adminOrigin: env["ADMIN_ORIGIN"],
       adminApiSecret: env["ADMIN_API_SECRET"],
-      adminPasswordHash: env["ADMIN_PASSWORD_HASH"],
+      adminOperators: env["ADMIN_OPERATORS"],
       adminSessionSecret: env["ADMIN_SESSION_SECRET"],
     },
     "apps/admin",

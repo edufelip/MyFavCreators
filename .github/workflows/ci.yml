@@ -105,6 +105,15 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
       - run: bun install --frozen-lockfile
+      # The apps parse their configuration eagerly and refuse to start without
+      # it, so a build needs one. `.env.example` holds development values only —
+      # every secret in it is published in this repository and is useless
+      # anywhere real. It is exported rather than copied to `.env`, because
+      # turbo runs each task in its own process and only passes through the
+      # variables declared in `turbo.json`; a dotenv file read by one process
+      # never reaches the next one.
+      - name: Development configuration
+        run: grep -vE '^#|^$' .env.example >> "$GITHUB_ENV"
       - run: bun run build
 
   e2e:
@@ -139,6 +148,19 @@ jobs:
         with:
           node-version-file: .nvmrc
       - run: bun install --frozen-lockfile
+      # Development values for everything the apps need, then the job's own
+      # overrides again: a later write to $GITHUB_ENV wins, and the E2E database
+      # is not the one in `.env.example`.
+      - name: Development configuration
+        run: |
+          grep -vE '^#|^$' .env.example >> "$GITHUB_ENV"
+          {
+            echo "DATABASE_URL=$DATABASE_URL"
+            echo "TEST_DATABASE_URL=$DATABASE_URL"
+            echo "WEB_ORIGIN=$WEB_ORIGIN"
+            echo "API_ORIGIN=$API_ORIGIN"
+            echo "ADMIN_ORIGIN=$ADMIN_ORIGIN"
+          } >> "$GITHUB_ENV"
       - name: Prepare database
         run: |
           bun run db:migrate

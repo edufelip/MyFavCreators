@@ -80,9 +80,32 @@ somebody's consent to be contacted.
    boost VOID, no refund recorded — asks the provider, and refunds or records
    what the provider already did. Run it, then re-check `refunded_at`.
 
-   An operator can also issue one directly: `POST
-   /internal/admin/payments/:id/refund`, which goes through the same transition
-   service, so the ranking and the closed-period history correct themselves.
+   An operator can also issue one directly, from `/pagamentos` in the admin app
+   or with `POST /internal/admin/payments/:id/refund` and a body of
+   `{"reason": "..."}`. Both go through the same transition service, so the
+   ranking and the closed-period history correct themselves, and both record the
+   operator's own name and their reason as `payment.refunded_by_operator`. A
+   repeated instruction is recognised as the same one and does not send the money
+   twice.
+
+### An operator lost their second factor, or somebody joined or left
+
+`bun run admin:operator '<name>' '<password>'` prints a new `ADMIN_OPERATORS`
+value. Pass the current one in the environment first so the others are carried
+through:
+
+```sh
+ADMIN_OPERATORS="$ADMIN_OPERATORS" bun run admin:operator 'ana.silva' '<password>'
+```
+
+Enrolling a name that already exists replaces that person's password and TOTP
+secret and leaves everybody else alone — that is how both a rotation and a lost
+phone are handled. Removing somebody means editing the registry: decode it,
+drop the entry, re-encode. There is no account recovery by design; the
+environment is the recovery mechanism.
+
+A locked-out operator is not a bug. Five failures against one name close that
+name for ten minutes, and the window is per name, so nobody else is affected.
 
 ### The ranking looks wrong
 

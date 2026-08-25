@@ -48,6 +48,15 @@ export interface PixPaymentProvider {
    * tampered request must never reach the transition service.
    */
   validateWebhook(request: Request): Promise<ValidatedPaymentEvent>;
+  /**
+   * Sends a confirmed payment back.
+   *
+   * Must be idempotent per payment: two reconciliation runs can overlap and
+   * both reach a payment still recorded as CONFIRMED, so an adapter that treats
+   * a repeated call as a second refund moves the money twice. Deriving the
+   * provider's idempotency key from `providerPaymentId` is how the adapters
+   * here satisfy it.
+   */
   refundPayment(providerPaymentId: string): Promise<void>;
 }
 

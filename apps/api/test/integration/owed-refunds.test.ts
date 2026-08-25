@@ -180,8 +180,31 @@ describe("a refund the platform owes but could not make", () => {
     expect(await provider.getPaymentStatus(providerPaymentId)).toBe("REFUNDED");
     const settled = await paymentRow(paymentId);
     expect(settled.status).toBe("REFUNDED");
-    expect(settled.boostStatus).toBe("REVERSED");
     expect(settled.refunded).toBe(true);
+    // The boost stays VOID. REVERSED means "the promotion was live and was
+    // undone", and this one never ran a second: the creator was already
+    // ineligible when the money arrived. The refund is a fact about the
+    // payment, and dragging the boost into a status that misdescribes what the
+    // public saw would make the record less true, not more.
+    expect(settled.boostStatus).toBe("VOID");
+  });
+
+  test("records the refused boost transition rather than performing it", async () => {
+    const { paymentId } = await owedRefund("recusa-registrada", { refundFails: true });
+    await reconcile();
+
+    const rows = (await testDatabase.db.execute(
+      `select metadata from audit_logs where action = 'boost.transition_refused'` as never,
+    )) as Array<Record<string, unknown>>;
+
+    // The guard is not silent. An operator reading the log can see that the
+    // payment reached REFUNDED and that the boost deliberately did not follow
+    // it, which is the difference between an enforced rule and a missing one.
+    expect(rows.length).toBe(1);
+    const metadata = JSON.stringify(rows[0]?.["metadata"]);
+    expect(metadata).toContain("VOID");
+    expect(metadata).toContain("REVERSED");
+    expect(metadata).toContain(paymentId);
   });
 
   test("is not attempted twice once it has been made", async () => {

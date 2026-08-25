@@ -143,6 +143,15 @@ export async function reconcilePayments(
  * The provider is asked first. A refund it has already made is recorded rather
  * than requested again, which is what makes a crash between the call and the
  * write recoverable instead of a double refund.
+ *
+ * Two runs overlapping is a different case, and the ask-first check does not
+ * cover it: both can read CONFIRMED and both can call. What stops the second
+ * call from moving money twice is the provider's own idempotency — the adapter
+ * sends a key derived from the payment, so the provider recognises the repeat.
+ * `PixPaymentProvider.refundPayment` therefore has to be idempotent per payment,
+ * and an adapter that is not would double-refund here. The unique event
+ * fingerprint still keeps our own record straight either way: one run applies,
+ * the other is a duplicate.
  */
 async function settleOwedRefunds(
   database: Database,
@@ -150,7 +159,11 @@ async function settleOwedRefunds(
   provider: PixPaymentProvider,
   options: ReconcileOptions,
 ): Promise<{ readonly examined: number; readonly refunded: number; readonly failed: number }> {
-  const owed = await listOwedRefunds(database, provider.name, options.refundLimit ?? 100);
+  const limit = options.refundLimit ?? 100;
+  // One more than the limit, so "there are more" is something this run knows
+  // rather than something it infers from having filled its own quota.
+  const found = await listOwedRefunds(database, provider.name, limit + 1);
+  const owed = found.slice(0, limit);
 
   let refunded = 0;
   let failed = 0;
@@ -205,8 +218,17 @@ async function settleOwedRefunds(
     }
   }
 
-  if (owed.length === (options.refundLimit ?? 100)) {
-    log.warn("owed_refunds_truncated", { provider: provider.name, limit: owed.length });
+  if (found.length > limit) {
+    // Deliberately loud, and deliberately specific: money is still owed that
+    // this run did not reach. An operator seeing this repeatedly needs to know
+    // the sweep is falling behind, not just that it hit its own cap.
+    log.warn("owed_refunds_truncated", {
+      provider: provider.name,
+      limit,
+      settled: refunded,
+      failed,
+      atLeastRemaining: found.length - limit,
+    });
   }
 
   return { examined: owed.length, refunded, failed };

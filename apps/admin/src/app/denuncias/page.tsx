@@ -3,18 +3,19 @@ import { AdminShell } from "@/components/admin-shell";
 import { resolveReportAction } from "@/lib/actions";
 import { fetchReports } from "@/lib/api";
 import { adminCopy } from "@/lib/copy";
-import { hasAdminSession } from "@/lib/session";
+import { currentOperator } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReportsPage() {
-  if (!(await hasAdminSession())) {
+  const operator = await currentOperator();
+  if (operator === null) {
     redirect("/login");
   }
   const { reports } = await fetchReports();
 
   return (
-    <AdminShell title={adminCopy.reports.title}>
+    <AdminShell title={adminCopy.reports.title} operator={operator}>
       {reports.length === 0 ? (
         <p data-testid="reports-empty" className="text-sm text-white/60">
           {adminCopy.reports.empty}

@@ -190,7 +190,10 @@ describe("claiming a profile", () => {
   test("records the claim in the audit log without the token", async () => {
     const token = await claimed();
     const logs = await call("/internal/admin/audit-logs", {
-      headers: { "x-admin-api-secret": "integration-admin-secret-value" },
+      headers: {
+        "x-admin-api-secret": "integration-admin-secret-value",
+        "x-admin-actor": "edu",
+      },
     });
     const body = await logs.text();
     expect(body).toContain("creator.claimed");

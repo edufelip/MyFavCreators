@@ -1,6 +1,5 @@
 "use server";
 
-import { verifyPassword } from "@creator-outdoor/config";
 import { adminConfig } from "@creator-outdoor/config/admin";
 import type { RejectionReasonDto } from "@creator-outdoor/contracts";
 import { revalidatePath } from "next/cache";
@@ -8,14 +7,15 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   approveCreator,
+  refundPayment,
   rejectCreator,
   removeCreator,
   resolveReport,
   restoreCreator,
   updateCreatorMetadata,
 } from "./api";
-import { clearAttempts, isThrottled, recordFailedAttempt } from "./login-throttle";
-import { endAdminSession, hasAdminSession, startAdminSession } from "./session";
+import { authenticateOperator } from "./operator-auth";
+import { currentOperator, endAdminSession, startAdminSession } from "./session";
 
 /**
  * Origin validation for every mutation.
@@ -23,48 +23,67 @@ import { endAdminSession, hasAdminSession, startAdminSession } from "./session";
  * Next.js already checks the Origin of a server action, and this repeats the
  * check explicitly against the configured origin so a misconfigured proxy
  * cannot silently widen it. Client state is never a security boundary.
+ *
+ * A request with no Origin at all is refused. Every browser attaches one to a
+ * server action, so an absent header is not a browser being polite about
+ * privacy — it is something that is not the admin app, and treating "absent" as
+ * "fine" is exactly the hole the check exists to close.
  */
 async function assertSameOrigin(): Promise<void> {
   const headerList = await headers();
   const origin = headerList.get("origin");
-  if (origin !== null && origin !== adminConfig.adminOrigin) {
+  if (origin !== adminConfig.adminOrigin) {
     throw new Error("Cross-origin administration request refused");
   }
 }
 
-async function requireSession(): Promise<void> {
-  if (!(await hasAdminSession())) {
+/**
+ * The operator behind this request, or a redirect to the login page.
+ *
+ * Returns the name rather than a boolean because every mutation has to say who
+ * did it: the audit log records this exact value, and there is no path that
+ * writes an action without one.
+ */
+async function requireOperator(): Promise<string> {
+  const operator = await currentOperator();
+  if (operator === null) {
     redirect("/login");
   }
-}
-
-async function clientKey(): Promise<string> {
-  const headerList = await headers();
-  return (
-    headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    headerList.get("x-real-ip") ??
-    "local"
-  );
+  return operator;
 }
 
 export type LoginState = { readonly error: string | null };
 
+function field(formData: FormData, name: string): string {
+  const value = formData.get(name);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * Signing in.
+ *
+ * Two factors are required and the failure message never distinguishes between
+ * them: "wrong password" and "wrong code" and "no such operator" all read the
+ * same, because telling them apart is free reconnaissance for whoever is
+ * guessing.
+ */
 export async function signIn(_previous: LoginState, formData: FormData): Promise<LoginState> {
   await assertSameOrigin();
-  const key = await clientKey();
-  if (isThrottled(key)) {
+
+  const outcome = authenticateOperator(adminConfig.adminOperators, {
+    operator: field(formData, "operator").toLowerCase(),
+    password: typeof formData.get("password") === "string" ? String(formData.get("password")) : "",
+    code: field(formData, "code").replace(/\s/g, ""),
+  });
+
+  if (outcome.kind === "THROTTLED") {
     return { error: "throttled" };
   }
-
-  const password = formData.get("password");
-  const provided = typeof password === "string" ? password : "";
-  if (!verifyPassword(provided, adminConfig.adminPasswordHash)) {
-    recordFailedAttempt(key);
+  if (outcome.kind === "INVALID") {
     return { error: "invalid" };
   }
 
-  clearAttempts(key);
-  await startAdminSession();
+  await startAdminSession(outcome.operator);
   redirect("/moderacao");
 }
 
@@ -93,7 +112,7 @@ function optionalString(formData: FormData, field: string): string | undefined {
 
 export async function approveCreatorAction(formData: FormData): Promise<void> {
   await assertSameOrigin();
-  await requireSession();
+  await requireOperator();
   const id = requiredString(formData, "creatorId");
   const displayName = optionalString(formData, "displayName");
   const bio = optionalString(formData, "bio");
@@ -111,7 +130,7 @@ export async function approveCreatorAction(formData: FormData): Promise<void> {
 
 export async function rejectCreatorAction(formData: FormData): Promise<void> {
   await assertSameOrigin();
-  await requireSession();
+  await requireOperator();
   const id = requiredString(formData, "creatorId");
   const reason = requiredString(formData, "reason") as RejectionReasonDto;
   await rejectCreator(id, reason, optionalString(formData, "note"));
@@ -121,7 +140,7 @@ export async function rejectCreatorAction(formData: FormData): Promise<void> {
 
 export async function removeCreatorAction(formData: FormData): Promise<void> {
   await assertSameOrigin();
-  await requireSession();
+  await requireOperator();
   const id = requiredString(formData, "creatorId");
   await removeCreator(id, optionalString(formData, "note"));
   revalidatePath("/moderacao");
@@ -130,7 +149,7 @@ export async function removeCreatorAction(formData: FormData): Promise<void> {
 
 export async function restoreCreatorAction(formData: FormData): Promise<void> {
   await assertSameOrigin();
-  await requireSession();
+  await requireOperator();
   await restoreCreator(requiredString(formData, "creatorId"));
   revalidatePath("/moderacao");
   redirect("/moderacao");
@@ -138,7 +157,7 @@ export async function restoreCreatorAction(formData: FormData): Promise<void> {
 
 export async function updateMetadataAction(formData: FormData): Promise<void> {
   await assertSameOrigin();
-  await requireSession();
+  await requireOperator();
   const id = requiredString(formData, "creatorId");
   const displayName = optionalString(formData, "displayName");
   const bio = optionalString(formData, "bio");
@@ -153,9 +172,25 @@ export async function updateMetadataAction(formData: FormData): Promise<void> {
   revalidatePath("/moderacao");
 }
 
+/**
+ * Sends a payment back to whoever paid it.
+ *
+ * The reason is required, and it is the operator's own words: nothing else in
+ * the record can say why somebody decided to give the money back. Nothing here
+ * moves money toward a creator — a refund unsells prominence, which is the only
+ * thing the platform ever sold.
+ */
+export async function refundPaymentAction(formData: FormData): Promise<void> {
+  await assertSameOrigin();
+  await requireOperator();
+  await refundPayment(requiredString(formData, "paymentId"), requiredString(formData, "reason"));
+  revalidatePath("/pagamentos");
+  redirect("/pagamentos");
+}
+
 export async function resolveReportAction(formData: FormData): Promise<void> {
   await assertSameOrigin();
-  await requireSession();
+  await requireOperator();
   await resolveReport(requiredString(formData, "reportId"));
   revalidatePath("/denuncias");
 }

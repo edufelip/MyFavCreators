@@ -73,7 +73,7 @@ Then open <http://localhost:3000>.
 | `bun run db:migrate` | Applies committed migrations |
 | `bun run db:seed` | Replaces fixture data (refuses to run with `NODE_ENV=production`) |
 | `bun run db:reset` | Drops the schema and re-applies migrations |
-| `bun run admin:hash '<password>'` | Prints the `ADMIN_PASSWORD_HASH` value for a password |
+| `bun run admin:operator '<name>' '<password>'` | Enrols an administrator: prints the new `ADMIN_OPERATORS` value and the `otpauth://` URI to scan |
 | `bun run job:weekly-rollover` | Closes finished weeks and snapshots their rankings |
 
 Migrations are explicit artifacts and are deliberately **not** part of `build`. Production
@@ -122,10 +122,18 @@ the real rendered pages, at WCAG 2.1 A and AA.
 
 ## Administration
 
-`apps/admin` on port 3002 owns the administrator session. Sign in with the password whose
-scrypt hash is in `ADMIN_PASSWORD_HASH` (the development value is `creator-outdoor-dev`).
-Generate a real one with `bun run admin:hash '<password>'`; the plaintext never leaves your
-terminal.
+`apps/admin` on port 3002 owns the administrator session. Sign in with an operator name, that
+person's password, and the six-digit code from their authenticator app. The development
+operator is `edu` / `creator-outdoor-dev`, and its TOTP secret is in `E2E_ADMIN_TOTP_SECRET`.
+
+Enrol a real one with `bun run admin:operator '<name>' '<password>'`. It prints the new
+`ADMIN_OPERATORS` value and an `otpauth://` URI to scan; the plaintext password never leaves
+your terminal and the TOTP secret is shown once. Pass the existing `ADMIN_OPERATORS` in the
+environment to add somebody to it, or to rotate a name that is already there.
+
+Every action is recorded in the audit log under the operator's own name, including refunds,
+which the payments screen at `/pagamentos` can issue. A refund sends money back to whoever paid
+it — no money reaches a creator on that path or on any other.
 
 The browser only ever talks to the admin Next.js server. Every mutation is a server-to-server
 call into the API's `/internal/admin/*` surface, authenticated with `ADMIN_API_SECRET`, which

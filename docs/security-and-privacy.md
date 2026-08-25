@@ -105,17 +105,25 @@ Per client address, per scope, in memory:
 
 ## Administration
 
-Password-based, with a scrypt hash checked in constant time; the session is a
-sealed httpOnly cookie. The admin app holds a server-only shared secret for its
-calls to the API, and that secret never reaches a browser — an E2E test asserts
-it does not appear in any page.
+Per-person accounts with two factors: a scrypt password hash checked in constant
+time, and a TOTP code that is accepted once. The admin app holds a server-only
+shared secret for its calls to the API, and that secret never reaches a browser —
+an E2E test asserts it does not appear in any page.
 
-Every moderation decision is written to `audit_logs` with actor, action, target
-and metadata, in the same transaction as the decision itself.
+Every moderation decision and every refund is written to `audit_logs` with the
+operator's own name, the action, the target and metadata, in the same
+transaction as the decision itself. The name comes from the signed session
+cookie, and the API refuses an administrative call that does not carry one, so
+there is no path that records an action nobody signed for.
 
-**Not done:** there is one administrator identity, not per-person accounts, and
-no second factor. For a single operator this is honest; for a team it is not,
-and it should be revisited before anybody else is given the password.
+Failed sign-ins are budgeted per operator name rather than per client address,
+because a client-supplied address is not a budget an attacker has to respect.
+
+**Not done:** there is no account recovery. An operator who loses their second
+factor is re-enrolled by somebody with access to the environment, which is the
+right shape at this size but means the environment is the recovery mechanism.
+There is also no per-operator authorisation — every enrolled operator can do
+everything, refunds included.
 
 ## What the product knows about people
 

@@ -462,7 +462,9 @@ describe("a creator who stopped being eligible while the PIX was in flight", () 
      */
     const view = await paymentView(paymentId);
     expect(view.status).toBe("REFUNDED");
-    expect(view.boostStatus).toBe("REVERSED");
+    // VOID, not REVERSED: this promotion was refused on arrival and never went
+    // live, so there is nothing for a reversal to describe.
+    expect(view.boostStatus).toBe("VOID");
     expect(await weeklyEntries()).toHaveLength(0);
     expect(await provider.getPaymentStatus(providerPaymentId)).toBe("REFUNDED");
   });

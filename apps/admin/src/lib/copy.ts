@@ -4,15 +4,42 @@ export const adminCopy = {
   nav: {
     moderation: "Moderação",
     reports: "Denúncias",
+    payments: "Pagamentos",
     audit: "Auditoria",
     signOut: "Sair",
   },
   login: {
     title: "Entrar",
+    operatorLabel: "Operador",
     passwordLabel: "Senha",
+    codeLabel: "Código do autenticador",
+    codeHelp: "Os seis dígitos do seu aplicativo autenticador.",
     submit: "Entrar",
-    invalid: "Senha incorreta.",
+    // Deliberately one message for every kind of failure: which part was wrong
+    // is exactly what somebody guessing would like to know.
+    invalid: "Operador, senha ou código incorretos.",
     throttled: "Muitas tentativas. Aguarde alguns minutos.",
+  },
+  payments: {
+    title: "Pagamentos",
+    empty: "Nenhum pagamento registrado.",
+    columns: {
+      created: "Criado em",
+      creator: "Perfil",
+      amount: "Valor",
+      status: "Situação",
+      boost: "Destaque",
+      provider: "Provedor",
+    },
+    filterLabel: "Situação",
+    all: "Todas",
+    refund: "Estornar",
+    refundReason: "Motivo do estorno",
+    refundHelp:
+      "O valor volta para quem pagou. Nenhum valor é repassado ao criador em nenhuma hipótese.",
+    refundConfirm: "Confirmar estorno",
+    refunded: "Estornado",
+    notRefundable: "Só um pagamento confirmado pode ser estornado.",
   },
   moderation: {
     title: "Fila de moderação",

@@ -53,23 +53,29 @@ describe("password hashing", () => {
 
 describe("session token", () => {
   const SECRET = "um-segredo-de-sessao-com-mais-de-32-bytes";
+  const session = { ttlSeconds: 3600, subject: "edu" } as const;
 
   test("round-trips a valid session", () => {
-    const token = createSessionToken(SECRET, 3600, 1_000_000);
+    const token = createSessionToken(SECRET, session, 1_000_000);
     const payload = readSessionToken(token, SECRET, 1_000_000);
     expect(payload?.expiresAt).toBe(1_000_000 + 3_600_000);
   });
 
+  test("names the operator it was issued to", () => {
+    const token = createSessionToken(SECRET, { ttlSeconds: 60, subject: "ana.silva" }, 1_000_000);
+    expect(readSessionToken(token, SECRET, 1_000_000)?.subject).toBe("ana.silva");
+  });
+
   test("rejects a token signed with another secret", () => {
-    const token = createSessionToken(SECRET, 3600, 1_000_000);
+    const token = createSessionToken(SECRET, session, 1_000_000);
     expect(readSessionToken(token, "outro-segredo-igualmente-longo-aqui", 1_000_000)).toBeNull();
   });
 
   test("rejects a tampered payload", () => {
-    const token = createSessionToken(SECRET, 3600, 1_000_000);
+    const token = createSessionToken(SECRET, session, 1_000_000);
     const [encoded, signature] = token.split(".");
     const forged = Buffer.from(
-      JSON.stringify({ issuedAt: 0, expiresAt: 9_999_999_999_999, nonce: "x" }),
+      JSON.stringify({ issuedAt: 0, expiresAt: 9_999_999_999_999, nonce: "x", subject: "edu" }),
     )
       .toString("base64")
       .replace(/\+/g, "-")
@@ -79,15 +85,36 @@ describe("session token", () => {
     expect(readSessionToken(`${encoded}.AAAA`, SECRET, 1_000_000)).toBeNull();
   });
 
+  test("cannot be re-pointed at another operator without the secret", () => {
+    const token = createSessionToken(SECRET, { ttlSeconds: 60, subject: "estagiario" }, 1_000_000);
+    const [, signature] = token.split(".");
+    const escalated = Buffer.from(
+      JSON.stringify({ issuedAt: 1_000_000, expiresAt: 1_060_000, nonce: "x", subject: "edu" }),
+    ).toString("base64url");
+    expect(readSessionToken(`${escalated}.${signature}`, SECRET, 1_000_000)).toBeNull();
+  });
+
+  test("rejects a session that names nobody, so an unnamed action is impossible", () => {
+    for (const subject of ["", "Edu", "edu silva", "e"]) {
+      const encoded = Buffer.from(
+        JSON.stringify({ issuedAt: 1_000_000, expiresAt: 1_060_000, nonce: "x", subject }),
+      ).toString("base64url");
+      const signature = createSessionToken(SECRET, { ttlSeconds: 60, subject: "edu" }, 1_000_000);
+      expect(
+        readSessionToken(`${encoded}.${signature.split(".")[1]}`, SECRET, 1_000_000),
+      ).toBeNull();
+    }
+  });
+
   test("expires", () => {
-    const token = createSessionToken(SECRET, 60, 1_000_000);
+    const token = createSessionToken(SECRET, { ttlSeconds: 60, subject: "edu" }, 1_000_000);
     expect(readSessionToken(token, SECRET, 1_000_000 + 59_000)).not.toBeNull();
     expect(readSessionToken(token, SECRET, 1_000_000 + 60_001)).toBeNull();
   });
 
   test("issues a distinct token every time", () => {
-    expect(createSessionToken(SECRET, 60, 1_000_000)).not.toBe(
-      createSessionToken(SECRET, 60, 1_000_000),
+    expect(createSessionToken(SECRET, session, 1_000_000)).not.toBe(
+      createSessionToken(SECRET, session, 1_000_000),
     );
   });
 
@@ -98,10 +125,15 @@ describe("session token", () => {
   });
 
   test("carries no credential", () => {
-    const token = createSessionToken(SECRET, 60, 1_000_000);
+    const token = createSessionToken(SECRET, session, 1_000_000);
     expect(token.includes(SECRET)).toBe(false);
     const decoded = Buffer.from(token.split(".")[0] ?? "", "base64").toString("utf8");
     expect(decoded.includes("password")).toBe(false);
-    expect(Object.keys(JSON.parse(decoded)).sort()).toEqual(["expiresAt", "issuedAt", "nonce"]);
+    expect(Object.keys(JSON.parse(decoded)).sort()).toEqual([
+      "expiresAt",
+      "issuedAt",
+      "nonce",
+      "subject",
+    ]);
   });
 });

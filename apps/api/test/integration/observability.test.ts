@@ -99,7 +99,10 @@ describe("request correlation", () => {
 
   test("never writes a secret into a log line", async () => {
     await call("/internal/admin/creators?status=PENDING_REVIEW", {
-      headers: { "x-admin-api-secret": "integration-admin-secret-value" },
+      headers: {
+        "x-admin-api-secret": "integration-admin-secret-value",
+        "x-admin-actor": "edu",
+      },
     });
     const serialized = JSON.stringify(records);
     expect(serialized).not.toContain("integration-admin-secret-value");

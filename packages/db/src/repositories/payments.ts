@@ -8,10 +8,13 @@ import { and, eq, lt, sql } from "drizzle-orm";
 import type { DatabaseExecutor } from "../client";
 import {
   optionalDate,
+  optionalEnum,
   optionalString,
   readJsonObject,
   requireBoolean,
+  requireDate,
   requireEnum,
+  requireInteger,
   requireMoneyCents,
   requireRecord,
   requireString,
@@ -366,7 +369,6 @@ export async function getPaymentStatusView(
       };
 }
 
-/** Payments that never settled and are old enough to be reconciled. */
 export type OwedRefund = {
   readonly paymentId: string;
   readonly providerPaymentId: string;
@@ -412,6 +414,7 @@ export async function listOwedRefunds(
   });
 }
 
+/** Payments that never settled and are old enough to be reconciled. */
 export async function listUnsettledPayments(
   executor: DatabaseExecutor,
   provider: string,
@@ -430,4 +433,124 @@ export async function listUnsettledPayments(
     )
     .limit(limit);
   return rows;
+}
+
+/** A payment as the administration surface sees it. */
+export type AdminPaymentRow = {
+  readonly id: string;
+  readonly status: PaymentStatus;
+  readonly amountCents: MoneyCents;
+  readonly provider: string;
+  readonly providerPaymentId: string;
+  readonly boostId: string | null;
+  readonly boostStatus: BoostStatus | null;
+  readonly creatorId: string | null;
+  readonly creatorSlug: string | null;
+  readonly creatorDisplayName: string | null;
+  readonly createdAt: Date;
+  readonly confirmedAt: Date | null;
+  readonly refundedAt: Date | null;
+};
+
+function toAdminPaymentRow(value: unknown): AdminPaymentRow {
+  const row = requireRecord(value);
+  return {
+    id: requireString(row, "id"),
+    status: requireEnum(row, "status", PAYMENT_STATUS_VALUES),
+    amountCents: requireMoneyCents(row, "amount_cents"),
+    provider: requireString(row, "provider"),
+    providerPaymentId: requireString(row, "provider_payment_id"),
+    boostId: optionalString(row, "boost_id"),
+    boostStatus: optionalEnum(row, "boost_status", BOOST_STATUS_VALUES),
+    creatorId: optionalString(row, "creator_id"),
+    creatorSlug: optionalString(row, "creator_slug"),
+    creatorDisplayName: optionalString(row, "creator_display_name"),
+    createdAt: requireDate(row, "created_at"),
+    confirmedAt: optionalDate(row, "confirmed_at"),
+    refundedAt: optionalDate(row, "refunded_at"),
+  };
+}
+
+/**
+ * The payment ledger, for an operator answering a support question.
+ *
+ * The join to the boost is a LEFT JOIN on purpose: a payment whose boost row is
+ * missing is precisely the kind of inconsistency an operator is looking for, and
+ * an inner join would hide it by showing nothing at all.
+ *
+ * Nothing here selects the supporter's email or the provider's raw payload. The
+ * screen has no need for either, and a query that never reads them is a screen
+ * that can never leak them.
+ */
+export async function listAdminPayments(
+  executor: DatabaseExecutor,
+  options: {
+    readonly status?: PaymentStatus;
+    readonly limit: number;
+    readonly offset: number;
+  },
+): Promise<{ readonly payments: readonly AdminPaymentRow[]; readonly total: number }> {
+  const statusFilter = options.status === undefined ? sql`true` : sql`p.status = ${options.status}`;
+
+  const rows: unknown[] = await executor.execute(sql`
+    select
+      p.id::text as id,
+      p.status::text as status,
+      p.amount_cents as amount_cents,
+      p.provider as provider,
+      p.provider_payment_id as provider_payment_id,
+      b.id::text as boost_id,
+      b.status::text as boost_status,
+      c.id::text as creator_id,
+      c.slug as creator_slug,
+      c.display_name as creator_display_name,
+      p.created_at as created_at,
+      p.confirmed_at as confirmed_at,
+      p.refunded_at as refunded_at
+    from payments p
+    left join boosts b on b.payment_id = p.id
+    left join creators c on c.id = b.creator_id
+    where ${statusFilter}
+    order by p.created_at desc
+    limit ${options.limit} offset ${options.offset}
+  `);
+
+  const counted: unknown[] = await executor.execute(
+    sql`select count(*)::int as total from payments p where ${statusFilter}`,
+  );
+  const first = counted[0];
+
+  return {
+    payments: rows.map(toAdminPaymentRow),
+    total: first === undefined ? 0 : requireInteger(requireRecord(first), "total"),
+  };
+}
+
+export async function findAdminPayment(
+  executor: DatabaseExecutor,
+  id: string,
+): Promise<AdminPaymentRow | null> {
+  const rows: unknown[] = await executor.execute(sql`
+    select
+      p.id::text as id,
+      p.status::text as status,
+      p.amount_cents as amount_cents,
+      p.provider as provider,
+      p.provider_payment_id as provider_payment_id,
+      b.id::text as boost_id,
+      b.status::text as boost_status,
+      c.id::text as creator_id,
+      c.slug as creator_slug,
+      c.display_name as creator_display_name,
+      p.created_at as created_at,
+      p.confirmed_at as confirmed_at,
+      p.refunded_at as refunded_at
+    from payments p
+    left join boosts b on b.payment_id = p.id
+    left join creators c on c.id = b.creator_id
+    where p.id = ${id}
+    limit 1
+  `);
+  const first = rows[0];
+  return first === undefined ? null : toAdminPaymentRow(first);
 }

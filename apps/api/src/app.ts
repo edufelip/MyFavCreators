@@ -190,6 +190,11 @@ export function createApp(options: CreateAppOptions) {
       adminRoutes({
         database: options.database,
         adminApiSecret: options.adminApiSecret,
+        product: options.product,
+        paymentProvider: provider,
+        email,
+        webOrigin,
+        ...(options.now === undefined ? {} : { now: options.now }),
       }),
     );
 

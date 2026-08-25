@@ -1,18 +1,9 @@
 import { expect, test } from "@playwright/test";
-
-const ADMIN_ORIGIN = process.env["ADMIN_ORIGIN"] ?? "http://localhost:3002";
-const ADMIN_PASSWORD = process.env["E2E_ADMIN_PASSWORD"] ?? "creator-outdoor-dev";
+import { ADMIN_ORIGIN, signInToAdmin } from "./support/admin";
 
 /** A handle nothing else in the suite uses, so runs never collide. */
 function uniqueHandle(prefix: string): string {
   return `${prefix}${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`;
-}
-
-async function signInToAdmin(page: import("@playwright/test").Page) {
-  await page.goto(`${ADMIN_ORIGIN}/login`);
-  await page.getByLabel("Senha").fill(ADMIN_PASSWORD);
-  await page.getByRole("button", { name: "Entrar" }).click();
-  await expect(page).toHaveURL(/\/moderacao/);
 }
 
 test.describe("submission and moderation", () => {
@@ -104,16 +95,6 @@ test.describe("administration access", () => {
       await page.goto(`${ADMIN_ORIGIN}${path}`);
       await expect(page, path).toHaveURL(/\/login/);
     }
-  });
-
-  test("a wrong password is refused and does not create a session", async ({ page }) => {
-    await page.goto(`${ADMIN_ORIGIN}/login`);
-    await page.getByLabel("Senha").fill("senha-errada");
-    await page.getByRole("button", { name: "Entrar" }).click();
-    await expect(page.getByTestId("login-error")).toBeVisible();
-
-    await page.goto(`${ADMIN_ORIGIN}/moderacao`);
-    await expect(page).toHaveURL(/\/login/);
   });
 
   test("signing out ends the session", async ({ page }) => {

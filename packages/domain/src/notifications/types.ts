@@ -8,7 +8,3 @@
  */
 export const NOTIFICATION_TYPES = ["DETHRONE", "WEEKLY_RECAP"] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
-
-export function isNotificationType(value: unknown): value is NotificationType {
-  return typeof value === "string" && NOTIFICATION_TYPES.includes(value as NotificationType);
-}
