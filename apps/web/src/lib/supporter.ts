@@ -22,7 +22,7 @@ export async function readOrCreateSupporterKey(): Promise<string> {
   const created = crypto.randomUUID();
   store.set(SUPPORTER_KEY_COOKIE, created, {
     httpOnly: true,
-    secure: webConfig.isProduction,
+    secure: webConfig.cookiesAreSecure,
     sameSite: "lax",
     path: "/",
     maxAge: webConfig.product.supporterCookieDays * 24 * 60 * 60,

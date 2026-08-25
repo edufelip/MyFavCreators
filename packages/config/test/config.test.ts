@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { encodeOperators } from "../src/operators";
 import { ConfigurationError } from "../src/parse";
+import { hashPassword } from "../src/password";
 import { PRODUCT_DEFAULTS, parseProductConfig } from "../src/product";
-import { parseApiConfig, parseWebConfig } from "../src/runtime";
+import { parseAdminConfig, parseApiConfig, parseWebConfig } from "../src/runtime";
+import { generateTotpSecret } from "../src/totp";
 
 const VALID_API_ENV = {
   DATABASE_URL: "postgres://user:pass@localhost:5432/creator_outdoor",
@@ -157,5 +160,63 @@ describe("web configuration", () => {
 
   test("requires the API origin to be a real origin", () => {
     expect(() => parseWebConfig({ API_ORIGIN: "not-a-url" })).toThrow(ConfigurationError);
+  });
+});
+
+describe("cookie security", () => {
+  const web = {
+    NODE_ENV: "production",
+    WEB_ORIGIN: "https://creatoroutdoor.example",
+    API_ORIGIN: "https://api.creatoroutdoor.example",
+  };
+
+  test("marks cookies Secure when the site is served over TLS", () => {
+    expect(parseWebConfig(web).cookiesAreSecure).toBe(true);
+  });
+
+  test("does not mark them Secure on a development stack served over HTTP", () => {
+    /*
+     * The flag means "only send this over https". Setting it on an http origin
+     * makes the browser drop the cookie, which is a session that is never
+     * stored and a click that can never be counted — the bug this replaced.
+     */
+    expect(
+      parseWebConfig({ ...web, NODE_ENV: "development", WEB_ORIGIN: "http://localhost:3000" })
+        .cookiesAreSecure,
+    ).toBe(false);
+  });
+
+  test("follows the scheme even when NODE_ENV says production", () => {
+    /*
+     * `next build` sets NODE_ENV=production too, so a rule keyed on it would
+     * block an ordinary local build of the production bundle — the same
+     * conflation, from the other side. The flag describes what is being served;
+     * "do not serve this over plain HTTP" is a deployment requirement.
+     */
+    expect(
+      parseWebConfig({ ...web, WEB_ORIGIN: "http://creatoroutdoor.example" }).cookiesAreSecure,
+    ).toBe(false);
+  });
+
+  test("holds the same for the administration app, whose cookie is a credential", () => {
+    const admin = {
+      NODE_ENV: "production",
+      ADMIN_ORIGIN: "https://admin.creatoroutdoor.example",
+      API_ORIGIN: "https://api.creatoroutdoor.example",
+      ADMIN_API_SECRET: "um-segredo-de-api-admin-bem-longo",
+      ADMIN_SESSION_SECRET: "um-segredo-de-sessao-admin-com-mais-de-32-bytes",
+      ADMIN_OPERATORS: encodeOperators([
+        {
+          id: "edu",
+          passwordHash: hashPassword("uma-senha-de-teste"),
+          totpSecret: generateTotpSecret(),
+        },
+      ]),
+    };
+    expect(parseAdminConfig(admin).cookiesAreSecure).toBe(true);
+    expect(
+      parseAdminConfig({ ...admin, ADMIN_ORIGIN: "http://admin.creatoroutdoor.example" })
+        .cookiesAreSecure,
+    ).toBe(false);
   });
 });

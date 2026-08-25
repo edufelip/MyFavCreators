@@ -125,6 +125,26 @@ right shape at this size but means the environment is the recovery mechanism.
 There is also no per-operator authorisation — every enrolled operator can do
 everything, refunds included.
 
+## Cookies
+
+Five cookies, all `httpOnly` and all set server-side: the supporter key, the
+analytics session, the creator management token, the administrator session, and
+nothing else. No script reads any of them, and none of them is ever sent to a
+browser as a value the page can see.
+
+`Secure` follows **the scheme the app is served over**, not `NODE_ENV`. Those two
+disagree on any HTTP stack — `next start` and `next build` both set the variable
+whatever the scheme — and a `Secure` cookie on an `http://` origin is one the
+browser throws away. That is not a small failure: it is a management token that
+never signs anybody in, an administrator who cannot stay logged in, and an
+outbound click that can never be counted. All four were in that state.
+
+**Serving any of this over plain HTTP is a deployment error.** The code cannot
+refuse it — the same `NODE_ENV` that would trigger the refusal is set during an
+ordinary local build — so the requirement lives here: terminate TLS in front of
+these applications, and set `WEB_ORIGIN` and `ADMIN_ORIGIN` to their `https://`
+addresses. Doing so is what turns `Secure` back on.
+
 ## What the product knows about people
 
 | Data | Why it exists | Where it can appear |

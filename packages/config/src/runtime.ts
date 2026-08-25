@@ -92,6 +92,26 @@ export function parseApiConfig(env: EnvSource): ApiConfig {
   };
 }
 
+/**
+ * Whether cookies this app sets may carry `Secure`.
+ *
+ * The scheme the site is actually served over, which is what the flag means —
+ * not `NODE_ENV`, which `next start` sets to "production" whatever the scheme.
+ * The two disagree on any HTTP stack, and the browser then silently drops the
+ * cookie: a session that is never stored, a management token that never signs
+ * anybody in, a click that can never be counted.
+ *
+ * Deliberately not a refusal. Requiring https whenever `NODE_ENV` says
+ * production would repeat the same conflation from the other side — `next
+ * build` sets that variable too, so it would block an ordinary local build of
+ * the production bundle. "Do not serve this over plain HTTP" is a deployment
+ * requirement, recorded in docs/security-and-privacy.md, and this function's
+ * job is only to describe truthfully what is being served.
+ */
+function resolveCookieSecurity(origin: string): boolean {
+  return origin.startsWith("https://");
+}
+
 const webEnvSchema = z.object({
   nodeEnv: nodeEnvSchema,
   apiOrigin: originSchema.default("http://localhost:3001"),
@@ -101,6 +121,8 @@ const webEnvSchema = z.object({
 export type WebConfig = z.infer<typeof webEnvSchema> & {
   readonly product: ProductConfig;
   readonly isProduction: boolean;
+  /** Whether cookies this app sets may carry `Secure`. */
+  readonly cookiesAreSecure: boolean;
 };
 
 export function parseWebConfig(env: EnvSource): WebConfig {
@@ -114,10 +136,12 @@ export function parseWebConfig(env: EnvSource): WebConfig {
     "apps/web",
   );
 
+  const isProduction = parsed.nodeEnv === "production";
   return {
     ...parsed,
     product: parseProductConfig(env),
-    isProduction: parsed.nodeEnv === "production",
+    isProduction,
+    cookiesAreSecure: resolveCookieSecurity(parsed.webOrigin),
   };
 }
 
@@ -152,6 +176,8 @@ const adminEnvSchema = z.object({
 
 export type AdminConfig = z.infer<typeof adminEnvSchema> & {
   readonly isProduction: boolean;
+  /** Whether cookies this app sets may carry `Secure`. */
+  readonly cookiesAreSecure: boolean;
 };
 
 export function parseAdminConfig(env: EnvSource): AdminConfig {
@@ -168,5 +194,10 @@ export function parseAdminConfig(env: EnvSource): AdminConfig {
     "apps/admin",
   );
 
-  return { ...parsed, isProduction: parsed.nodeEnv === "production" };
+  const isProduction = parsed.nodeEnv === "production";
+  return {
+    ...parsed,
+    isProduction,
+    cookiesAreSecure: resolveCookieSecurity(parsed.adminOrigin),
+  };
 }

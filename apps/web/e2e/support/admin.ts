@@ -91,11 +91,11 @@ export async function signInToAdmin(page: Page): Promise<void> {
   }
 
   /*
-   * Retried across TOTP windows, because a spent code is refused and the spec
-   * files run in parallel workers that cannot see each other's spent steps.
-   * Two workers reaching the login form inside the same thirty seconds is
-   * ordinary, and the second one simply waits for the next code — the same
-   * thing a person would do.
+   * Retried across TOTP windows, because a spent code is refused. The suite
+   * runs on one worker, so this is not about workers racing: it is about a run
+   * that follows an earlier one closely enough to land in the same
+   * thirty-second window. The second attempt simply waits for the next code —
+   * the same thing a person would do.
    */
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const step = await fillLoginForm(page);
@@ -106,7 +106,15 @@ export async function signInToAdmin(page: Page): Promise<void> {
       )
     ) {
       markStepSpent(step);
-      session = (await page.context().storageState()).cookies;
+      /*
+       * Only the admin session cookie. Storing the whole jar would carry an
+       * earlier test's supporter key and analytics session into every later
+       * sign-in — harmless today only because this happens to run first, and a
+       * `--grep` or a new spec file would change that.
+       */
+      session = (await page.context().storageState()).cookies.filter(
+        (cookie) => cookie.name === "co_admin_session",
+      );
       return;
     }
     markStepSpent(step);

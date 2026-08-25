@@ -28,12 +28,7 @@ export async function readOrCreateAnalyticsSession(): Promise<string> {
   const created = crypto.randomUUID();
   store.set(ANALYTICS_SESSION_COOKIE, created, {
     httpOnly: true,
-    // Whether the site is actually served over TLS, which is what `Secure`
-    // means — not whether NODE_ENV says "production". `next start` sets that
-    // variable whatever the scheme, so the two disagree on any HTTP stack, and
-    // the cookie the browser then refuses to keep is the one that makes a click
-    // countable. A deployment on https keeps the flag; one on http never had it.
-    secure: webConfig.webOrigin.startsWith("https://"),
+    secure: webConfig.cookiesAreSecure,
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_DAYS * 24 * 60 * 60,

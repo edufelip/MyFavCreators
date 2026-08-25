@@ -11,7 +11,25 @@
 const MAX_LENGTH = 200;
 /** Everything a driver appends from here on is parameter data. */
 const PARAMETER_MARKERS = ["params:", "parameters:"];
-const EMAIL_PATTERN = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
+
+/**
+ * Shapes that must never survive into a log line or an error report.
+ *
+ * An error message is written by whoever threw, which includes libraries and
+ * providers, so what ends up in one is not something the call sites can be
+ * trusted to have thought about. These are the things that have actually turned
+ * up in one: an address, a credential a client sent, a cookie header quoted
+ * back, and the PIX payload — the string somebody pastes into their bank, which
+ * is the single field a support screenshot must never carry.
+ */
+const REDACTIONS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/[^\s@]+@[^\s@]+\.[^\s@]+/g, "[email]"],
+  [/\bbearer\s+[\w.~+/=-]+/gi, "Bearer [redacted]"],
+  [/\b(co_[a-z_]+|session|token)=[\w.~+/=-]+/gi, "$1=[redacted]"],
+  // A PIX "copia e cola" always begins with the EMV payload-format indicator.
+  [/\b000201[\w.*$%:;,+/=-]{16,}/g, "[pix-payload]"],
+  [/\b(sk|pk|rk)_(live|test)_[\w-]+/gi, "[key]"],
+];
 
 export type DescribedError = {
   readonly name: string;
@@ -84,6 +102,9 @@ function sanitize(message: string): string {
       cleaned = cleaned.slice(0, at);
     }
   }
-  cleaned = cleaned.replace(EMAIL_PATTERN, "[email]").replace(/\s+/g, " ").trim();
+  for (const [pattern, replacement] of REDACTIONS) {
+    cleaned = cleaned.replace(pattern, replacement);
+  }
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
   return cleaned.length > MAX_LENGTH ? `${cleaned.slice(0, MAX_LENGTH)}...` : cleaned;
 }

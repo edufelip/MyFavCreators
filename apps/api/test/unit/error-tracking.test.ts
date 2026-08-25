@@ -123,7 +123,96 @@ describe("what reaches the tracker", () => {
     expect(body).toContain("ana");
   });
 
-  test("sends stack frames but not the message line, which is the part that leaks", async () => {
+  test("redacts however the key was spelled", async () => {
+    /*
+     * A header object arrives with whatever casing and separators the sender
+     * used. Matching the exact spelling meant `Cookie`, `set-cookie` and
+     * `supporter_email` all walked straight through a list that names their
+     * camelCase twins.
+     */
+    const { tracker, sent } = trackerWithCapture();
+    await tracker.capture({
+      event: "request_failed",
+      error: new Error("boom"),
+      context: {
+        Cookie: "co_admin_session=abc",
+        Authorization: "Bearer xyz",
+        "set-cookie": "co_sid=zzz",
+        supporter_email: "alguem@example.com",
+        PIXPAYLOAD: "00020126580014br.gov.bcb.pix",
+      },
+    });
+
+    const body = sent[0]?.body ?? "";
+    for (const secret of ["co_admin_session=abc", "Bearer xyz", "co_sid=zzz", "br.gov.bcb.pix"]) {
+      expect(body, secret).not.toContain(secret);
+    }
+    expect(body).not.toContain("alguem@example.com");
+  });
+
+  test("redacts a secret nested inside a context object", async () => {
+    /*
+     * `{ headers: { cookie } }` is exactly the shape somebody reaches for when
+     * a request fails, and a flat scrub looked right for as long as nobody had.
+     */
+    const { tracker, sent } = trackerWithCapture();
+    await tracker.capture({
+      event: "request_failed",
+      error: new Error("boom"),
+      context: {
+        request: { headers: { cookie: "co_admin_session=abc" }, route: "/v1/boosts" },
+        payer: [{ email: "alguem@example.com" }],
+      },
+    });
+
+    const body = sent[0]?.body ?? "";
+    expect(body).not.toContain("co_admin_session=abc");
+    expect(body).not.toContain("alguem@example.com");
+    expect(body).toContain("/v1/boosts");
+  });
+
+  test("survives a context that refers to itself", async () => {
+    const { tracker, sent } = trackerWithCapture();
+    const cyclic: Record<string, unknown> = { creatorSlug: "ana" };
+    cyclic["self"] = cyclic;
+
+    await tracker.capture({ event: "request_failed", error: new Error("boom"), context: cyclic });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.body).toContain("ana");
+  });
+
+  test("never sends a credential or a PIX payload quoted inside the message", async () => {
+    /*
+     * An error message is written by whoever threw it, which includes libraries
+     * and providers. What ends up in one is not something the call sites can be
+     * trusted to have thought about, so it is stripped here.
+     */
+    const { tracker, sent } = trackerWithCapture();
+    const leaky = [
+      "refused for Authorization: Bearer sk_live_abcdef123456",
+      "cookie co_admin_session=abcdef123456 rejected",
+      "provider refused 00020126580014br.gov.bcb.pix0136abcdef-1234-5678-9012-abcdefabcdef5204",
+    ].join(" | ");
+
+    await tracker.capture({ event: "provider_failed", error: new Error(leaky) });
+
+    const body = sent[0]?.body ?? "";
+    for (const secret of [
+      "sk_live_abcdef123456",
+      "co_admin_session=abcdef123456",
+      "br.gov.bcb.pix",
+    ]) {
+      expect(body, secret).not.toContain(secret);
+    }
+  });
+
+  test("sends stack frames, and only the frames — never the stack's first line", async () => {
+    /*
+     * A stack begins `Name: message`, and the message is the half that can carry
+     * a driver's parameters. The sanitised message is sent once, as the
+     * exception's value; the raw one must not arrive a second time inside the
+     * frames.
+     */
     const { tracker, sent } = trackerWithCapture();
     await tracker.capture({
       event: "request_failed",
@@ -133,6 +222,10 @@ describe("what reaches the tracker", () => {
     const body = sent[0]?.body ?? "";
     expect(body).not.toContain("alguem@example.com");
     expect(body).toContain("frames");
+    // Every frame is a frame, not a message line.
+    const frames = [...body.matchAll(/"filename":"([^"]*)"/g)].map((match) => match[1] ?? "");
+    expect(frames.length).toBeGreaterThan(0);
+    expect(frames.every((frame) => frame.startsWith("at "))).toBe(true);
   });
 
   test("tags the request so a report and its log lines can be found together", async () => {

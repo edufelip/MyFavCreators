@@ -160,11 +160,26 @@ jobs:
             echo "WEB_ORIGIN=$WEB_ORIGIN"
             echo "API_ORIGIN=$API_ORIGIN"
             echo "ADMIN_ORIGIN=$ADMIN_ORIGIN"
+            # The suite is one visitor making a hundred requests, and it shares a
+            # single bucket because Playwright sends no forwarded address. The
+            # production limits would throttle it out of its own submissions —
+            # which looked like a broken feature rather than a full bucket.
+            echo "RATE_LIMIT_SUBMISSIONS_PER_HOUR=500"
+            echo "RATE_LIMIT_BOOSTS_PER_HOUR=500"
+            echo "RATE_LIMIT_REPORTS_PER_HOUR=500"
+            echo "RATE_LIMIT_OPT_OUT_REQUESTS_PER_HOUR=500"
+            echo "RATE_LIMIT_OPT_OUT_VERIFICATIONS_PER_HOUR=500"
           } >> "$GITHUB_ENV"
       - name: Prepare database
         run: |
           bun run db:migrate
           bun run db:seed
+          # The seed truncates the ranking periods and inserts none, so a fresh
+          # database has no closed week and the Hall da Fama has nothing to
+          # show. The rollover is what creates that history, and three tests
+          # need it — they passed locally only on a database where somebody had
+          # run this by hand.
+          bun run job:weekly-rollover
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
         working-directory: apps/web

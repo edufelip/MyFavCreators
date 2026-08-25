@@ -32,20 +32,41 @@ export type LogSink = (record: LogRecord) => void;
 
 const REQUEST_CONTEXT = new AsyncLocalStorage<{ readonly requestId: string }>();
 
-/** Values a log line may never carry, whatever a caller passes. */
+/**
+ * Values a log line may never carry, whatever a caller passes.
+ *
+ * Compared with the key lowercased and its separators removed, so `Cookie`,
+ * `set-cookie` and `supporter_email` are the same key as `cookie` and
+ * `supporterEmail`. Matching the exact spelling meant a header object — whose
+ * keys arrive however the sender wrote them — walked straight through.
+ */
 const FORBIDDEN_FIELDS = new Set([
   "authorization",
   "cookie",
+  "setcookie",
   "password",
   "secret",
   "token",
-  "manageToken",
-  "unsubToken",
-  "adminApiSecret",
-  "fanIdentityKey",
-  "supporterEmail",
+  "managetoken",
+  "unsubtoken",
+  "adminapisecret",
+  "fanidentitykey",
+  "supporteremail",
   "email",
+  // The PIX payload is the string a person pastes into their bank. It is not a
+  // credential, but it is the one field a support screenshot must never carry.
+  "pixpayload",
+  "qrcode",
+  "copypaste",
+  "emv",
 ]);
+
+/** How deep a scrub descends before it stops looking. */
+const MAX_SCRUB_DEPTH = 4;
+
+function isForbiddenKey(key: string): boolean {
+  return FORBIDDEN_FIELDS.has(key.toLowerCase().replace(/[-_\s]/g, ""));
+}
 
 let sink: LogSink = defaultSink;
 
@@ -111,6 +132,11 @@ export function resolveRequestId(header: string | null): string {
  * "there was no cookie", which is a different and more misleading statement
  * than "there was one and you may not see it".
  *
+ * Descends into nested objects and arrays. A flat pass looked right for as long
+ * as every caller happened to pass flat fields, and `{ headers: { cookie } }` is
+ * exactly the shape somebody reaches for when a request fails. Bounded, because
+ * a cycle or a huge payload must not turn a log line into a hang.
+ *
  * Exported because the error tracker sends fields to a third party and has to
  * apply exactly the same rule. One list, one function — a second copy is a
  * second thing to forget to update.
@@ -118,7 +144,30 @@ export function resolveRequestId(header: string | null): string {
 export function scrubFields(fields: LogFields): Record<string, unknown> {
   const safe: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(fields)) {
-    safe[key] = FORBIDDEN_FIELDS.has(key) ? "[redacted]" : value;
+    safe[key] = isForbiddenKey(key) ? "[redacted]" : scrubValue(value, 1);
+  }
+  return safe;
+}
+
+function scrubValue(value: unknown, depth: number): unknown {
+  if (typeof value !== "object" || value === null) {
+    return value;
+  }
+  if (depth >= MAX_SCRUB_DEPTH) {
+    /*
+     * Truncated rather than passed through. Anything below this point has not
+     * been scrubbed, so emitting it raw would be the hole this function exists
+     * to close — and a structure deep enough to reach here is usually one that
+     * refers to itself, which would take `JSON.stringify` with it.
+     */
+    return "[nested]";
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => scrubValue(item, depth + 1));
+  }
+  const safe: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value)) {
+    safe[key] = isForbiddenKey(key) ? "[redacted]" : scrubValue(nested, depth + 1);
   }
   return safe;
 }

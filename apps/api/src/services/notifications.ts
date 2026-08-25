@@ -49,7 +49,18 @@ export async function subscribeToNotifications(
     readonly types: readonly NotificationType[];
   },
 ): Promise<readonly SubscriptionRow[]> {
-  if (input.email === null || !isEmail(input.email) || input.types.length === 0) {
+  if (input.email === null || input.types.length === 0) {
+    return [];
+  }
+  if (!isEmail(input.email)) {
+    /*
+     * Somebody ticked the box and will never hear anything. The address is not
+     * logged — that is the one rule this file exists under — but the fact that a
+     * consent was accepted and could not be honoured is worth a line, because
+     * from the payer's side it looks exactly like a notification that failed to
+     * send.
+     */
+    log.warn("notification_consent_unusable_address", { creatorId: input.creatorId });
     return [];
   }
   const email = normalizeEmail(input.email);

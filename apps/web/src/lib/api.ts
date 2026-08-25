@@ -230,7 +230,16 @@ export async function resolveOutboundLink(
     body: JSON.stringify({ creatorLinkId, referrer }),
     cache: "no-store",
   });
-  if (response.status === 404 || response.status === 400) {
+  if (response.status === 400) {
+    /*
+     * A 400 is our own request being wrong, not the link being gone. Folding it
+     * into the same `null` as a 404 meant a drifted payload rendered as "every
+     * creator's outbound link is dead" with nothing anywhere saying why.
+     */
+    console.error("outbound_click_request_rejected");
+    return null;
+  }
+  if (response.status === 404) {
     return null;
   }
   if (!response.ok) {

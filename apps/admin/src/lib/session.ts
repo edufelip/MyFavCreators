@@ -29,7 +29,7 @@ export async function startAdminSession(operator: string): Promise<void> {
     }),
     {
       httpOnly: true,
-      secure: adminConfig.isProduction,
+      secure: adminConfig.cookiesAreSecure,
       sameSite: "strict",
       path: "/",
       maxAge: SESSION_TTL_SECONDS,

@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 const API_ORIGIN = process.env["API_ORIGIN"] ?? "http://localhost:3001";
+const WEB_ORIGIN = process.env["WEB_ORIGIN"] ?? "http://localhost:3000";
 
 /**
  * The leader, whose page and links are stable across the run.
@@ -116,8 +117,10 @@ test.describe("the tracked outbound link", () => {
   test("refuses a link id that is not an identifier at all", async ({ page }) => {
     const response = await page.goto("/out/https:%2F%2Fevil.example");
     expect(response?.status()).toBe(404);
-    // Whatever the path looked like, the browser stayed on this site.
-    expect(page.url().startsWith("http://localhost:3000/")).toBe(true);
+    // Whatever the path looked like, the browser stayed on this site. Compared
+    // against the configured origin rather than a literal, so the assertion
+    // still means something on a stack that is not on the default ports.
+    expect(page.url().startsWith(WEB_ORIGIN)).toBe(true);
     await expect(page.getByRole("heading", { name: "Página não encontrada" })).toBeVisible();
   });
 });

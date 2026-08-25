@@ -9,12 +9,27 @@ import {
 import { createApp } from "../../src/app";
 import { type LogRecord, resetLogSink, setLogSink } from "../../src/observability/logger";
 import type { ErrorTracker, TrackedError } from "../../src/observability/tracker";
+import { FakePixPaymentProvider } from "../../src/payments/fake-pix";
 import { RateLimiter } from "../../src/security/rate-limit";
 
 const NOW = new Date("2026-08-19T18:30:00.000Z");
 
+const FAN_SECRET = "um-segredo-de-identidade-de-fa-com-32-bytes";
 const testDatabase: TestDatabase = await createTestDatabase();
 const rateLimiter = new RateLimiter();
+
+/**
+ * Signs a payload the way the fake provider would.
+ *
+ * `createApp` builds its own provider from the same secret, so a signature made
+ * here is one the webhook route accepts — which is what lets these tests reach
+ * the outcome branches rather than being turned away at the signature check.
+ */
+const signer = new FakePixPaymentProvider({
+  expirationMinutes: PRODUCT_DEFAULTS.fakePixExpirationMinutes,
+  signingSecret: FAN_SECRET,
+});
+const signature = (payload: string): string => signer.sign(payload);
 const reported: TrackedError[] = [];
 const tracker: ErrorTracker = {
   name: "recording",
@@ -27,7 +42,7 @@ const app = createApp({
   product: PRODUCT_DEFAULTS,
   allowedOrigins: ["http://localhost:3000"],
   adminApiSecret: "integration-admin-secret-value",
-  fanIdentitySecret: "um-segredo-de-identidade-de-fa-com-32-bytes",
+  fanIdentitySecret: FAN_SECRET,
   rateLimiter,
   errorTracker: tracker,
   now: () => NOW,
@@ -131,7 +146,7 @@ describe("reporting a failure somebody has to act on", () => {
     product: PRODUCT_DEFAULTS,
     allowedOrigins: ["http://localhost:3000"],
     adminApiSecret: "integration-admin-secret-value",
-    fanIdentitySecret: "um-segredo-de-identidade-de-fa-com-32-bytes",
+    fanIdentitySecret: FAN_SECRET,
     rateLimiter,
     errorTracker: tracker,
     now: () => {
@@ -190,5 +205,57 @@ describe("reporting a failure somebody has to act on", () => {
     );
     await Promise.resolve();
     expect(reported).toEqual([]);
+  });
+});
+
+describe("a webhook that changed nothing", () => {
+  /*
+   * The answer is always 200, because a provider that gets anything else
+   * retries forever. That makes the log the only signal — and if a provider id
+   * ever stops matching, because of the wrong environment's credentials or a
+   * changed payload key, every real payment takes this path.
+   */
+  test("says so, rather than being acknowledged in silence", async () => {
+    const payload = JSON.stringify({
+      eventId: "evt-desconhecido",
+      providerPaymentId: "nao-existe-aqui",
+      status: "CONFIRMED",
+    });
+    const response = await app.handle(
+      new Request("http://localhost/v1/webhooks/payments/fake-pix", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-fake-pix-signature": signature(payload),
+        },
+        body: payload,
+      }),
+    );
+
+    expect(await response.json()).toEqual({ received: true, outcome: "UNKNOWN_PAYMENT" });
+    const line = records.find((record) => record.event === "webhook_no_effect");
+    expect(line).toBeDefined();
+    expect(line?.["outcome"]).toBe("UNKNOWN_PAYMENT");
+  });
+
+  test("carries nothing from the payload into the line", async () => {
+    const payload = JSON.stringify({
+      eventId: "evt-com-segredo",
+      providerPaymentId: "pagamento-secreto-123",
+      status: "CONFIRMED",
+    });
+    await app.handle(
+      new Request("http://localhost/v1/webhooks/payments/fake-pix", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-fake-pix-signature": signature(payload),
+        },
+        body: payload,
+      }),
+    );
+
+    const line = records.find((record) => record.event === "webhook_no_effect");
+    expect(JSON.stringify(line)).not.toContain("pagamento-secreto-123");
   });
 });

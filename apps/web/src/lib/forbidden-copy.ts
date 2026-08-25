@@ -17,11 +17,11 @@ export const FORBIDDEN_TERMS = [
   "apoio",
   "apoiar",
   "doe",
+  // One spelling each: matching folds accents away, so carrying "doacao"
+  // alongside "doação" would report the same word twice.
   "doação",
-  "doacao",
   "vaquinha",
   "contribuição",
-  "contribuicao",
   "gorjeta",
   "repasse",
   // The English terms the specification names too. A word boundary keeps them
@@ -44,7 +44,8 @@ export const FORBIDDEN_TERMS = [
  * "sem parar" — so accepting it would exempt any sentence that happened to
  * contain one, which is most of them. A denial has to actually deny.
  */
-const DENIAL = /\b(n[ãa]o|nunca|nenhum|nenhuma|jamais|nem)\b/i;
+// Written against folded text, so the accented forms need no separate branch.
+const DENIAL = /\b(nao|nunca|nenhum|nenhuma|jamais|nem)\b/i;
 
 /**
  * How far before a forbidden word a denial may sit and still be attached to it.
@@ -56,7 +57,7 @@ const DENIAL = /\b(n[ãa]o|nunca|nenhum|nenhuma|jamais|nem)\b/i;
 const DENIAL_WINDOW = 40;
 
 /** Punctuation that ends a clause, and so ends a denial's reach. */
-const CLAUSE_ENDS = [".", "!", "?", ":", ";", ",", "—", "–"] as const;
+const CLAUSE_ENDS = [".", "!", "?", ":", ";", ",", "\u2014", "\u2013"] as const;
 
 export type AffirmativeUse = {
   readonly term: string;
@@ -64,13 +65,42 @@ export type AffirmativeUse = {
   readonly context: string;
 };
 
+/**
+ * Strips accents so a term matches however it was typed.
+ *
+ * The list carries both `doação` and `doacao` for exactly this reason; folding
+ * them here means the list only has to carry the idea once, and a term that
+ * somebody writes without its accent is still the same word.
+ */
+function fold(text: string): string {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+/**
+ * The term, in the forms it is actually written in.
+ *
+ * A plural is the same claim as a singular. Matching only the exact word let
+ * "participe dos sorteios semanais" and "faça suas doações agora" through — the
+ * affirmative `sorteio` this whole check was written to catch, wearing an `s`.
+ */
+/*
+ * `-ão` needs its own branch: Portuguese pluralises it as `-ões`, which no
+ * suffix on the singular can produce. Folded, that is `doacao` -> `doacoes`.
+ */
+function inflect(word: string): string {
+  return word.endsWith("ao") ? `${word.slice(0, -2)}(?:ao|oes)` : `${word}(?:es|s)?`;
+}
+
 function boundary(term: string): RegExp {
-  return new RegExp(`(^|[^a-zà-ú])(${term})([^a-zà-ú]|$)`, "gi");
+  // Word by word, because a phrase pluralises on its head: the plural of
+  // "premio em dinheiro" is "premios em dinheiro", not "premio em dinheiros".
+  const inflected = fold(term).split(" ").map(inflect).join(String.raw`\s+`);
+  return new RegExp(`(^|[^a-z])(${inflected})([^a-z]|$)`, "gi");
 }
 
 /** Every forbidden term appearing anywhere in the text, denied or not. */
 export function forbiddenTerms(text: string): readonly string[] {
-  const normalized = text.toLowerCase();
+  const normalized = fold(text.toLowerCase());
   return FORBIDDEN_TERMS.filter((term) => boundary(term).test(normalized));
 }
 
@@ -83,7 +113,7 @@ export function forbiddenTerms(text: string): readonly string[] {
  * of a cash prize.
  */
 export function affirmativeUses(text: string): readonly AffirmativeUse[] {
-  const normalized = text.toLowerCase().replace(/\s+/g, " ");
+  const normalized = fold(text.toLowerCase().replace(/\s+/g, " "));
   const found: AffirmativeUse[] = [];
 
   for (const term of FORBIDDEN_TERMS) {

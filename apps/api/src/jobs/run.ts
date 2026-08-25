@@ -34,12 +34,15 @@ export async function runJob(
   } catch (error) {
     failed = true;
     log.error("job_failed", error, { job: name });
-    await hooks.tracker.capture({
-      event: "job_failed",
-      error,
-      severity: "fatal",
-      context: { job: name },
-    });
+    // The one hook here that was not defended. A tracker that rejects would
+    // skip both the close and the exit — precisely the guarantees this function
+    // exists to make — so a report that cannot be sent is a lost report, not a
+    // lost cleanup.
+    await hooks.tracker
+      .capture({ event: "job_failed", error, severity: "fatal", context: { job: name } })
+      .catch((reportingError: unknown) => {
+        log.error("job_failure_not_reported", reportingError, { job: name });
+      });
   }
 
   try {

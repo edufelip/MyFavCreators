@@ -59,6 +59,17 @@ export function webhookRoutes(dependencies: WebhookRouteDependencies) {
 
       if (outcome.kind === "APPLIED") {
         await runPaymentFollowUps(dependencies, provider, outcome, now());
+      } else if (outcome.kind !== "DUPLICATE") {
+        /*
+         * A payment the provider knows about and we do not, or a move the state
+         * machine refuses. Both answer 200 — a provider that gets anything else
+         * retries forever — so without this line they are acknowledged and
+         * dropped in silence. If a provider id ever stops matching, because of
+         * the wrong environment's credentials or a changed payload key, *every*
+         * real payment takes this path and the only trace is a table nobody
+         * queries. No payload content, just which kind and for which provider.
+         */
+        log.warn("webhook_no_effect", { provider: provider.name, outcome: outcome.kind });
       }
 
       return { received: true, outcome: outcome.kind };

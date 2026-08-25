@@ -6,6 +6,27 @@ describe("finding a forbidden word at all", () => {
     expect(forbiddenTerms("Isto é uma vaquinha")).toEqual(["vaquinha"]);
   });
 
+  test("finds an inflected form, because a plural is the same claim", () => {
+    /*
+     * The affirmative `sorteio` this check was written to catch survived for a
+     * while wearing an `s`: the matcher required a non-letter straight after the
+     * term, so no plural ever matched.
+     */
+    expect(forbiddenTerms("Participe dos sorteios semanais")).toContain("sorteio");
+    expect(forbiddenTerms("Faça suas doações agora")).toContain("doação");
+    expect(forbiddenTerms("gorjetas são bem-vindas")).toContain("gorjeta");
+    expect(forbiddenTerms("Somos varias vaquinhas")).toContain("vaquinha");
+    expect(forbiddenTerms("prêmios em dinheiro para o primeiro lugar")).toContain(
+      "prêmio em dinheiro",
+    );
+  });
+
+  test("finds a term written without its accent", () => {
+    expect(forbiddenTerms("uma doacao")).not.toEqual([]);
+    expect(forbiddenTerms("premio em dinheiro")).not.toEqual([]);
+    expect(forbiddenTerms("contribuicao mensal")).not.toEqual([]);
+  });
+
   test("does not fire on a word that merely contains one", () => {
     // "doe" inside "doente", "apoio" inside a longer word.
     expect(forbiddenTerms("um criador doente")).toEqual([]);
@@ -14,7 +35,8 @@ describe("finding a forbidden word at all", () => {
 
   test("finds one regardless of case or accent form used in the copy", () => {
     expect(forbiddenTerms("DOAÇÃO")).toContain("doação");
-    expect(forbiddenTerms("Doacao")).toContain("doacao");
+    // Reported under the list's own spelling, whichever spelling was written.
+    expect(forbiddenTerms("Doacao")).toContain("doação");
   });
 });
 
@@ -67,6 +89,11 @@ describe("a negation somewhere in the sentence does not launder an affirmative u
     ).toBe(1);
     expect(affirmativeUses("Não cobramos taxa; faça uma doação hoje.").length).toBe(1);
     expect(affirmativeUses("Nada é obrigatório — apoie seu criador favorito.").length).toBe(1);
+  });
+
+  test("an inflected form is not laundered either", () => {
+    expect(affirmativeUses("Participe dos sorteios semanais.").length).toBeGreaterThan(0);
+    expect(affirmativeUses("Faça suas doações hoje.").length).toBeGreaterThan(0);
   });
 
   test("`sem` alone never counts as a denial", () => {

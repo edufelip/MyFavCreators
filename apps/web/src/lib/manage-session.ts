@@ -25,7 +25,7 @@ export async function storeManageToken(token: string): Promise<void> {
   const store = await cookies();
   store.set(MANAGE_COOKIE, token, {
     httpOnly: true,
-    secure: webConfig.isProduction,
+    secure: webConfig.cookiesAreSecure,
     sameSite: "lax",
     path: "/",
     maxAge: MANAGE_DAYS * 24 * 60 * 60,
@@ -39,7 +39,7 @@ export async function clearManageToken(): Promise<void> {
   // browser keeps, and keeping this one means staying signed in.
   store.set(MANAGE_COOKIE, "", {
     httpOnly: true,
-    secure: webConfig.isProduction,
+    secure: webConfig.cookiesAreSecure,
     sameSite: "lax",
     path: "/",
     maxAge: 0,

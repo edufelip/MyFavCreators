@@ -105,6 +105,7 @@ comes from `apps/api`. See [`docs/architecture.md`](docs/architecture.md).
 bun run test:unit                     # no database required
 bun run db:up && bun run db:migrate
 bun run test:integration              # uses TEST_DATABASE_URL, falls back to DATABASE_URL
+bun run job:weekly-rollover           # closed weeks, which the Hall da Fama tests need
 bun run test:e2e                      # builds apps/web, boots the stack, drives a browser
 ```
 
