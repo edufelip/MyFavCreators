@@ -104,9 +104,16 @@ sent, and retrying is safe. The audit log carries `payment.refund_not_attempted`
 out and the answer was lost. Whether the money moved is genuinely unknown from
 here, so **check the provider's own panel before retrying**. The audit log
 carries `payment.refund_uncertain`, and `bun run job:payment-reconcile` picks the
-payment up on its next run: it asks the provider, and records a refund that did
-happen. So doing nothing is also safe — the sweep settles it — but a support
-conversation usually cannot wait for that.
+payment up on its next run: it asks the provider, refunds if the money is still
+here, and records one that already happened. Doing nothing settles it either
+way; a support conversation usually cannot wait for the next run.
+
+**A refund cannot be called back.** That marker is what makes the money
+findable, and the sweep acts on it — so an operator who orders a refund and then
+changes their mind, or realises they picked the wrong payment, cannot stop it:
+the next run completes it. Read the payment before pressing the button. The
+alternative would be a marker somebody can withdraw, which is a marker that can
+be withdrawn by mistake and leave money gone with nothing pointing at it.
 
 ### An operator lost their second factor, or somebody joined or left
 
