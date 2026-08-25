@@ -7,18 +7,28 @@ export type LeaderboardProps = {
   readonly tab: RankingTab;
   readonly entries: readonly LeaderboardEntryDto[];
   readonly unavailable?: boolean;
+  /**
+   * Where the tabs point. The category page shows the same two tabs over its
+   * own filtered ranking, and switching between them must not silently drop the
+   * filter the visitor came in with.
+   */
+  readonly basePath?: string;
 };
 
-const TABS: ReadonlyArray<{
-  readonly id: RankingTab;
-  readonly label: string;
-  readonly href: string;
-}> = [
-  { id: "weekly", label: copy.leaderboard.weeklyTab, href: "/#ranking" },
-  { id: "all-time", label: copy.leaderboard.allTimeTab, href: "/?ranking=geral#ranking" },
+const TABS: ReadonlyArray<{ readonly id: RankingTab; readonly label: string }> = [
+  { id: "weekly", label: copy.leaderboard.weeklyTab },
+  { id: "all-time", label: copy.leaderboard.allTimeTab },
 ];
 
-export function Leaderboard({ tab, entries, unavailable = false }: LeaderboardProps) {
+export function Leaderboard({
+  tab,
+  entries,
+  unavailable = false,
+  basePath = "/",
+}: LeaderboardProps) {
+  const hrefFor = (id: RankingTab): string =>
+    id === "all-time" ? `${basePath}?ranking=geral#ranking` : `${basePath}#ranking`;
+
   return (
     <section id="ranking" aria-label={copy.leaderboard.title} className="scroll-mt-20">
       <div
@@ -33,7 +43,7 @@ export function Leaderboard({ tab, entries, unavailable = false }: LeaderboardPr
               key={item.id}
               role="tab"
               aria-selected={selected}
-              href={item.href}
+              href={hrefFor(item.id)}
               className={`flex-1 rounded-lg px-3 py-2 text-center text-sm font-bold transition-colors ${
                 selected ? "bg-white text-neutral-950" : "text-white/70 hover:text-white"
               }`}

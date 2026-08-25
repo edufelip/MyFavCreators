@@ -76,3 +76,20 @@ export function formatRelativeTime(instant: Date, now: Date): string {
   }
   return `${Math.floor(elapsed / DAY_MS)} d`;
 }
+
+/**
+ * A click-through rate, or the reason there is not one.
+ *
+ * `null` and `0` are opposite pieces of news — "nobody has seen this yet" and
+ * "people saw it and nobody clicked" — and a creator paying for prominence has
+ * to be able to tell them apart. Rendering both as `0.0%` tells one of them
+ * something untrue, so the absent case gets its own words.
+ */
+export function formatClickThroughRate(rate: number | null, absent: string): string {
+  return rate === null ? absent : `${(rate * 100).toFixed(1)}%`;
+}
+
+/** A count for a reader, grouped the way pt-BR groups digits. */
+export function formatCount(value: number): string {
+  return INTEGER_FORMATTER.format(value);
+}

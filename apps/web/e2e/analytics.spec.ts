@@ -2,7 +2,15 @@ import { expect, type Page, test } from "@playwright/test";
 
 const API_ORIGIN = process.env["API_ORIGIN"] ?? "http://localhost:3001";
 
-/** The leader, whose page and links are stable across the run. */
+/**
+ * The leader, whose page and links are stable across the run.
+ *
+ * The beacon is awaited before returning, not for its own sake but for the
+ * cookie it brings: the analytics session is created by that request, and a
+ * click is only counted for a visitor who already has one. Following the link
+ * before the beacon lands measures nothing — correctly, but not what the test
+ * that calls this is trying to check.
+ */
 async function openLeaderProfile(page: Page): Promise<string> {
   await page.goto("/");
   const href = await page
@@ -10,7 +18,12 @@ async function openLeaderProfile(page: Page): Promise<string> {
     .first()
     .getByTestId("creator-profile-link")
     .getAttribute("href");
+
+  const beacon = page.waitForResponse((response) => response.url().includes("/api/impressions"), {
+    timeout: 20_000,
+  });
   await page.goto(href ?? "/");
+  await beacon;
   return href ?? "/";
 }
 
@@ -65,8 +78,21 @@ test.describe("the tracked outbound link", () => {
     const outboundHref = await link.getAttribute("href");
     expect(outboundHref).toMatch(/^\/out\//);
 
+    /*
+     * The session cookie is httpOnly, so the page cannot read it and cannot
+     * invent one — that is the point of it. The click below is issued outside
+     * the browser to avoid actually leaving the site, which means the cookie
+     * has to be attached by hand; asserting it exists first is what keeps this
+     * from quietly measuring a session that was never created.
+     */
+    const session = (await page.context().cookies()).find((cookie) => cookie.name === "co_sid");
+    expect(session, "the beacon must have created an analytics session").toBeDefined();
+
     // Follow the redirect without leaving the site in the test browser.
-    const response = await page.request.get(`${outboundHref}`, { maxRedirects: 0 });
+    const response = await page.request.get(`${outboundHref}`, {
+      maxRedirects: 0,
+      headers: { cookie: `co_sid=${session?.value ?? ""}` },
+    });
     expect([302, 303, 307, 308]).toContain(response.status());
     const destination = response.headers()["location"] ?? "";
     expect(destination.startsWith("http")).toBe(true);

@@ -32,7 +32,11 @@ export function ImpressionReporter({ entries }: ImpressionReporterProps) {
    * second report and a genuinely changed page is.
    */
   const sent = useRef<string | null>(null);
-  const payload = JSON.stringify(entries);
+  // Wrapped in `entries`, which is the shape the ingest route parses. Sending
+  // the bare array meant every real page view was rejected at the edge and
+  // silently dropped: the route answers 204 whatever happens, so nothing about
+  // a page or a log said the delivery report was being built from nothing.
+  const payload = JSON.stringify({ entries });
 
   useEffect(() => {
     if (entries.length === 0) {

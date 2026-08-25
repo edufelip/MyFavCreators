@@ -9,7 +9,7 @@ import {
 } from "@/app/gerenciar/actions";
 import { INITIAL_MANAGE_STATE } from "@/app/gerenciar/state";
 import { copy } from "@/lib/copy";
-import { formatBrl } from "@/lib/format";
+import { formatBrl, formatClickThroughRate, formatCount } from "@/lib/format";
 
 const PANEL_CLASS = "rounded-xl border border-white/10 bg-white/[0.03] p-4";
 const FIELD_CLASS =
@@ -39,10 +39,7 @@ export function CreatorManagePanel({ dashboard, webOrigin }: CreatorManagePanelP
     INITIAL_MANAGE_STATE,
   );
 
-  const ctr =
-    dashboard.clickThroughRate === null
-      ? copy.manage.ctrUnavailable
-      : `${(dashboard.clickThroughRate * 100).toFixed(1)}%`;
+  const ctr = formatClickThroughRate(dashboard.clickThroughRate, copy.manage.ctrUnavailable);
   const embedSnippet =
     `<a href="${webOrigin}/criador/${dashboard.creatorSlug}">` +
     `<img src="${webOrigin}/api/badge/${dashboard.creatorSlug}.svg" ` +
@@ -94,12 +91,12 @@ export function CreatorManagePanel({ dashboard, webOrigin }: CreatorManagePanelP
         <dl className="grid grid-cols-3 gap-3">
           <Stat
             label={copy.manage.impressions}
-            value={dashboard.impressions.toLocaleString("pt-BR")}
+            value={formatCount(dashboard.impressions)}
             testId="manage-impressions"
           />
           <Stat
             label={copy.manage.clicks}
-            value={dashboard.outboundClicks.toLocaleString("pt-BR")}
+            value={formatCount(dashboard.outboundClicks)}
             testId="manage-clicks"
           />
           <Stat label={copy.manage.ctr} value={ctr} testId="manage-ctr" />

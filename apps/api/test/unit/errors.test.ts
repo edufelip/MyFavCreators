@@ -6,12 +6,13 @@ describe("describing an error for a log", () => {
     expect(describeError(new TypeError("something broke"))).toEqual({
       name: "TypeError",
       message: "something broke",
+      frames: expect.any(Array),
     });
   });
 
   test("says nothing useful about a value that is not an error", () => {
-    expect(describeError("boom")).toEqual({ name: "Unknown", message: "unknown" });
-    expect(describeError(null)).toEqual({ name: "Unknown", message: "unknown" });
+    expect(describeError("boom")).toEqual({ name: "Unknown", message: "unknown", frames: [] });
+    expect(describeError(null)).toEqual({ name: "Unknown", message: "unknown", frames: [] });
   });
 
   test("drops the parameters a driver appends to a failed query", () => {
@@ -34,6 +35,7 @@ describe("describing an error for a log", () => {
     expect(describeError(wrapper)).toEqual({
       name: "PostgresError",
       message: 'relation "creator_claims" does not exist',
+      frames: expect.any(Array),
     });
   });
 
@@ -66,5 +68,26 @@ describe("describing an error for a log", () => {
     }
     // Bounded on purpose; what matters is that it terminates and says something.
     expect(describeError(error).message.length).toBeGreaterThan(0);
+  });
+});
+
+describe("the stack frames a report may carry", () => {
+  test("keeps the frames and drops the line that carries the message", () => {
+    const described = describeError(new Error("falhou para alguem@example.com"));
+
+    expect(described.frames.length).toBeGreaterThan(0);
+    expect(described.frames.every((frame) => frame.startsWith("at "))).toBe(true);
+    expect(described.frames.join("\n")).not.toContain("alguem@example.com");
+  });
+
+  test("has none for something that is not an error", () => {
+    expect(describeError("boom").frames).toEqual([]);
+  });
+
+  test("stops well before a stack long enough to be a payload", () => {
+    function recurse(depth: number): Error {
+      return depth === 0 ? new Error("deep") : recurse(depth - 1);
+    }
+    expect(describeError(recurse(80)).frames.length).toBeLessThanOrEqual(30);
   });
 });

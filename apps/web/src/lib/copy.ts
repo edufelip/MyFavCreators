@@ -54,6 +54,16 @@ export const copy = {
     previousChampion: "Campeão da semana passada",
   },
 
+  category: {
+    heading: (name: string) => `${name} em destaque`,
+    title: (name: string) => `${name} — Creator Outdoor`,
+    description: (name: string) =>
+      `Os perfis de ${name} com mais destaque comprado nesta plataforma.`,
+    empty: "Nenhum perfil desta categoria foi impulsionado ainda.",
+    backToAll: "Ver todas as categorias",
+    notFoundTitle: "Categoria não encontrada",
+    browseLabel: "Categorias",
+  },
   leaderboard: {
     title: "Ranking",
     weeklyTab: "Esta semana",

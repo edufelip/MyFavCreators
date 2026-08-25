@@ -217,6 +217,25 @@ call that carries the shared secret but names nobody. Server actions validate th
 in addition to Next.js's own check, and an absent `Origin` header fails: every browser sends one
 on a server action, so "absent" is not privacy, it is something that is not the admin app.
 
+## Failures somebody has to act on
+
+Logs answer "what happened to this request". They do not answer "is something broken right
+now", because nobody watches a log stream at three in the morning. `ErrorTracker` is a port
+alongside `EmailProvider` and `PixPaymentProvider`: a `SENTRY_DSN` selects the Sentry adapter,
+its absence selects the console one, and a deployment with no account still runs.
+
+The adapter is written against `fetch` rather than the SDK. An SDK installs global handlers and
+patches the runtime to capture things automatically, and "automatically" is precisely the
+problem: it would attach request bodies, and a request body here can be a PIX payload. Every
+report is written explicitly instead, from an error that has already been through
+`describeError` and a context that has already been through the logger's own redaction list —
+one list, one function, used by both. Stack *frames* are sent; the first line of the stack,
+which is `Name: message`, is not, because that is the half that can carry a driver's parameters.
+
+Scheduled jobs go through `runJob`, which reports a failure, **waits** for the report — a
+fire-and-forget report from a process about to exit never leaves — closes the database either
+way, and exits non-zero so a scheduler notices.
+
 ## Payments
 
 A boost and the payment that funds it are created together, both `PENDING`. Nothing about a
@@ -409,6 +428,28 @@ delivery measurement and their own notification setting. There is no private
 ranking and no second version of the truth: the product's claim is that money is
 the only signal and the ranking is not a secret algorithm, and a dashboard
 showing something the public page does not would undo that.
+
+## Category pages
+
+`/categoria/[slug]` is the same weekly and all-time ranking, filtered. It exists for two
+reasons. A creator who is the best in their own field is otherwise buried on the homepage
+behind whoever spent most overall, which makes the billboard less useful the more it grows.
+And "melhores criadores de música" is a search somebody actually makes, which a single
+homepage cannot rank for.
+
+The slug is resolved against the published category list rather than trusted from the URL: a
+page that rendered an empty ranking for any slug somebody typed would be an endless supply of
+thin, indexable pages saying nothing. An unknown slug is a 404.
+
+The tabs on a category page carry the category with them, because a ranking switch that
+silently drops the filter is a ranking switch that lies about what it is showing. The canonical
+URL omits the tab, so the weekly and general views of one category are one page to a crawler
+rather than two competing ones. Impressions are reported here exactly as they are on the
+homepage — a creator seen on a category page was seen, and their delivery report has to say so.
+
+`/sitemap.xml` lists the category pages alongside the creators, and is generated per request:
+a build runs with no API behind it, so a prerendered sitemap was always the three-URL fallback,
+and a revalidate window kept it that way for the hour after every deploy.
 
 ## Hall da Fama and the badge
 

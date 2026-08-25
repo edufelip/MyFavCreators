@@ -8,12 +8,20 @@ import {
 } from "@creator-outdoor/testkit";
 import { createApp } from "../../src/app";
 import { type LogRecord, resetLogSink, setLogSink } from "../../src/observability/logger";
+import type { ErrorTracker, TrackedError } from "../../src/observability/tracker";
 import { RateLimiter } from "../../src/security/rate-limit";
 
 const NOW = new Date("2026-08-19T18:30:00.000Z");
 
 const testDatabase: TestDatabase = await createTestDatabase();
 const rateLimiter = new RateLimiter();
+const reported: TrackedError[] = [];
+const tracker: ErrorTracker = {
+  name: "recording",
+  capture: async (tracked) => {
+    reported.push(tracked);
+  },
+};
 const app = createApp({
   database: testDatabase.db,
   product: PRODUCT_DEFAULTS,
@@ -21,6 +29,7 @@ const app = createApp({
   adminApiSecret: "integration-admin-secret-value",
   fanIdentitySecret: "um-segredo-de-identidade-de-fa-com-32-bytes",
   rateLimiter,
+  errorTracker: tracker,
   now: () => NOW,
 });
 
@@ -30,6 +39,7 @@ beforeEach(async () => {
   await testDatabase.truncate();
   rateLimiter.reset();
   records = [];
+  reported.length = 0;
   setLogSink((record) => records.push(record));
   const category = await insertCategory(testDatabase.db, {
     slug: "musica",
@@ -106,5 +116,79 @@ describe("request correlation", () => {
     });
     const serialized = JSON.stringify(records);
     expect(serialized).not.toContain("integration-admin-secret-value");
+  });
+});
+
+describe("reporting a failure somebody has to act on", () => {
+  /*
+   * A 500 is the one outcome nobody is watching for. It is in the log, but a
+   * log is a thing you read after somebody complains — so it is also reported,
+   * with the request id that ties it back to every other line that request
+   * produced.
+   */
+  const broken = createApp({
+    database: testDatabase.db,
+    product: PRODUCT_DEFAULTS,
+    allowedOrigins: ["http://localhost:3000"],
+    adminApiSecret: "integration-admin-secret-value",
+    fanIdentitySecret: "um-segredo-de-identidade-de-fa-com-32-bytes",
+    rateLimiter,
+    errorTracker: tracker,
+    now: () => {
+      throw new Error("o relogio quebrou");
+    },
+  });
+
+  test("an unhandled failure is reported, not only logged", async () => {
+    const response = await broken.handle(new Request("http://localhost/v1/rankings/weekly"));
+    expect(response.status).toBe(500);
+
+    // The report is not awaited by the handler, so give it a turn to land.
+    await Promise.resolve();
+    expect(reported.length).toBeGreaterThan(0);
+    expect(reported[0]?.event).toBe("api_error");
+  });
+
+  test("the report names the request, so it can be found in the log", async () => {
+    await broken.handle(
+      new Request("http://localhost/v1/rankings/weekly", {
+        headers: { "x-request-id": "req-observability-1" },
+      }),
+    );
+    await Promise.resolve();
+    expect(reported[0]?.requestId).toBe("req-observability-1");
+  });
+
+  test("the report says which route failed, and carries nothing from the request", async () => {
+    await broken.handle(
+      new Request("http://localhost/v1/rankings/weekly?supporterEmail=alguem@example.com", {
+        headers: { cookie: "co_supporter=abc", authorization: "Bearer xyz" },
+      }),
+    );
+    await Promise.resolve();
+
+    const serialized = JSON.stringify(reported[0]);
+    expect(reported[0]?.context?.["route"]).toBe("/v1/rankings/weekly");
+    expect(serialized).not.toContain("alguem@example.com");
+    expect(serialized).not.toContain("co_supporter=abc");
+    expect(serialized).not.toContain("Bearer xyz");
+  });
+
+  test("a request that merely 404s is not reported as a fault", async () => {
+    await app.handle(new Request("http://localhost/v1/nao-existe"));
+    await Promise.resolve();
+    expect(reported).toEqual([]);
+  });
+
+  test("a request that fails validation is not reported as a fault", async () => {
+    await app.handle(
+      new Request("http://localhost/v1/boosts", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ nada: true }),
+      }),
+    );
+    await Promise.resolve();
+    expect(reported).toEqual([]);
   });
 });

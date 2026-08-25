@@ -3,6 +3,7 @@ import "server-only";
 import { webConfig } from "@creator-outdoor/config/web";
 import {
   AcknowledgementDto,
+  CategoryListDto,
   type CheckoutDto,
   CheckoutDto as CheckoutSchema,
   type ClaimChallengeDto,
@@ -344,6 +345,24 @@ export async function setCreatorNotifications(
 }
 
 /** Every profile a sitemap may list. Only APPROVED creators come back. */
+/**
+ * The categories a visitor can browse.
+ *
+ * Cached for an hour rather than read fresh: the list changes when somebody
+ * adds a category, which is roughly never, and it is on every page that shows a
+ * category link.
+ */
+export async function fetchCategories(): Promise<CategoryListDto> {
+  const response = await fetch(new URL("/v1/categories", webConfig.apiOrigin), {
+    headers: { accept: "application/json" },
+    next: { revalidate: 3_600 },
+  });
+  if (!response.ok) {
+    throw new Error(`Category request failed with status ${response.status}`);
+  }
+  return parseContract(CategoryListDto, await response.json(), "CategoryList");
+}
+
 export async function fetchSitemapEntries(limit = 5_000): Promise<SitemapDto> {
   const url = new URL("/v1/creators/sitemap", webConfig.apiOrigin);
   url.searchParams.set("limit", String(limit));

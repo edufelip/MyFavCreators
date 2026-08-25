@@ -54,7 +54,12 @@ describe("CreatorCard", () => {
     expect(within(card).getByText("#4")).toBeDefined();
     expect(within(card).getByText("Luna Verso")).toBeDefined();
     expect(within(card).getByText("@lunaverso")).toBeDefined();
-    expect(within(card).getByText("Música · YouTube")).toBeDefined();
+    const category = within(card).getByTestId("creator-category-link");
+    expect(category.textContent).toBe("Música");
+    // The category is a way in, not just a label: it is how somebody finds the
+    // other creators they would never have scrolled far enough to see.
+    expect(category.getAttribute("href")).toBe("/categoria/musica");
+    expect(within(card).getByText(/YouTube/)).toBeDefined();
     expect(within(card).getByText("R$286 impulsionados esta semana")).toBeDefined();
     expect(within(card).getByText("47 impulsionadores")).toBeDefined();
   });

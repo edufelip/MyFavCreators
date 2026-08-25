@@ -3,6 +3,7 @@ import { createApp } from "./app";
 import { database } from "./database";
 import { resolveEmailProvider } from "./email/resolve";
 import { log } from "./observability/logger";
+import { resolveErrorTracker } from "./observability/resolve";
 import { resolvePaymentProvider } from "./payments/resolve";
 
 const app = createApp({
@@ -13,6 +14,7 @@ const app = createApp({
   fanIdentitySecret: apiConfig.fanIdentitySecret,
   paymentProvider: resolvePaymentProvider(apiConfig),
   emailProvider: resolveEmailProvider(apiConfig),
+  errorTracker: resolveErrorTracker(apiConfig),
   webOrigin: apiConfig.webOrigin,
   // The PIX simulation surface never exists in a production process.
   enableDevPixSimulation: !apiConfig.isProduction,

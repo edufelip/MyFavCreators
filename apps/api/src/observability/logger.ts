@@ -104,17 +104,33 @@ export function resolveRequestId(header: string | null): string {
   return randomUUID();
 }
 
-function emit(level: LogLevel, event: string, fields: LogFields = {}): void {
-  const requestId = currentRequestId();
+/**
+ * Replaces the value of any field that must never leave the process.
+ *
+ * Redacted rather than dropped: a report that silently omits a field reads as
+ * "there was no cookie", which is a different and more misleading statement
+ * than "there was one and you may not see it".
+ *
+ * Exported because the error tracker sends fields to a third party and has to
+ * apply exactly the same rule. One list, one function — a second copy is a
+ * second thing to forget to update.
+ */
+export function scrubFields(fields: LogFields): Record<string, unknown> {
   const safe: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(fields)) {
-    if (FORBIDDEN_FIELDS.has(key)) {
-      safe[key] = "[redacted]";
-      continue;
-    }
-    safe[key] = value;
+    safe[key] = FORBIDDEN_FIELDS.has(key) ? "[redacted]" : value;
   }
-  sink({ level, event, ...(requestId === undefined ? {} : { requestId }), ...safe });
+  return safe;
+}
+
+function emit(level: LogLevel, event: string, fields: LogFields = {}): void {
+  const requestId = currentRequestId();
+  sink({
+    level,
+    event,
+    ...(requestId === undefined ? {} : { requestId }),
+    ...scrubFields(fields),
+  });
 }
 
 export const log = {

@@ -103,8 +103,26 @@ test.describe("managing a claimed profile", () => {
 
     await expect(page.getByTestId("manage-impressions")).toBeVisible();
     await expect(page.getByTestId("manage-clicks")).toBeVisible();
-    // Nothing shown yet means no rate to state, not a rate of zero.
-    await expect(page.getByTestId("manage-ctr")).toContainText("sem exibições ainda");
+
+    /*
+     * Claiming a profile means visiting it, so by the time a creator reads this
+     * panel their page has been displayed at least once and the count says so.
+     * Asserting a real number rather than the empty state is the point: the
+     * beacon posted a shape the ingest route rejected for the whole of its
+     * life, every page view was dropped, and a test that expected "nothing yet"
+     * passed the entire time. What "no impressions means no rate" looks like is
+     * pinned in test/format.test.ts, where the input can actually be zero.
+     */
+    await expect
+      .poll(
+        async () => {
+          await page.reload();
+          const shown = (await page.getByTestId("manage-impressions").textContent()) ?? "0";
+          return Number.parseInt(shown.replace(/\D/g, ""), 10);
+        },
+        { timeout: 20_000 },
+      )
+      .toBeGreaterThan(0);
   });
 
   test("offers an embed snippet pointing at this site", async ({ page }) => {

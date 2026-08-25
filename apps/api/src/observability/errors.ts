@@ -16,7 +16,19 @@ const EMAIL_PATTERN = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
 export type DescribedError = {
   readonly name: string;
   readonly message: string;
+  /**
+   * The stack, with its first line removed.
+   *
+   * That first line is `Name: message`, which is the half that can carry a
+   * driver's parameters or somebody's address; the frames below it are file
+   * paths, line numbers and function names, which carry nothing about the
+   * request. Keeping the frames is what makes a report worth reading.
+   */
+  readonly frames: readonly string[];
 };
+
+/** Enough to locate the fault, few enough that a report stays small. */
+const MAX_FRAMES = 30;
 
 /**
  * Reduces an error to a name and a message safe to print.
@@ -27,10 +39,28 @@ export type DescribedError = {
  */
 export function describeError(error: unknown): DescribedError {
   if (!(error instanceof Error)) {
-    return { name: "Unknown", message: "unknown" };
+    return { name: "Unknown", message: "unknown", frames: [] };
   }
   const deepest = deepestCause(error);
-  return { name: deepest.name, message: sanitize(deepest.message) };
+  return {
+    name: deepest.name,
+    message: sanitize(deepest.message),
+    frames: safeFrames(deepest.stack),
+  };
+}
+
+function safeFrames(stack: string | undefined): readonly string[] {
+  if (stack === undefined) {
+    return [];
+  }
+  return (
+    stack
+      .split("\n")
+      .map((line) => line.trim())
+      // Only the frames. Anything that is not one is part of the message.
+      .filter((line) => line.startsWith("at "))
+      .slice(0, MAX_FRAMES)
+  );
 }
 
 function deepestCause(error: Error): Error {

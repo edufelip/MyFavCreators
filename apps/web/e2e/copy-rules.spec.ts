@@ -1,5 +1,6 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { affirmativeUses, forbiddenTerms } from "../src/lib/forbidden-copy";
+import { platformText } from "./support/page-text";
 
 /**
  * The copy rules, checked against what a visitor actually sees.
@@ -11,34 +12,6 @@ import { affirmativeUses, forbiddenTerms } from "../src/lib/forbidden-copy";
  */
 const DISCLOSURE =
   "Você está comprando destaque nesta plataforma. Nenhum valor é repassado ao criador.";
-
-/**
- * The visible text of a page, with everything a supporter or a creator wrote
- * removed. Their words are theirs; the rule is about what the platform says.
- */
-async function platformText(page: Page): Promise<string> {
-  return page.evaluate(() => {
-    const clone = document.body.cloneNode(true) as HTMLElement;
-    const remove = [
-      // A supporter's words and a creator's words are theirs. The copy rules
-      // are about what the platform says.
-      '[data-testid="supporter-wall"]',
-      '[data-testid="creator-bio"]',
-      // A detached clone has no layout, so `innerText` falls back to
-      // `textContent` and would otherwise include the serialized RSC payload.
-      "script",
-      "style",
-      "noscript",
-      "template",
-    ];
-    for (const selector of remove) {
-      for (const node of Array.from(clone.querySelectorAll(selector))) {
-        node.remove();
-      }
-    }
-    return (clone.textContent ?? "").replace(/\s+/g, " ");
-  });
-}
 
 /*
  * The rule itself lives in `src/lib/forbidden-copy.ts` and has its own unit

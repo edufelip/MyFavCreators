@@ -38,6 +38,15 @@ test.describe("accessibility", () => {
     });
   }
 
+  test("a category page has no WCAG A or AA violations", async ({ page }) => {
+    await page.goto("/");
+    const href = await page.getByTestId("creator-category-link").first().getAttribute("href");
+    await page.goto(href ?? "/");
+
+    const results = await scan(page);
+    expect(describeViolations(results)).toBe("");
+  });
+
   test("a creator page has no WCAG A or AA violations", async ({ page }) => {
     await page.goto("/");
     const href = await page

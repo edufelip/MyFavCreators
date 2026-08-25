@@ -48,7 +48,14 @@ export function CreatorCard({ entry, tab }: CreatorCardProps) {
           </p>
         ) : null}
         <p className="truncate text-xs uppercase tracking-wide text-white/55">
-          {[creator.category.name, platform].filter((value) => value !== null).join(" · ")}
+          <a
+            href={`/categoria/${creator.category.slug}`}
+            data-testid="creator-category-link"
+            className="underline-offset-2 hover:text-white hover:underline"
+          >
+            {creator.category.name}
+          </a>
+          {platform === null ? null : ` · ${platform}`}
         </p>
 
         <p className="mt-2 text-sm font-semibold tabular-nums text-amber-300">{amountLabel}</p>

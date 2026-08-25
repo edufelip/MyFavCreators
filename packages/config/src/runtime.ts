@@ -49,6 +49,12 @@ const apiEnvSchema = z.object({
    */
   resendApiKey: z.string().min(1).optional(),
   emailFromAddress: z.string().min(3).optional(),
+  /**
+   * Where failures are reported. Absent means the log is the only record —
+   * allowed, because a process that refuses to boot without an error service is
+   * a worse outage than one whose failures are only in its own logs.
+   */
+  sentryDsn: z.string().min(1).optional(),
 });
 
 export type ApiConfig = z.infer<typeof apiEnvSchema> & {
@@ -73,6 +79,7 @@ export function parseApiConfig(env: EnvSource): ApiConfig {
       mercadoPagoWebhookSecret: env["MERCADO_PAGO_WEBHOOK_SECRET"],
       resendApiKey: env["RESEND_API_KEY"],
       emailFromAddress: env["EMAIL_FROM_ADDRESS"],
+      sentryDsn: env["SENTRY_DSN"],
     },
     "apps/api",
   );

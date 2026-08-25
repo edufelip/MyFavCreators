@@ -4,7 +4,9 @@ import { cors } from "@elysiajs/cors";
 import { Elysia } from "elysia";
 import { ConsoleEmailProvider } from "./email/console";
 import type { EmailProvider } from "./email/provider";
+import { ConsoleErrorTracker } from "./observability/console-tracker";
 import { enterRequestId, log, resolveRequestId, withRequestId } from "./observability/logger";
+import type { ErrorTracker } from "./observability/tracker";
 import { FakePixPaymentProvider } from "./payments/fake-pix";
 import type { PixPaymentProvider } from "./payments/provider";
 import { analyticsRoutes } from "./routes/analytics";
@@ -15,7 +17,7 @@ import { devPixRoutes } from "./routes/dev-pix";
 import { adminRoutes } from "./routes/internal/admin";
 import { liveRoutes } from "./routes/live";
 import { notificationRoutes } from "./routes/notifications";
-import { rankingRoutes } from "./routes/rankings";
+import { categoryRoutes, rankingRoutes } from "./routes/rankings";
 import { webhookRoutes } from "./routes/webhooks";
 import { RateLimiter } from "./security/rate-limit";
 
@@ -43,6 +45,8 @@ export type CreateAppOptions = {
   readonly selfOrigin?: string;
   readonly now?: () => Date;
   readonly rateLimiter?: RateLimiter;
+  /** Where unhandled failures are reported. Defaults to the log. */
+  readonly errorTracker?: ErrorTracker;
 };
 
 /**
@@ -67,6 +71,7 @@ function withRequestIdOf<TResult>(request: Request, work: () => TResult): TResul
 
 export function createApp(options: CreateAppOptions) {
   const rateLimiter = options.rateLimiter ?? new RateLimiter();
+  const errorTracker = options.errorTracker ?? new ConsoleErrorTracker();
   const email = options.emailProvider ?? new ConsoleEmailProvider();
   const webOrigin = options.webOrigin ?? options.allowedOrigins[0] ?? "http://localhost:3000";
   const provider =
@@ -116,10 +121,22 @@ export function createApp(options: CreateAppOptions) {
       }
       // Never leak a driver message, a stack trace or an internal identifier.
       withRequestIdOf(request, () => log.error("api_error", error, { code }));
+      /*
+       * Reported as well as logged, and deliberately not awaited: a request
+       * that already failed should not also wait on a third party to hear
+       * about it. `capture` never rejects, so there is nothing to handle.
+       */
+      void errorTracker.capture({
+        event: "api_error",
+        error,
+        ...(requestId === undefined ? {} : { requestId }),
+        context: { code, method: request.method, route: new URL(request.url).pathname },
+      });
       set.status = 500;
       return { error: { code: "INTERNAL", message: "Erro interno." } };
     })
     .get("/health", () => ({ status: "ok" as const }))
+    .use(categoryRoutes({ database: options.database }))
     .use(
       rankingRoutes({
         database: options.database,

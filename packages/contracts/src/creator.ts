@@ -12,6 +12,19 @@ export const CategoryDto = t.Object(
 export type CategoryDto = Static<typeof CategoryDto>;
 
 /**
+ * The categories a visitor can browse.
+ *
+ * Only the slug and the name. A public endpoint that also returned the row's id
+ * or its active flag would be publishing an internal identifier somebody would
+ * then start depending on.
+ */
+export const CategoryListDto = t.Object(
+  { categories: t.Array(CategoryDto) },
+  { $id: "CategoryList" },
+);
+export type CategoryListDto = Static<typeof CategoryListDto>;
+
+/**
  * The public shape of a creator.
  *
  * This is an explicit allowlist, never a serialized database row. Moderation

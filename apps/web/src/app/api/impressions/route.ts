@@ -57,6 +57,14 @@ export async function POST(request: Request): Promise<Response> {
 
   const entries = readEntries(payload);
   if (entries === null) {
+    /*
+     * Loud, because this used to be silent. The answer is always 204, so a
+     * beacon whose shape the route did not accept was dropped here with nothing
+     * anywhere to say so — and the delivery report every creator sees was built
+     * from an empty table for exactly as long as that lasted. The content is not
+     * logged, only that something was refused.
+     */
+    console.error("impression_beacon_rejected");
     return noContent;
   }
 

@@ -2,8 +2,9 @@ import { apiConfig } from "@creator-outdoor/config/api";
 import { closeDatabase } from "@creator-outdoor/db";
 import { database } from "../database";
 import { resolveEmailProvider } from "../email/resolve";
-import { log } from "../observability/logger";
+import { resolveErrorTracker } from "../observability/resolve";
 import { sendWeeklyRecaps } from "../services/weekly-recap";
+import { runJob } from "./run";
 
 /**
  * Emails each subscriber how the week went for the creator they follow.
@@ -13,18 +14,23 @@ import { sendWeeklyRecaps } from "../services/weekly-recap";
  *
  *   bun run job:weekly-recap
  */
-const summary = await sendWeeklyRecaps(
-  database,
-  apiConfig.product,
-  resolveEmailProvider(apiConfig),
+await runJob(
+  "weekly-recap",
+  async () => {
+    const summary = await sendWeeklyRecaps(
+      database,
+      apiConfig.product,
+      resolveEmailProvider(apiConfig),
+      { now: new Date(), webOrigin: apiConfig.webOrigin },
+    );
+    return (
+      `considered ${summary.considered}, sent ${summary.sent}, ` +
+      `skipped ${summary.skipped}, failed ${summary.failed}`
+    );
+  },
   {
-    now: new Date(),
-    webOrigin: apiConfig.webOrigin,
+    tracker: resolveErrorTracker(apiConfig),
+    close: () => closeDatabase(database),
+    exit: (code) => process.exit(code),
   },
 );
-
-log.info(
-  `Weekly recap: considered ${summary.considered}, sent ${summary.sent}, ` +
-    `skipped ${summary.skipped}, failed ${summary.failed}.`,
-);
-await closeDatabase(database);

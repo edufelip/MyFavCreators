@@ -1,8 +1,9 @@
 import { apiConfig } from "@creator-outdoor/config/api";
 import { closeDatabase } from "@creator-outdoor/db";
 import { database } from "../database";
-import { log } from "../observability/logger";
+import { resolveErrorTracker } from "../observability/resolve";
 import { runWeeklyRollover } from "../services/rollover";
+import { runJob } from "./run";
 
 /**
  * Closes finished weekly periods and snapshots their final rankings.
@@ -12,10 +13,19 @@ import { runWeeklyRollover } from "../services/rollover";
  *
  *   bun run job:weekly-rollover
  */
-const summary = await runWeeklyRollover(database, apiConfig.product, new Date());
-log.info(
-  `Weekly rollover: closed ${summary.closedPeriods} period(s), ` +
-    `snapshotted ${summary.snapshotted} creator ranking(s)` +
-    (summary.champion === null ? "." : `, champion @${summary.champion}.`),
+await runJob(
+  "weekly-rollover",
+  async () => {
+    const summary = await runWeeklyRollover(database, apiConfig.product, new Date());
+    return (
+      `closed ${summary.closedPeriods} period(s), ` +
+      `snapshotted ${summary.snapshotted} creator ranking(s)` +
+      (summary.champion === null ? "" : `, champion @${summary.champion}`)
+    );
+  },
+  {
+    tracker: resolveErrorTracker(apiConfig),
+    close: () => closeDatabase(database),
+    exit: (code) => process.exit(code),
+  },
 );
-await closeDatabase(database);

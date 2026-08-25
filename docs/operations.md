@@ -35,6 +35,11 @@ Two credentials decide which adapters a process uses:
 through a provider that settles nothing, or silently dropping notifications
 somebody opted into, are worse failures than not starting.
 
+`SENTRY_DSN` is the third and is deliberately *not* in that rule. Without it,
+failures are in the log and nowhere else — a real loss, but a smaller one than
+refusing to boot. An unreadable DSN makes the tracker inert and says so
+(`sentry_dsn_unreadable`) rather than sending reports somewhere unintended.
+
 ## Database
 
 PostgreSQL 18. Migrations are plain SQL under `packages/db/migrations`, applied
@@ -133,7 +138,21 @@ the profile against resubmission.
 ### Something is throwing and the logs are unhelpful
 
 Every response carries `x-request-id`, and every log line produced by that
-request carries the same id. Ask for the id, then grep for it.
+request carries the same id. Ask for the id, then grep for it. If `SENTRY_DSN`
+is set, the same id is a tag on the report, so a report and its log lines find
+each other.
+
+Only a 500 is reported. A 400 and a 404 are answers, not faults, and reporting
+them would bury the ones that matter.
+
+### A scheduled job did not do anything
+
+Jobs run through `runJob`, so a failed one logs `job_failed`, reports it, and
+exits non-zero. Check the scheduler's exit code first — a job that "ran fine"
+with a non-zero exit is a job that failed.
+
+A job that exits zero but did nothing is a different problem: read the
+`job_finished` line, which carries the run's own counts.
 
 ## Performance
 
