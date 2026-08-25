@@ -65,10 +65,25 @@ const NOT_FOUND = {
 const UNPROCESSABLE = (message: string) => ({
   error: { code: "UNPROCESSABLE" as const, message },
 });
-const BAD_GATEWAY = {
+const PROVIDER_UNREACHABLE = {
   error: {
     code: "PROVIDER_UNAVAILABLE" as const,
-    message: "O provedor de pagamento nao respondeu. Nada foi alterado.",
+    message: "O provedor de pagamento não respondeu. Nada foi alterado; tente de novo.",
+  },
+};
+/**
+ * The one message on this surface that must not claim to know what happened.
+ *
+ * The instruction was sent and the answer was lost. Saying "nothing changed"
+ * would invite a second refund; saying "done" would close a ticket on money
+ * that may still be here.
+ */
+const REFUND_UNCERTAIN = {
+  error: {
+    code: "PROVIDER_UNAVAILABLE" as const,
+    message:
+      "O estorno foi enviado, mas o provedor não confirmou. " +
+      "Verifique no painel do provedor antes de tentar de novo.",
   },
 };
 
@@ -417,21 +432,23 @@ export function adminRoutes(dependencies: AdminRouteDependencies) {
             return { ok: true, message: "Pagamento estornado." };
           case "ALREADY_REFUNDED":
             // Not an error: the money is back, which is what was asked for.
-            return { ok: true, message: "Pagamento ja estava estornado." };
+            return { ok: true, message: "Pagamento já estava estornado." };
           case "NOT_FOUND":
             return status(404, NOT_FOUND);
           case "NOT_REFUNDABLE":
             return status(
               422,
-              UNPROCESSABLE(`Pagamento em ${outcome.status} nao pode ser estornado.`),
+              UNPROCESSABLE(`Pagamento em ${outcome.status} não pode ser estornado.`),
             );
           case "WRONG_PROVIDER":
             return status(
               422,
               UNPROCESSABLE(`Pagamento pertence ao provedor ${outcome.provider}.`),
             );
-          case "PROVIDER_FAILED":
-            return status(502, BAD_GATEWAY);
+          case "PROVIDER_UNREACHABLE":
+            return status(502, PROVIDER_UNREACHABLE);
+          case "REFUND_UNCERTAIN":
+            return status(502, REFUND_UNCERTAIN);
         }
       },
       {

@@ -1,4 +1,4 @@
-import { createSessionToken, readSessionToken } from "@creator-outdoor/config";
+import { createSessionToken, findOperator, readSessionToken } from "@creator-outdoor/config";
 import { adminConfig } from "@creator-outdoor/config/admin";
 import { cookies } from "next/headers";
 
@@ -46,6 +46,13 @@ export async function endAdminSession(): Promise<void> {
  * The operator this request belongs to, or `null` when there is no valid
  * session. Everything an administrator can do goes through this: an action with
  * nobody behind it is refused rather than attributed to a shared account.
+ *
+ * The name is checked against the current registry, not only against the
+ * signature. The token is stateless and lives eight hours, so verifying the
+ * signature alone would leave somebody who had been removed from
+ * `ADMIN_OPERATORS` — the documented way to take authority away — approving,
+ * removing and refunding until their cookie happened to expire. Removing an
+ * operator has to mean removing them now.
  */
 export async function currentOperator(): Promise<string | null> {
   const store = await cookies();
@@ -53,7 +60,11 @@ export async function currentOperator(): Promise<string | null> {
   if (token === undefined) {
     return null;
   }
-  return readSessionToken(token, adminConfig.adminSessionSecret)?.subject ?? null;
+  const subject = readSessionToken(token, adminConfig.adminSessionSecret)?.subject;
+  if (subject === undefined) {
+    return null;
+  }
+  return findOperator(adminConfig.adminOperators, subject) === null ? null : subject;
 }
 
 export async function hasAdminSession(): Promise<boolean> {

@@ -127,6 +127,38 @@ describe("throttling", () => {
     expect(authenticateOperator(OPERATORS, attempt(), NOW).kind).toBe("THROTTLED");
   });
 
+  test("every malformed name shares one budget, so the map cannot be grown", () => {
+    /*
+     * The key used to be built from the submitted name, so one unauthenticated
+     * POST could store a megabyte-long entry — and nothing ever removed it. No
+     * name in this bucket can authenticate, so there is nothing to tell apart.
+     */
+    for (let tries = 0; tries < 5; tries += 1) {
+      authenticateOperator(
+        OPERATORS,
+        attempt({ operator: `LIXO-${tries}-${"x".repeat(64)}` }),
+        NOW,
+      );
+    }
+    expect(authenticateOperator(OPERATORS, attempt({ operator: "OUTRO LIXO" }), NOW).kind).toBe(
+      "THROTTLED",
+    );
+    // A real operator is unaffected by whatever was thrown at that bucket.
+    expect(authenticateOperator(OPERATORS, attempt(), NOW).kind).toBe("OK");
+  });
+
+  test("forgets a window that has closed, rather than keeping it forever", () => {
+    for (let tries = 0; tries < 5; tries += 1) {
+      authenticateOperator(OPERATORS, attempt({ operator: "ninguem", password: "x" }), NOW);
+    }
+    const later = NOW + 10 * 60 * 1000 + 1;
+    // A failure after the window makes a fresh budget rather than resuming one.
+    authenticateOperator(OPERATORS, attempt({ operator: "ninguem", password: "x" }), later);
+    expect(authenticateOperator(OPERATORS, attempt({ operator: "ninguem" }), later).kind).toBe(
+      "INVALID",
+    );
+  });
+
   test("throttles an unknown name too, so names cannot be enumerated", () => {
     for (let tries = 0; tries < 5; tries += 1) {
       authenticateOperator(OPERATORS, attempt({ operator: "ninguem" }), NOW);

@@ -53,8 +53,8 @@ export function notificationRoutes(dependencies: NotificationRouteDependencies) 
       }
 
       const disabled = await disableSubscriptionByToken(dependencies.database, body.token, now());
-      if (disabled) {
-        log.info("notification_unsubscribed", { type: "DETHRONE" });
+      if (disabled !== null) {
+        log.info("notification_unsubscribed", { type: disabled });
       }
       return { acknowledged: true as const };
     },

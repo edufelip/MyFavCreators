@@ -50,6 +50,9 @@ type Attempt = { count: number; resetAt: number };
  */
 const attempts = new Map<string, Attempt>();
 
+/** One shared budget for every name that could not be an operator. */
+const INVALID_NAME_BUCKET = "\u0000invalid";
+
 /**
  * Counter steps already spent, per operator.
  *
@@ -67,9 +70,14 @@ export function authenticateOperator(
   attempt: LoginAttempt,
   now = Date.now(),
 ): LoginOutcome {
-  // A name that could never be an operator is still budgeted, otherwise the
-  // shape of a valid name is free to probe for.
-  const key = isOperatorId(attempt.operator) ? attempt.operator : `invalid:${attempt.operator}`;
+  /*
+   * A name that could never be an operator is still budgeted, otherwise the
+   * shape of a valid name is free to probe for. They all share one bucket: none
+   * of them can ever authenticate, so there is nothing to tell apart, and a key
+   * built from attacker-supplied text is a map an unauthenticated caller can
+   * grow without limit.
+   */
+  const key = isOperatorId(attempt.operator) ? attempt.operator : INVALID_NAME_BUCKET;
 
   if (isThrottled(key, now)) {
     return { kind: "THROTTLED" };
@@ -103,6 +111,14 @@ function isThrottled(key: string, now: number): boolean {
 }
 
 function recordFailure(key: string, now: number): void {
+  // Expired buckets are dropped here rather than never, so a long-running
+  // process does not keep a row for every name anybody has ever guessed.
+  for (const [existing, attempt] of attempts) {
+    if (attempt.resetAt <= now) {
+      attempts.delete(existing);
+    }
+  }
+
   const attempt = attempts.get(key);
   if (attempt === undefined || attempt.resetAt <= now) {
     attempts.set(key, { count: 1, resetAt: now + WINDOW_MS });

@@ -2,6 +2,7 @@
 
 import { adminConfig } from "@creator-outdoor/config/admin";
 import type { RejectionReasonDto } from "@creator-outdoor/contracts";
+import { REJECTION_REASONS } from "@creator-outdoor/domain";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -93,6 +94,22 @@ export async function signOut(): Promise<void> {
   redirect("/login");
 }
 
+/**
+ * The rejection reason, checked against the published list.
+ *
+ * Asserting a form value into this type told the compiler something nobody had
+ * checked. The API would have refused a bad one, but "the next system will
+ * catch it" is not the same as knowing.
+ */
+function rejectionReason(formData: FormData): RejectionReasonDto {
+  const raw = requiredString(formData, "reason");
+  const match = REJECTION_REASONS.find((candidate) => candidate === raw);
+  if (match === undefined) {
+    throw new Error("Unknown rejection reason");
+  }
+  return match;
+}
+
 function requiredString(formData: FormData, field: string): string {
   const value = formData.get(field);
   if (typeof value !== "string" || value.trim() === "") {
@@ -132,7 +149,7 @@ export async function rejectCreatorAction(formData: FormData): Promise<void> {
   await assertSameOrigin();
   await requireOperator();
   const id = requiredString(formData, "creatorId");
-  const reason = requiredString(formData, "reason") as RejectionReasonDto;
+  const reason = rejectionReason(formData);
   await rejectCreator(id, reason, optionalString(formData, "note"));
   revalidatePath("/moderacao");
   redirect("/moderacao");

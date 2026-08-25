@@ -187,10 +187,15 @@ export default function RulesPage() {
 
         <Rule title="Avisos por email">
           <p>
-            Quem deixa um email ao impulsionar passa a receber um aviso quando o perfil que
-            acompanha perde o primeiro lugar, e um resumo semanal. Todo aviso traz um link de
-            cancelamento de um clique, e cancelar vale para todos os avisos seguintes daquele
-            perfil.
+            Deixar um email ao impulsionar não inscreve ninguém em nada: o endereço serve para o
+            comprovante. Os avisos são duas caixas separadas no formulário — um aviso quando aquele
+            perfil perde o primeiro lugar, e um resumo semanal — e cada uma vale só se estiver
+            marcada.
+          </p>
+          <p>
+            Cada tipo de aviso tem seu próprio link de cancelamento de um clique. Cancelar o resumo
+            semanal não cancela o aviso de primeiro lugar, e o contrário também vale: são duas
+            escolhas, e uma não decide pela outra.
           </p>
         </Rule>
 

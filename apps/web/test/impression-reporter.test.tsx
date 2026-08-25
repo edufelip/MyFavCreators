@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { render } from "@testing-library/react";
 import { ImpressionReporter } from "../src/components/impression-reporter";
 
@@ -16,13 +16,25 @@ type Sent = { readonly url: string; readonly body: string };
 function captureFetch(): { sent: Sent[]; restore: () => void } {
   const sent: Sent[] = [];
   const original = globalThis.fetch;
-  globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
-    sent.push({
-      url: String(input),
-      body: typeof init?.body === "string" ? init.body : "",
-    });
-    return new Response(null, { status: 204 });
-  }) as unknown as typeof fetch;
+  /*
+   * Built to be a `fetch`, not cast into one. `typeof fetch` carries
+   * `preconnect` as well as the call signature, so a bare function is not one —
+   * and a stub that does not actually match what it replaces is a stub that can
+   * pass a test the real call would fail.
+   */
+  const stub: typeof fetch = Object.assign(
+    async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      sent.push({
+        url: String(input),
+        body: typeof init?.body === "string" ? init.body : "",
+      });
+      return new Response(null, { status: 204 });
+    },
+    // A no-op is a truthful `preconnect`: a hint with no observable result, and
+    // the DOM these tests run in has none to borrow.
+    { preconnect: () => {} },
+  );
+  globalThis.fetch = stub;
   return {
     sent,
     restore: () => {

@@ -23,8 +23,16 @@ type Handler = (input: RequestInfo | URL, init?: RequestInit) => Response;
 let handler: Handler = () => new Response(null, { status: 500 });
 
 beforeEach(() => {
-  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) =>
-    Promise.resolve(handler(input, init))) as unknown as typeof fetch;
+  /*
+   * A real `fetch`, not a cast into one: `typeof fetch` carries `preconnect` as
+   * well as the call signature. A no-op is a truthful implementation of it — a
+   * connection hint with no observable result — and it is supplied rather than
+   * borrowed from the real global, which the DOM these tests run in lacks.
+   */
+  globalThis.fetch = Object.assign(
+    async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => handler(input, init),
+    { preconnect: () => {} },
+  );
 });
 
 describe("recording what a creator agreed to be written about", () => {

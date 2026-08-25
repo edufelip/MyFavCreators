@@ -376,14 +376,24 @@ export type OwedRefund = {
 };
 
 /**
- * Money taken for a promotion that was never delivered.
+ * Money the platform may no longer hold but is still recorded as holding.
  *
- * A boost is VOID behind a CONFIRMED payment in exactly one situation: the
- * creator stopped being publicly eligible while the PIX was in flight, so the
- * boost was refused and a refund was owed. If that refund call failed, this is
- * the only record that it is still owed — the payment is CONFIRMED, so the
- * unsettled sweep will never look at it, and without this query the platform
- * simply keeps the money.
+ * Two situations produce this, and the sweep has to catch both.
+ *
+ * A boost is VOID behind a CONFIRMED payment in exactly one case: the creator
+ * stopped being publicly eligible while the PIX was in flight, so the boost was
+ * refused and a refund was owed. If that refund call failed, this is the only
+ * record that it is still owed.
+ *
+ * An operator refund whose provider call timed out is the other. There the
+ * boost is ACTIVE — the promotion really did run — and the audit log carries a
+ * `payment.refund_uncertain` entry saying the instruction went out and the
+ * answer never came back. Restricting this query to VOID boosts left exactly
+ * that payment unreachable: CONFIRMED, so the unsettled sweep ignores it, and
+ * not VOID, so this one did too. The money would simply have stayed here.
+ *
+ * Both are only *candidates*. The provider is asked before anything is
+ * recorded, so a candidate that was never actually refunded is left alone.
  */
 export async function listOwedRefunds(
   executor: DatabaseExecutor,
@@ -400,7 +410,15 @@ export async function listOwedRefunds(
     where p.provider = ${provider}
       and p.status = 'CONFIRMED'
       and p.refunded_at is null
-      and b.status = 'VOID'
+      and (
+        b.status = 'VOID'
+        or exists (
+          select 1 from audit_logs a
+          where a.target_type = 'payment'
+            and a.target_id = p.id::text
+            and a.action = 'payment.refund_uncertain'
+        )
+      )
     order by p.confirmed_at asc
     limit ${limit}
   `);

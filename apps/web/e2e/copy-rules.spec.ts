@@ -43,6 +43,20 @@ test.describe("what the platform says", () => {
     });
   }
 
+  test("a category page never implies it either", async ({ page }) => {
+    /*
+     * In the rendered scan and not only the copy-bank one, because the point of
+     * this scan is to catch a string that is *not* in the copy bank — one
+     * hard-coded in a component, arriving from configuration, or produced by
+     * formatting.
+     */
+    await page.goto("/");
+    const href = await page.getByTestId("creator-category-link").first().getAttribute("href");
+    await page.goto(href ?? "/");
+
+    expect(forbiddenTerms(await platformText(page))).toEqual([]);
+  });
+
   test("a creator page never implies it either", async ({ page }) => {
     await page.goto("/");
     const href = await page

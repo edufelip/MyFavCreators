@@ -14,7 +14,15 @@ import {
 } from "@creator-outdoor/testkit";
 import { createApp } from "../../src/app";
 import { FAKE_PIX_SIGNATURE_HEADER, FakePixPaymentProvider } from "../../src/payments/fake-pix";
+import {
+  type CreatedPixPayment,
+  type CreatePixPaymentInput,
+  PaymentProviderError,
+  type PixPaymentProvider,
+  type ValidatedPaymentEvent,
+} from "../../src/payments/provider";
 import { RateLimiter } from "../../src/security/rate-limit";
+import { reconcilePayments } from "../../src/services/reconciliation";
 
 /**
  * An operator sending money back.
@@ -361,5 +369,139 @@ describe("what a refund is not", () => {
       `select updated_at from creators where slug = 'ana'` as never,
     )) as Array<Record<string, unknown>>;
     expect(String(after[0]?.["updated_at"])).toBe(String(before[0]?.["updated_at"]));
+  });
+});
+
+/** A provider that accepts the instruction and never answers. */
+function swallowsRefunds(inner: PixPaymentProvider): PixPaymentProvider {
+  return {
+    name: inner.name,
+    createPixPayment: (input: CreatePixPaymentInput): Promise<CreatedPixPayment> =>
+      inner.createPixPayment(input),
+    getPaymentStatus: (id: string) => inner.getPaymentStatus(id),
+    validateWebhook: (request: Request): Promise<ValidatedPaymentEvent> =>
+      inner.validateWebhook(request),
+    refundPayment: async (id: string) => {
+      // The money really does move; only the answer is lost.
+      await inner.refundPayment(id);
+      throw new PaymentProviderError("the answer never came back");
+    },
+  };
+}
+
+/** A provider that cannot be reached at all. */
+function unreachable(inner: PixPaymentProvider): PixPaymentProvider {
+  return {
+    name: inner.name,
+    createPixPayment: (input: CreatePixPaymentInput): Promise<CreatedPixPayment> =>
+      inner.createPixPayment(input),
+    getPaymentStatus: () => Promise.reject(new PaymentProviderError("no route to provider")),
+    validateWebhook: (request: Request): Promise<ValidatedPaymentEvent> =>
+      inner.validateWebhook(request),
+    refundPayment: () => Promise.reject(new PaymentProviderError("no route to provider")),
+  };
+}
+
+function appWith(target: PixPaymentProvider) {
+  return createApp({
+    database: testDatabase.db,
+    product: PRODUCT_DEFAULTS,
+    allowedOrigins: ["http://localhost:3000"],
+    adminApiSecret: ADMIN_SECRET,
+    fanIdentitySecret: FAN_SECRET,
+    paymentProvider: target,
+    rateLimiter,
+    now: () => NOW,
+  });
+}
+
+async function auditActions(paymentId: string): Promise<string[]> {
+  const rows = (await testDatabase.db.execute(
+    `select action from audit_logs where target_type = 'payment' and target_id = '${paymentId}'
+     order by created_at asc` as never,
+  )) as Array<Record<string, unknown>>;
+  return rows.map((row) => String(row["action"]));
+}
+
+describe("when the provider does not answer", () => {
+  test("a provider that cannot be reached is reported as nothing attempted", async () => {
+    const { paymentId } = await confirmedPayment("ana");
+
+    const response = await appWith(unreachable(provider)).handle(
+      new Request(`http://localhost/internal/admin/payments/${paymentId}/refund`, {
+        method: "POST",
+        headers: ADMIN_HEADERS,
+        body: JSON.stringify({ reason: "provedor fora do ar" }),
+      }),
+    );
+
+    expect(response.status).toBe(502);
+    const body: unknown = await response.json();
+    expect(JSON.stringify(body)).toContain("Nada foi alterado");
+    expect(await auditActions(paymentId)).toContain("payment.refund_not_attempted");
+  });
+
+  test("an instruction whose answer was lost does not claim nothing changed", async () => {
+    /*
+     * The dangerous case. Told "nothing changed", an operator refunds again;
+     * told "done", they close the ticket on money that may still be here.
+     */
+    const { paymentId } = await confirmedPayment("ana");
+
+    const response = await appWith(swallowsRefunds(provider)).handle(
+      new Request(`http://localhost/internal/admin/payments/${paymentId}/refund`, {
+        method: "POST",
+        headers: ADMIN_HEADERS,
+        body: JSON.stringify({ reason: "timeout no provedor" }),
+      }),
+    );
+
+    expect(response.status).toBe(502);
+    const body: unknown = await response.json();
+    expect(JSON.stringify(body)).not.toContain("Nada foi alterado");
+    expect(JSON.stringify(body)).toContain("Verifique");
+    expect(await auditActions(paymentId)).toContain("payment.refund_uncertain");
+  });
+
+  test("the sweep finds the money the lost answer left behind", async () => {
+    /*
+     * The boost here is ACTIVE — the promotion really ran — so the owed-refund
+     * query used to skip it entirely: CONFIRMED, so the unsettled sweep ignored
+     * it, and not VOID, so nothing else looked. The money simply stayed.
+     */
+    const { paymentId, providerPaymentId } = await confirmedPayment("ana");
+
+    await appWith(swallowsRefunds(provider)).handle(
+      new Request(`http://localhost/internal/admin/payments/${paymentId}/refund`, {
+        method: "POST",
+        headers: ADMIN_HEADERS,
+        body: JSON.stringify({ reason: "timeout no provedor" }),
+      }),
+    );
+
+    // The provider took it; our record still says CONFIRMED.
+    expect(await provider.getPaymentStatus(providerPaymentId)).toBe("REFUNDED");
+    const before = await call(`/internal/admin/payments/${paymentId}`, { headers: ADMIN_HEADERS });
+    expect(parseContract(AdminPaymentDto, await before.json(), "AdminPayment").status).toBe(
+      "CONFIRMED",
+    );
+
+    const summary = await reconcilePayments(testDatabase.db, PRODUCT_DEFAULTS, provider, {
+      now: NOW,
+    });
+    expect(summary.refunded).toBe(1);
+
+    const after = await call(`/internal/admin/payments/${paymentId}`, { headers: ADMIN_HEADERS });
+    const settled = parseContract(AdminPaymentDto, await after.json(), "AdminPayment");
+    expect(settled.status).toBe("REFUNDED");
+    expect(settled.refundedAt).not.toBeNull();
+  });
+
+  test("a payment nobody flagged is left alone by the sweep", async () => {
+    await confirmedPayment("bea");
+    const summary = await reconcilePayments(testDatabase.db, PRODUCT_DEFAULTS, provider, {
+      now: NOW,
+    });
+    expect(summary.refunded).toBe(0);
   });
 });

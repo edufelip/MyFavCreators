@@ -55,6 +55,9 @@ const DENIAL = /\b(n[ãa]o|nunca|nenhum|nenhuma|jamais|nem)\b/i;
  */
 const DENIAL_WINDOW = 40;
 
+/** Punctuation that ends a clause, and so ends a denial's reach. */
+const CLAUSE_ENDS = [".", "!", "?", ":", ";", ",", "—", "–"] as const;
+
 export type AffirmativeUse = {
   readonly term: string;
   /** The text around the use, for an error message somebody can act on. */
@@ -86,13 +89,15 @@ export function affirmativeUses(text: string): readonly AffirmativeUse[] {
   for (const term of FORBIDDEN_TERMS) {
     for (const match of normalized.matchAll(boundary(term))) {
       const at = (match.index ?? 0) + (match[1]?.length ?? 0);
-      // A denial belongs to this sentence, so the window never reaches back
-      // past the punctuation that ended the previous one.
+      /*
+       * A denial belongs to its own clause, not merely to the sentence.
+       * Stopping only at sentence-ending punctuation let the "não" that denies
+       * one term launder a second, affirmative one beside it — "não é vaquinha,
+       * é uma doação para o criador" passed. Commas, semicolons and dashes end
+       * the reach too.
+       */
       const sentenceStart = Math.max(
-        normalized.lastIndexOf(".", at - 1),
-        normalized.lastIndexOf("!", at - 1),
-        normalized.lastIndexOf("?", at - 1),
-        normalized.lastIndexOf(":", at - 1),
+        ...CLAUSE_ENDS.map((mark) => normalized.lastIndexOf(mark, at - 1)),
       );
       const from = Math.max(at - DENIAL_WINDOW, sentenceStart + 1, 0);
       if (!DENIAL.test(normalized.slice(from, at))) {

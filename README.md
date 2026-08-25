@@ -111,6 +111,14 @@ bun run test:e2e                      # builds apps/web, boots the stack, drives
 Integration tests run against a real PostgreSQL database and never mock it: ranking rules
 live partly in SQL and in database constraints, which a fake would not exercise.
 
+Two things about the E2E suite are worth knowing before it misleads you. Locally, Playwright
+reuses a server already listening on the port — so a stack left running from an earlier session
+will happily serve an **old build**, and the suite will report on code you are not looking at.
+Stop any leftovers first, or let a run finish on its own rather than killing servers as you
+launch the next one. And the suite runs on a single worker on purpose: the ranking is global
+state, and a TOTP code may be used once, so two workers signing into the admin app inside the
+same thirty seconds make each other fail.
+
 ## Mutation and accessibility
 
 `bun run test:mutation` mutates the domain rules where a wrong answer costs money or exposes

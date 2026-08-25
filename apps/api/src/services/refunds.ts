@@ -22,7 +22,18 @@ export type RefundOutcome =
   | { readonly kind: "NOT_FOUND" }
   | { readonly kind: "NOT_REFUNDABLE"; readonly status: string }
   | { readonly kind: "WRONG_PROVIDER"; readonly provider: string }
-  | { readonly kind: "PROVIDER_FAILED" };
+  /** The provider was never asked to move anything. Nothing changed. */
+  | { readonly kind: "PROVIDER_UNREACHABLE" }
+  /**
+   * The instruction was sent and the answer never came back.
+   *
+   * Deliberately distinct from the case above, and the distinction is the whole
+   * point: a timeout after the provider accepted a refund looks identical from
+   * here to one before it did. Reporting "nothing changed" would be a guess
+   * stated as a fact about money, so this says what is actually known — that it
+   * has to be checked — and the sweep is left something it can find.
+   */
+  | { readonly kind: "REFUND_UNCERTAIN" };
 
 /**
  * Sends a confirmed payment back, on an operator's instruction.
@@ -68,23 +79,44 @@ export async function refundPaymentOnRequest(
     return { kind: "NOT_REFUNDABLE", status: payment.status };
   }
 
+  // Asking and instructing are separated, because failing at one means
+  // something different from failing at the other.
+  let alreadyRefunded: boolean;
   try {
-    const providerStatus = await provider.getPaymentStatus(payment.providerPaymentId);
-    if (providerStatus !== "REFUNDED") {
-      await provider.refundPayment(payment.providerPaymentId);
-    }
+    alreadyRefunded = (await provider.getPaymentStatus(payment.providerPaymentId)) === "REFUNDED";
   } catch (error) {
-    // The audit entry is written before returning so an operator can see that
-    // the attempt happened, even though nothing changed.
-    log.error("admin_refund_provider_failed", error, { provider: provider.name });
+    log.error("admin_refund_provider_unreachable", error, { provider: provider.name });
     await writeAuditLog(database, {
       actor: request.actor,
-      action: "payment.refund_failed",
+      action: "payment.refund_not_attempted",
       targetType: "payment",
       targetId: payment.id,
       metadata: { reason: request.reason, provider: payment.provider },
     });
-    return { kind: "PROVIDER_FAILED" };
+    return { kind: "PROVIDER_UNREACHABLE" };
+  }
+
+  if (!alreadyRefunded) {
+    try {
+      await provider.refundPayment(payment.providerPaymentId);
+    } catch (error) {
+      /*
+       * The instruction went out. Whether it landed is unknown, and guessing
+       * either way is worse than saying so: told "nothing changed", an operator
+       * refunds again; told "done", they close the ticket on money that may
+       * still be here. The boost is left alone for the same reason — its
+       * position is only wrong if the refund actually happened.
+       */
+      log.error("admin_refund_uncertain", error, { provider: provider.name });
+      await writeAuditLog(database, {
+        actor: request.actor,
+        action: "payment.refund_uncertain",
+        targetType: "payment",
+        targetId: payment.id,
+        metadata: { reason: request.reason, provider: payment.provider },
+      });
+      return { kind: "REFUND_UNCERTAIN" };
+    }
   }
 
   const outcome = await applyPaymentEvent(database, product, {
@@ -118,9 +150,23 @@ export async function refundPaymentOnRequest(
     },
   });
 
-  if (outcome.kind !== "APPLIED") {
-    // The provider has the money back; the record already said so.
+  if (outcome.kind === "DUPLICATE") {
+    // Somebody already recorded this exact instruction. The provider has the
+    // money back and the record says so; a second click is not a second refund.
     return { kind: "ALREADY_REFUNDED" };
+  }
+  if (outcome.kind !== "APPLIED") {
+    /*
+     * An illegal transition or an unknown payment, which cannot happen from
+     * here: the payment was read as CONFIRMED a moment ago, CONFIRMED can only
+     * become REFUNDED, and the lock re-finds the same row. Reporting it as
+     * "already refunded" would be a guess that happens to be true today and
+     * would quietly become a lie the day a status is added.
+     */
+    log.error("admin_refund_unexpected_outcome", new Error(outcome.kind), {
+      provider: provider.name,
+    });
+    throw new Error(`Refund reached an unexpected outcome: ${outcome.kind}`);
   }
 
   await runPaymentFollowUps(

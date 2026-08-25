@@ -200,7 +200,7 @@ export async function disableSubscriptionByToken(
   executor: DatabaseExecutor,
   token: string,
   at: Date,
-): Promise<boolean> {
+): Promise<NotificationType | null> {
   const updated = await executor
     .update(notificationSubscriptions)
     .set({ disabledAt: at })
@@ -210,8 +210,11 @@ export async function disableSubscriptionByToken(
         isNull(notificationSubscriptions.disabledAt),
       ),
     )
-    .returning({ id: notificationSubscriptions.id });
-  return updated.length > 0;
+    // Which kind was switched off, not merely that one was. The log line is the
+    // only record that somebody withdrew consent, and there are two kinds to
+    // withdraw; a line that always named the same one was recording a fiction.
+    .returning({ type: notificationSubscriptions.type });
+  return updated[0]?.type ?? null;
 }
 
 /** Every active subscriber, grouped for the weekly recap. */

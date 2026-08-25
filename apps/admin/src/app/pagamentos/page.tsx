@@ -22,10 +22,15 @@ type PaymentsPageProps = {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+/**
+ * The status filter from the query string.
+ *
+ * `find` rather than `includes` plus an assertion: the comparison is what
+ * narrows the type, so nothing has to be promised to the compiler that was not
+ * actually checked.
+ */
 function resolveStatus(value: string | string[] | undefined): PaymentStatusDto | undefined {
-  return typeof value === "string" && (STATUSES as readonly string[]).includes(value)
-    ? (value as PaymentStatusDto)
-    : undefined;
+  return STATUSES.find((candidate) => candidate === value);
 }
 
 /**

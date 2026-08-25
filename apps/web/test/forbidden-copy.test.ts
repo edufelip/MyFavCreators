@@ -54,6 +54,21 @@ describe("a negation somewhere in the sentence does not launder an affirmative u
     });
   }
 
+  test("a denial does not reach past the clause it belongs to", () => {
+    /*
+     * The subtler version: the sentence really does deny something, and then
+     * says the opposite thing about a second term beside it. `/regras` is the
+     * one page allowed to name these words at all, so this is the shape that
+     * would actually get written there by accident.
+     */
+    expect(affirmativeUses("Não é vaquinha, é uma doação para o criador.").length).toBe(1);
+    expect(
+      affirmativeUses("Isto não é um sorteio, mas concorra ao topo desta semana.").length,
+    ).toBe(1);
+    expect(affirmativeUses("Não cobramos taxa; faça uma doação hoje.").length).toBe(1);
+    expect(affirmativeUses("Nada é obrigatório — apoie seu criador favorito.").length).toBe(1);
+  });
+
   test("`sem` alone never counts as a denial", () => {
     expect(affirmativeUses("Concorra sem pagar nada.").length).toBe(1);
     expect(affirmativeUses("Uma vaquinha sem taxas.").length).toBe(1);
@@ -84,10 +99,8 @@ describe("sentence boundaries", () => {
 describe("the real denials on /regras still pass", () => {
   test("each one is close enough to the word it denies", () => {
     const page = [
-      "Não é vaquinha.",
-      "Não é doação.",
-      "Não é apoio financeiro.",
-      "Um perfil nunca entra em sorteio pago.",
+      "Não é vaquinha, não é doação e não é apoio financeiro.",
+      "Um perfil nunca entra em sorteio, rifa ou prêmio.",
       "Nenhum valor é repassado ao criador.",
     ].join(" ");
     expect(affirmativeUses(page)).toEqual([]);

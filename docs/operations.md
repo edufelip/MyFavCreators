@@ -93,6 +93,21 @@ somebody's consent to be contacted.
    repeated instruction is recognised as the same one and does not send the money
    twice.
 
+### A refund came back 502
+
+Two different answers, and the difference matters.
+
+"Nada foi alterado" means the provider could not be reached at all — nothing was
+sent, and retrying is safe. The audit log carries `payment.refund_not_attempted`.
+
+"O estorno foi enviado, mas o provedor não confirmou" means the instruction went
+out and the answer was lost. Whether the money moved is genuinely unknown from
+here, so **check the provider's own panel before retrying**. The audit log
+carries `payment.refund_uncertain`, and `bun run job:payment-reconcile` picks the
+payment up on its next run: it asks the provider, and records a refund that did
+happen. So doing nothing is also safe — the sweep settles it — but a support
+conversation usually cannot wait for that.
+
 ### An operator lost their second factor, or somebody joined or left
 
 `bun run admin:operator '<name>' '<password>'` prints a new `ADMIN_OPERATORS`
@@ -108,6 +123,11 @@ secret and leaves everybody else alone — that is how both a rotation and a los
 phone are handled. Removing somebody means editing the registry: decode it,
 drop the entry, re-encode. There is no account recovery by design; the
 environment is the recovery mechanism.
+
+**Removing an operator ends their session at the next request**, not eight hours
+later when their cookie expires. Every request checks the name in the cookie
+against the current registry, so dropping the entry and restarting is enough —
+there is no separate revocation step and no session to hunt down.
 
 A locked-out operator is not a bug. Five failures against one name close that
 name for ten minutes, and the window is per name, so nobody else is affected.
