@@ -497,6 +497,35 @@ describe("when the provider does not answer", () => {
     expect(settled.refundedAt).not.toBeNull();
   });
 
+  test("a refund that moved money and then lost the write is still findable", async () => {
+    /*
+     * The window the marker used to miss entirely. `refundPayment` succeeds and
+     * the write that records it throws — a failover, a pool timeout, a lock wait
+     * behind a webhook — so the money is gone, the payment is CONFIRMED, the
+     * boost is still scoring, and, when the marker was only written in the
+     * failure path, nothing anywhere said an attempt had been made.
+     *
+     * Simulated by refunding at the provider directly and writing only the
+     * marker, which is exactly the state that crash leaves behind.
+     */
+    const { paymentId, providerPaymentId } = await confirmedPayment("ana");
+    await provider.refundPayment(providerPaymentId);
+    await testDatabase.db.execute(
+      `insert into audit_logs (actor, action, target_type, target_id, metadata)
+       values ('edu', 'payment.refund_uncertain', 'payment', '${paymentId}', '{}'::jsonb)` as never,
+    );
+
+    const summary = await reconcilePayments(testDatabase.db, PRODUCT_DEFAULTS, provider, {
+      now: NOW,
+    });
+    expect(summary.refunded).toBe(1);
+
+    const after = await call(`/internal/admin/payments/${paymentId}`, { headers: ADMIN_HEADERS });
+    expect(parseContract(AdminPaymentDto, await after.json(), "AdminPayment").status).toBe(
+      "REFUNDED",
+    );
+  });
+
   test("a payment nobody flagged is left alone by the sweep", async () => {
     await confirmedPayment("bea");
     const summary = await reconcilePayments(testDatabase.db, PRODUCT_DEFAULTS, provider, {

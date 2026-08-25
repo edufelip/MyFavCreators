@@ -22,6 +22,8 @@ import {
   REPORT_REASONS,
   ReportReasonSchema,
 } from "../src";
+import { BOOST_ORIGINS, BoostOriginSchema } from "../src/boosts";
+import { CLAIM_VERIFICATION_OUTCOMES, ClaimVerificationOutcomeSchema } from "../src/claims";
 import {
   BoostStatusSchema,
   ClaimStatusSchema,
@@ -58,6 +60,15 @@ const PAIRS = [
   ["report reason", ReportReasonSchema, REPORT_REASONS],
   ["opt-out verification outcome", OptOutVerificationOutcomeSchema, OPT_OUT_VERIFICATION_OUTCOMES],
   ["delivery surface", DeliverySurfaceSchema, DELIVERY_SURFACES],
+  /*
+   * These two live beside their own list in the same file, and were the two the
+   * parity check did not cover. A third boost origin added to the list and not
+   * to the schema compiles, passes every other test, and 500s on a checkout
+   * response — `getCheckout` degrades anything unrecognised to DIRECT, so a
+   * reloaded checkout would quietly drop the rank quote disclosure.
+   */
+  ["boost origin", BoostOriginSchema, BOOST_ORIGINS],
+  ["claim verification outcome", ClaimVerificationOutcomeSchema, CLAIM_VERIFICATION_OUTCOMES],
 ] as const;
 
 describe("contract enums mirror the domain", () => {

@@ -224,7 +224,12 @@ export async function updateClaimedProfile(
   claimed: ClaimedCreator,
   input: UpdateProfileInput,
 ): Promise<void> {
-  const bio = sanitizeCreatorBio(input.bio);
+  /*
+   * Only touched when the request said something about it. `sanitizeCreatorBio`
+   * turns `undefined` into `null`, so sanitising unconditionally meant a
+   * category-only update wiped the bio and reported success.
+   */
+  const bio = input.bio === undefined ? undefined : sanitizeCreatorBio(input.bio);
 
   let categoryId: string | undefined;
   if (input.categorySlug !== undefined) {
@@ -238,7 +243,7 @@ export async function updateClaimedProfile(
   await withTransaction(database, async (tx) => {
     await updateCreatorProfile(tx, {
       creatorId: claimed.creatorId,
-      bio,
+      ...(bio === undefined ? {} : { bio }),
       ...(categoryId === undefined ? {} : { categoryId }),
       at: input.now,
     });
@@ -247,7 +252,11 @@ export async function updateClaimedProfile(
       action: "creator.profile_updated",
       targetType: "creator",
       targetId: claimed.creatorId,
-      metadata: { bioLength: bio?.length ?? 0, categoryChanged: categoryId !== undefined },
+      metadata: {
+        bioChanged: bio !== undefined,
+        bioLength: bio === undefined || bio === null ? 0 : bio.length,
+        categoryChanged: categoryId !== undefined,
+      },
     });
   });
 }

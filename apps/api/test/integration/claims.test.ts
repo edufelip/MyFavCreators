@@ -244,14 +244,45 @@ describe("editing a claimed profile", () => {
     expect((await publicDetail()).bio).toBe("Faco musica.");
   });
 
-  test("moves the profile to another category", async () => {
+  test("moves the profile to another category, and leaves the bio alone", async () => {
     const token = await claimed();
+    await call("/v1/creators/me", {
+      method: "PATCH",
+      headers: { "content-type": "application/json", ...authorized(token) },
+      body: JSON.stringify({ bio: "Faco musica." }),
+    });
+
     await call("/v1/creators/me", {
       method: "PATCH",
       headers: { "content-type": "application/json", ...authorized(token) },
       body: JSON.stringify({ categorySlug: "jogos" }),
     });
+
     expect((await publicDetail()).category.slug).toBe("jogos");
+    /*
+     * The contract distinguishes an absent field from a null one; this used to
+     * be destroyed a function later, so changing the category silently erased
+     * the bio and returned 200 with a fresh dashboard. It went unnoticed because
+     * the one form in apps/web always sends both fields.
+     */
+    expect((await publicDetail()).bio).toBe("Faco musica.");
+  });
+
+  test("clears the bio only when asked to, with an explicit null", async () => {
+    const token = await claimed();
+    await call("/v1/creators/me", {
+      method: "PATCH",
+      headers: { "content-type": "application/json", ...authorized(token) },
+      body: JSON.stringify({ bio: "Faco musica." }),
+    });
+
+    await call("/v1/creators/me", {
+      method: "PATCH",
+      headers: { "content-type": "application/json", ...authorized(token) },
+      body: JSON.stringify({ bio: null }),
+    });
+
+    expect((await publicDetail()).bio).toBeNull();
   });
 
   test("refuses a category nobody has", async () => {

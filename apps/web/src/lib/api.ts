@@ -26,6 +26,7 @@ import {
   type ImpressionEntryDto,
   type LeaderboardResponseDto,
   LeaderboardResponseDto as LeaderboardSchema,
+  NotificationPreferenceDto,
   type OptOutChallengeDto,
   OptOutChallengeDto as OptOutChallengeSchema,
   type OptOutVerificationResponseDto,
@@ -344,15 +345,17 @@ export type NotificationPreferences = {
 /**
  * Records what a creator agreed to be written about.
  *
- * Returns `false` for a session the API refused, so the caller can say so.
- * Swallowing a 401 here told the creator their preference had been saved when
- * nothing had been: the one answer a consent switch must never give.
+ * Returns what the API actually applied, or `null` for a session it refused.
+ * Both used to be reported as success. A creator with no usable address on
+ * their claim ticks the box, is told it saved, and is never notified — the API
+ * has been saying so in its response body all along, and nobody read it. The
+ * one answer a consent switch must never give is a false yes.
  */
 export async function setCreatorNotifications(
   token: string,
   preferences: NotificationPreferences,
   email: string | null,
-): Promise<boolean> {
+): Promise<NotificationPreferenceDto | null> {
   const response = await fetch(new URL("/v1/creators/me/notifications", webConfig.apiOrigin), {
     method: "PUT",
     headers: {
@@ -365,12 +368,12 @@ export async function setCreatorNotifications(
     cache: "no-store",
   });
   if (response.status === 401) {
-    return false;
+    return null;
   }
   if (!response.ok) {
     throw new Error(`Notification preference failed with status ${response.status}`);
   }
-  return true;
+  return parseContract(NotificationPreferenceDto, await response.json(), "NotificationPreference");
 }
 
 /** Every profile a sitemap may list. Only APPROVED creators come back. */

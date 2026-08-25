@@ -119,7 +119,9 @@ describe("the weekly recap", () => {
   test("carries a one-click unsubscribe", async () => {
     await creatorWithFollower("com-link", "torcedora@example.com", 1_000);
     await run();
-    expect(email.outbox()[0]?.unsubscribeUrl?.startsWith(`${WEB_ORIGIN}/descadastrar/`)).toBe(true);
+    expect(email.outbox()[0]?.unsubscribeUrl?.startsWith(`${WEB_ORIGIN}/api/descadastrar/`)).toBe(
+      true,
+    );
   });
 
   test("sends nothing a second time when the job runs twice", async () => {

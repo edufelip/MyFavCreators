@@ -9,8 +9,17 @@ import type { EmailMessage } from "../email/provider";
  * describes what happened on the platform and nothing else.
  */
 
+/**
+ * The address a mail client posts to for one-click unsubscribe.
+ *
+ * `/api/descadastrar/...`, not `/descadastrar/...`. The latter is the
+ * confirmation page, and a page cannot answer a POST — a one-click request to it
+ * was served the page's own HTML with a 200, which every mail client reads as
+ * "unsubscribed" while the subscription stayed active. The route handler here
+ * performs the change on POST and redirects a person to the page on GET.
+ */
 export function unsubscribeUrl(webOrigin: string, token: string): string {
-  return new URL(`/descadastrar/${encodeURIComponent(token)}`, webOrigin).toString();
+  return new URL(`/api/descadastrar/${encodeURIComponent(token)}`, webOrigin).toString();
 }
 
 export type DethroneEmailInput = {

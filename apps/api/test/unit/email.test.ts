@@ -22,8 +22,8 @@ function configFor(overrides: Record<string, string>): ApiConfig {
 
 describe("one-click unsubscribe headers", () => {
   test("are the pair RFC 8058 requires", () => {
-    expect(unsubscribeHeaders("https://exemplo/descadastrar/abc")).toEqual({
-      "List-Unsubscribe": "<https://exemplo/descadastrar/abc>",
+    expect(unsubscribeHeaders("https://exemplo/api/descadastrar/abc")).toEqual({
+      "List-Unsubscribe": "<https://exemplo/api/descadastrar/abc>",
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     });
   });
@@ -55,7 +55,7 @@ describe("the dethrone message", () => {
   });
 
   test("carries a working unsubscribe in the body and in the headers", () => {
-    expect(message.unsubscribeUrl).toBe("https://exemplo/descadastrar/token-de-teste");
+    expect(message.unsubscribeUrl).toBe("https://exemplo/api/descadastrar/token-de-teste");
     expect(message.text).toContain(message.unsubscribeUrl ?? "");
   });
 

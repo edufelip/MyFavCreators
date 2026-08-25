@@ -36,7 +36,7 @@ beforeEach(() => {
 });
 
 describe("recording what a creator agreed to be written about", () => {
-  test("reports success when the API accepted it", async () => {
+  test("reports back what the API actually applied", async () => {
     handler = () =>
       Response.json({ notifyDethrone: true, notifyWeeklyRecap: false }, { status: 200 });
     expect(
@@ -45,14 +45,27 @@ describe("recording what a creator agreed to be written about", () => {
         { notifyDethrone: true, notifyWeeklyRecap: false },
         null,
       ),
-    ).toBe(true);
+    ).toEqual({ notifyDethrone: true, notifyWeeklyRecap: false });
   });
 
-  test("reports failure when the session was refused", async () => {
+  test("reports what was applied even when it is not what was asked for", async () => {
     /*
-     * The regression this pins: a 401 used to be swallowed and the creator was
-     * told their preference had been saved. A consent switch that lies about
-     * having been flipped is worse than one that refuses to flip.
+     * The API answers 200 with both switches off when there is no usable
+     * address to send to. Reading only the status turned that into "saved", so
+     * somebody ticked a box, was told it worked, and was never notified.
+     */
+    handler = () =>
+      Response.json({ notifyDethrone: false, notifyWeeklyRecap: false }, { status: 200 });
+    expect(
+      await setCreatorNotifications("tok", { notifyDethrone: true, notifyWeeklyRecap: true }, null),
+    ).toEqual({ notifyDethrone: false, notifyWeeklyRecap: false });
+  });
+
+  test("reports nothing at all when the session was refused", async () => {
+    /*
+     * A 401 used to be swallowed and the creator was told their preference had
+     * been saved. A consent switch that lies about having been flipped is worse
+     * than one that refuses to flip.
      */
     handler = () =>
       Response.json({ error: { code: "UNAUTHORIZED", message: "" } }, { status: 401 });
@@ -62,7 +75,7 @@ describe("recording what a creator agreed to be written about", () => {
         { notifyDethrone: false, notifyWeeklyRecap: false },
         null,
       ),
-    ).toBe(false);
+    ).toBeNull();
   });
 
   test("raises anything else, rather than reporting either outcome", async () => {

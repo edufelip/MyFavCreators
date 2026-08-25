@@ -275,8 +275,13 @@ export class MercadoPagoPixProvider implements PixPaymentProvider {
     });
 
     if (!response.ok) {
-      // The provider's error body may contain account details; only the status
-      // reaches our logs.
+      /*
+       * The provider's error body may carry account details, so it is dropped.
+       * The path is kept, and the path contains the provider's payment id —
+       * deliberately: it identifies a payment rather than a person, it cannot be
+       * resolved to anybody without our own database, and it is the single most
+       * useful field in a report when the provider is having an incident.
+       */
       throw new PaymentProviderError(`Mercado Pago ${path} responded ${response.status}`);
     }
 

@@ -66,6 +66,38 @@ test.describe("notification preferences", () => {
     await expect(page.getByTestId("unsubscribe-result")).toHaveAttribute("data-status", "done");
   });
 
+  test("one-click unsubscribe actually unsubscribes, and does not merely answer", async ({
+    request,
+  }) => {
+    /*
+     * The address in `List-Unsubscribe` used to be the confirmation page, and a
+     * page cannot answer a POST — the one-click request was served the page's
+     * own HTML with a 200, which Gmail, Yahoo and Apple Mail all read as
+     * success. The reader was told they were unsubscribed and the next email
+     * arrived anyway.
+     *
+     * So this posts the way a mail client does, and asserts on the status
+     * rather than on the body: a 200 full of HTML is exactly the failure.
+     */
+    const response = await request.post(`/api/descadastrar/${"d".repeat(43)}`, {
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      data: "List-Unsubscribe=One-Click",
+      maxRedirects: 0,
+    });
+
+    expect(response.status()).toBe(204);
+    expect(await response.text()).toBe("");
+  });
+
+  test("the same address sends a person to the confirmation page instead", async ({ request }) => {
+    // A mail client prefetches links, so a GET must never act. It redirects.
+    const response = await request.get(`/api/descadastrar/${"e".repeat(43)}`, {
+      maxRedirects: 0,
+    });
+    expect([302, 303, 307, 308]).toContain(response.status());
+    expect(response.headers()["location"]).toContain("/descadastrar/");
+  });
+
   test("is never indexed", async ({ page }) => {
     const response = await page.goto(`/descadastrar/${"c".repeat(43)}`);
     const body = (await response?.text()) ?? "";

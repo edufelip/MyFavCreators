@@ -120,7 +120,15 @@ export async function updateCreatorProfile(
   executor: DatabaseExecutor,
   input: {
     readonly creatorId: string;
-    readonly bio: string | null;
+    /**
+     * Absent leaves the bio alone; `null` clears it.
+     *
+     * Both were written unconditionally before, so a request that only changed
+     * the category erased the bio — the contract draws this distinction and it
+     * was destroyed two functions later. `categoryId` on the next line already
+     * had the right shape.
+     */
+    readonly bio?: string | null;
     readonly categoryId?: string;
     readonly at: Date;
   },
@@ -128,8 +136,8 @@ export async function updateCreatorProfile(
   await executor
     .update(creators)
     .set({
-      bio: input.bio,
       updatedAt: input.at,
+      ...(input.bio === undefined ? {} : { bio: input.bio }),
       ...(input.categoryId === undefined ? {} : { categoryId: input.categoryId }),
     })
     .where(eq(creators.id, input.creatorId));

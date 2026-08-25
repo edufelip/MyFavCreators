@@ -149,7 +149,12 @@ export const copy = {
     supporterMessage: "Mensagem (opcional)",
     anonymous: "Impulsionar como Anônimo",
     email: "E-mail (opcional)",
-    emailHint: "Usado só para o comprovante e para avisos que você pedir.",
+    /*
+     * No mention of a receipt. There is no receipt: the platform sends exactly
+     * two emails, and neither is one. Promising it on the form somebody is
+     * paying on is the worst place to say something untrue.
+     */
+    emailHint: "Usado só para os avisos que você marcar abaixo. Nunca aparece publicamente.",
     notifyOnDethrone: "Me avise se este perfil perder o topo",
     notifyWeeklyRecap: "Me envie o resumo semanal deste perfil",
     notifyHelp: "Cada aviso é uma escolha separada. Você pode cancelar em um clique.",
@@ -264,6 +269,8 @@ export const copy = {
     clicks: "Cliques para o perfil",
     ctr: "Taxa de clique",
     ctrUnavailable: "sem exibições ainda",
+    notificationsNeedEmail:
+      "Informe um email válido para receber avisos. Nada foi salvo por enquanto.",
     ranking: "Ranking",
     weeklyRank: "Posição desta semana",
     weeklyTotal: "Nesta semana",

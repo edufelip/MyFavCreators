@@ -13,9 +13,19 @@ import {
 import { pgEnum } from "drizzle-orm/pg-core";
 
 /**
- * Every enum is defined once in the domain package and projected into
- * PostgreSQL here, so an invalid state cannot be persisted even if application
- * code is wrong.
+ * Enums, projected into PostgreSQL so an invalid state cannot be persisted even
+ * if application code is wrong.
+ *
+ * Most are defined once in the domain package, because they are decisions about
+ * meaning that the ranking and the payment rules are written against. Three are
+ * defined here instead — report status, and the two verification enums — because
+ * nothing outside this package reasons about them: they describe a row's
+ * bookkeeping, not a rule anybody applies.
+ *
+ * Wherever a list lives, the database is checked against it:
+ * `apps/api/test/integration/enum-parity.test.ts` compares every `pg_enum` to
+ * its source list, so a value added without a migration fails a test rather
+ * than the first insert that uses it.
  */
 export const boostStatusEnum = pgEnum("boost_status", BOOST_STATUSES);
 export const paymentStatusEnum = pgEnum("payment_status", PAYMENT_STATUSES);

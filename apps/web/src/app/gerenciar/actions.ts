@@ -128,19 +128,29 @@ export async function setNotificationsAction(
   }
 
   const email = textOf(formData, "email").trim();
+  const wanted = {
+    notifyDethrone: formData.get("notifyDethrone") === "on",
+    notifyWeeklyRecap: formData.get("notifyWeeklyRecap") === "on",
+  };
+
   try {
-    const applied = await setCreatorNotifications(
-      token,
-      {
-        notifyDethrone: formData.get("notifyDethrone") === "on",
-        notifyWeeklyRecap: formData.get("notifyWeeklyRecap") === "on",
-      },
-      email === "" ? null : email,
-    );
-    if (!applied) {
+    const applied = await setCreatorNotifications(token, wanted, email === "" ? null : email);
+    if (applied === null) {
       // The session expired. Saying "saved" here would leave somebody believing
       // they had turned a notification off when they had not.
       return { message: copy.manage.signedOut, saved: false };
+    }
+    if (
+      applied.notifyDethrone !== wanted.notifyDethrone ||
+      applied.notifyWeeklyRecap !== wanted.notifyWeeklyRecap
+    ) {
+      /*
+       * The API applied something other than what was asked for, which happens
+       * for exactly one reason: there is no usable address to send to. Somebody
+       * ticking a box and being told "saved" would then never hear anything,
+       * and would find the box unticked next time with no explanation.
+       */
+      return { message: copy.manage.notificationsNeedEmail, saved: false };
     }
   } catch (error) {
     console.error("notification_pref_failed", error instanceof Error ? error.message : "unknown");

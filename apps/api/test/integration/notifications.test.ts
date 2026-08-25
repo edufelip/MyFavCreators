@@ -202,7 +202,7 @@ describe("the dethrone notification", () => {
     await boost(challenger.slug, 9_000);
 
     const message = email.outbox()[0];
-    expect(message?.unsubscribeUrl?.startsWith(`${WEB_ORIGIN}/descadastrar/`)).toBe(true);
+    expect(message?.unsubscribeUrl?.startsWith(`${WEB_ORIGIN}/api/descadastrar/`)).toBe(true);
     expect(message?.text).toContain("Para parar de receber");
   });
 
@@ -303,7 +303,7 @@ describe("unsubscribing", () => {
     await boost(rival.slug, 9_000);
 
     const link = email.outbox()[0]?.unsubscribeUrl ?? "";
-    expect(link).toContain("/descadastrar/");
+    expect(link).toContain("/api/descadastrar/");
     const fromLink = decodeURIComponent(new URL(link).pathname.split("/").pop() ?? "");
     expect(fromLink).toBe(await tokenFor("clicou@example.com"));
 

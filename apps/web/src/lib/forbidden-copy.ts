@@ -59,6 +59,16 @@ const DENIAL_WINDOW = 40;
 /** Punctuation that ends a clause, and so ends a denial's reach. */
 const CLAUSE_ENDS = [".", "!", "?", ":", ";", ",", "\u2014", "\u2013"] as const;
 
+/**
+ * Conjunctions that start a new clause, and so also end a denial's reach.
+ *
+ * Portuguese joins clauses with *e* and *mas* far more often than with a comma,
+ * so punctuation alone covered about half the shape: "não é vaquinha e é uma
+ * doação para o criador" passed. The real denials on /regras survive because
+ * each term carries its own — "não é vaquinha, não é doação e não é apoio".
+ */
+const CLAUSE_STARTS = /\b(e|ou|mas|porem|entao|contudo|todavia)\b/g;
+
 export type AffirmativeUse = {
   readonly term: string;
   /** The text around the use, for an error message somebody can act on. */
@@ -73,7 +83,25 @@ export type AffirmativeUse = {
  * somebody writes without its accent is still the same word.
  */
 function fold(text: string): string {
-  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return (
+    text
+      .normalize("NFC")
+      /*
+       * "é" is the verb *to be*; "e" is the conjunction *and*. Stripping accents
+       * makes them the same word, and the clause rule below reads one as the
+       * other — so "não é vaquinha" would look like a denial that ended before
+       * it began. Kept apart under a spelling that is neither a conjunction nor
+       * a forbidden term.
+       */
+      // `\b` is ASCII-only, so it never matches beside an accented letter — the
+      // boundaries have to be spelled out.
+      .replace(/(^|[^\p{L}])é(?![\p{L}])/giu, "$1eh")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      // Zero-width characters, which are invisible and split a word in two as
+      // far as any pattern is concerned.
+      .replace(/[\u200b-\u200d\ufeff]/g, "")
+  );
 }
 
 /**
@@ -89,6 +117,16 @@ function fold(text: string): string {
  */
 function inflect(word: string): string {
   return word.endsWith("ao") ? `${word.slice(0, -2)}(?:ao|oes)` : `${word}(?:es|s)?`;
+}
+
+/** Where the nearest clause-starting conjunction before `at` ends. */
+function lastConjunctionBefore(text: string, at: number): number {
+  CLAUSE_STARTS.lastIndex = 0;
+  let last = -1;
+  for (const match of text.slice(0, at).matchAll(CLAUSE_STARTS)) {
+    last = (match.index ?? 0) + match[0].length;
+  }
+  return last;
 }
 
 function boundary(term: string): RegExp {
@@ -128,6 +166,7 @@ export function affirmativeUses(text: string): readonly AffirmativeUse[] {
        */
       const sentenceStart = Math.max(
         ...CLAUSE_ENDS.map((mark) => normalized.lastIndexOf(mark, at - 1)),
+        lastConjunctionBefore(normalized, at),
       );
       const from = Math.max(at - DENIAL_WINDOW, sentenceStart + 1, 0);
       if (!DENIAL.test(normalized.slice(from, at))) {

@@ -97,6 +97,25 @@ export async function refundPaymentOnRequest(
   }
 
   if (!alreadyRefunded) {
+    /*
+     * The marker goes down *before* the instruction goes out, not after it
+     * fails. Written afterwards, it covered only the failures we saw: a
+     * `refundPayment` that succeeded and an `applyPaymentEvent` that then threw
+     * — a failover, a pool timeout, a lock wait behind a webhook — left the
+     * money gone, the payment CONFIRMED, the boost still scoring, and no record
+     * anywhere that anything had been attempted. The sweep looks for this
+     * marker, so writing it first means every state in which money can have
+     * moved is findable. Recording an intent that turns out not to have moved
+     * anything costs one provider query on the next sweep.
+     */
+    await writeAuditLog(database, {
+      actor: request.actor,
+      action: "payment.refund_uncertain",
+      targetType: "payment",
+      targetId: payment.id,
+      metadata: { reason: request.reason, provider: payment.provider, stage: "attempting" },
+    });
+
     try {
       await provider.refundPayment(payment.providerPaymentId);
     } catch (error) {
@@ -108,13 +127,6 @@ export async function refundPaymentOnRequest(
        * position is only wrong if the refund actually happened.
        */
       log.error("admin_refund_uncertain", error, { provider: provider.name });
-      await writeAuditLog(database, {
-        actor: request.actor,
-        action: "payment.refund_uncertain",
-        targetType: "payment",
-        targetId: payment.id,
-        metadata: { reason: request.reason, provider: payment.provider },
-      });
       return { kind: "REFUND_UNCERTAIN" };
     }
   }

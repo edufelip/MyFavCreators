@@ -96,6 +96,25 @@ describe("a negation somewhere in the sentence does not launder an affirmative u
     expect(affirmativeUses("Faça suas doações hoje.").length).toBeGreaterThan(0);
   });
 
+  test("a conjunction starts a new clause, so a denial does not carry across it", () => {
+    /*
+     * Portuguese joins clauses with *e* and *mas* far more often than with a
+     * comma, so a punctuation-only rule covered about half the shape.
+     */
+    expect(affirmativeUses("Não é vaquinha e é uma doação para o criador.").length).toBe(1);
+    expect(
+      affirmativeUses("Aqui ninguém perde: não paga taxa e ganha um prêmio em dinheiro.").length,
+    ).toBe(1);
+    expect(
+      affirmativeUses("Nunca cobramos taxa e todo impulso vira gorjeta para o criador.").length,
+    ).toBe(1);
+  });
+
+  test("an invisible character does not hide a forbidden word", () => {
+    expect(forbiddenTerms("sor\u200bteio semanal")).toContain("sorteio");
+    expect(affirmativeUses("Participe do sor\u200bteio semanal.").length).toBe(1);
+  });
+
   test("`sem` alone never counts as a denial", () => {
     expect(affirmativeUses("Concorra sem pagar nada.").length).toBe(1);
     expect(affirmativeUses("Uma vaquinha sem taxas.").length).toBe(1);

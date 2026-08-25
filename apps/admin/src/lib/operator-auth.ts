@@ -110,12 +110,23 @@ function isThrottled(key: string, now: number): boolean {
   return attempt.count >= MAX_ATTEMPTS;
 }
 
+/** When the map was last swept, so a flood does not pay a scan per request. */
+let lastSweep = 0;
+
 function recordFailure(key: string, now: number): void {
-  // Expired buckets are dropped here rather than never, so a long-running
-  // process does not keep a row for every name anybody has ever guessed.
-  for (const [existing, attempt] of attempts) {
-    if (attempt.resetAt <= now) {
-      attempts.delete(existing);
+  /*
+   * Expired buckets are dropped here rather than never, so a long-running
+   * process does not keep a row for every name anybody has ever guessed — but
+   * at most once a window, because a full scan on every failed attempt is work
+   * an attacker chooses the amount of. `RateLimiter` in the API solves the same
+   * problem the same way.
+   */
+  if (now - lastSweep >= WINDOW_MS) {
+    lastSweep = now;
+    for (const [existing, attempt] of attempts) {
+      if (attempt.resetAt <= now) {
+        attempts.delete(existing);
+      }
     }
   }
 
@@ -148,4 +159,5 @@ function spend(operatorId: string, step: number): void {
 export function resetOperatorAuthState(): void {
   attempts.clear();
   spentSteps.clear();
+  lastSweep = 0;
 }

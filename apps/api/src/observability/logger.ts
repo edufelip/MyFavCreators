@@ -153,6 +153,10 @@ function scrubValue(value: unknown, depth: number): unknown {
   if (typeof value !== "object" || value === null) {
     return value;
   }
+  // `Object.entries(new Date())` is `[]`, so rebuilding one would log `{}`.
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
   if (depth >= MAX_SCRUB_DEPTH) {
     /*
      * Truncated rather than passed through. Anything below this point has not

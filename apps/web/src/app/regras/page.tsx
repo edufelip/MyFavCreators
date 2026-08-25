@@ -163,7 +163,8 @@ export default function RulesPage() {
             mostra apenas “Anônimo”, sem nome.
           </p>
           <p>
-            O email deixado no checkout nunca aparece publicamente e serve só para avisos e recibo.
+            O email deixado no checkout nunca aparece publicamente e serve só para os avisos que
+            você marcar.
           </p>
         </Rule>
 
@@ -187,10 +188,9 @@ export default function RulesPage() {
 
         <Rule title="Avisos por email">
           <p>
-            Deixar um email ao impulsionar não inscreve ninguém em nada: o endereço serve para o
-            comprovante. Os avisos são duas caixas separadas no formulário — um aviso quando aquele
-            perfil perde o primeiro lugar, e um resumo semanal — e cada uma vale só se estiver
-            marcada.
+            Deixar um email ao impulsionar não inscreve ninguém em nada. Os avisos são duas caixas
+            separadas no formulário — um aviso quando aquele perfil perde o primeiro lugar, e um
+            resumo semanal — e cada uma vale só se estiver marcada.
           </p>
           <p>
             Cada tipo de aviso tem seu próprio link de cancelamento de um clique. Cancelar o resumo
