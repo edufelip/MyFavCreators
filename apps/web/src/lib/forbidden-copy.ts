@@ -46,7 +46,13 @@ export const FORBIDDEN_TERMS = [
    */
   "financiamento coletivo",
   "caixinh",
-  "colabor",
+  /*
+   * Only the forms that ask for money. As a stem this fired on "trabalho
+   * colaborativo" and "nossos colaboradores" — ordinary words for ordinary
+   * things — and a rule that flags the staff page is a rule somebody switches
+   * off, which costs more than the word it was catching.
+   */
+  "colabore",
   /*
    * `sorteio` rather than `sorte`, deliberately. "Boa sorte" is an ordinary
    * thing to write, and a rule nobody can live with is a rule somebody removes.
@@ -60,7 +66,12 @@ export const FORBIDDEN_TERMS = [
   // EXACT_TERMS: `tip` as a stem would fire on "tipo", `fund` on "fundo".
   "support",
   "donate",
+  // Its own entry because "donation" is not "donate" plus a suffix, and it is
+  // the form an English page is likelier to use than the verb.
+  "donation",
   "tip",
+  // English doubles the consonant here, so no suffix on "tip" produces it.
+  "tipping",
   "fund",
   "crowdfunding",
 ] as const;
@@ -73,7 +84,29 @@ export const FORBIDDEN_TERMS = [
  * and "fundamental". A check that cries wolf on ordinary copy is a check
  * somebody switches off.
  */
-const EXACT_TERMS = new Set<string>(["support", "donate", "tip", "fund", "crowdfunding"]);
+const EXACT_TERMS = new Set<string>([
+  "support",
+  "donate",
+  "donation",
+  "tip",
+  "tipping",
+  "fund",
+  "crowdfunding",
+  "colabore",
+]);
+
+/**
+ * The English endings, spelled out rather than stemmed.
+ *
+ * `(?:es|s)?` covered plurals and nothing else, so "supporter", "supporters",
+ * "donations" and "funding" all walked through — the derivations an English
+ * page actually uses. A stem cannot be used instead: `tip[a-z]*` matches
+ * "tipo" and `fund[a-z]*` matches "fundo", both ordinary Portuguese.
+ *
+ * Every ending here begins with a letter that no Portuguese continuation of
+ * these stems begins with, which is what keeps "tipo" and "fundo" out.
+ */
+const ENGLISH_ENDINGS = "(?:s|es|ing|ion|ions|er|ers|or|ors|ed)?";
 
 /**
  * Words that turn a mention into a denial.
@@ -83,7 +116,7 @@ const EXACT_TERMS = new Set<string>(["support", "donate", "tip", "fund", "crowdf
  * contain one, which is most of them. A denial has to actually deny.
  */
 // Written against folded text, so the accented forms need no separate branch.
-const DENIAL = /\b(nao|nunca|nenhum|nenhuma|jamais|nem)\b/i;
+const DENIAL = /\b(nao|nunca|nenhum|nenhuma|ninguem|jamais|nem)\b/i;
 
 /**
  * How far before a forbidden word a denial may sit and still be attached to it.
@@ -123,6 +156,13 @@ export type AffirmativeUse = {
 function fold(text: string): string {
   return (
     text
+      /*
+       * Invisible characters go first, because everything below reads letters
+       * and one of these sitting between two of them makes them different
+       * words. `\ufeff` in particular is whitespace to a regex, so anything
+       * that normalises spacing before this point turns it into a real one.
+       */
+      .replace(/[\u00ad\u200b-\u200d\u2060\ufeff]/g, "")
       .normalize("NFC")
       /*
        * "é" is the verb *to be*; "e" is the conjunction *and*. Stripping accents
@@ -136,11 +176,6 @@ function fold(text: string): string {
       .replace(/(^|[^\p{L}])é(?![\p{L}])/giu, "$1eh")
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
-      // Zero-width characters, which are invisible and split a word in two as
-      // far as any pattern is concerned.
-      // Zero-width and soft-hyphen characters: invisible, and each one splits a
-      // word in two as far as any pattern is concerned.
-      .replace(/[\u00ad\u200b-\u200d\ufeff]/g, "")
   );
 }
 
@@ -170,7 +205,7 @@ function fold(text: string): string {
  */
 function inflect(word: string, exact: boolean): string {
   if (exact) {
-    return `${word}(?:es|s)?`;
+    return `${word}${ENGLISH_ENDINGS}`;
   }
   /*
    * `-ão` needs its own branch: Portuguese pluralises it as `-ões`, which no
@@ -197,7 +232,13 @@ function boundary(term: string): RegExp {
     .split(" ")
     .map((word) => inflect(word, exact))
     .join(String.raw`\s+`);
-  return new RegExp(`(^|[^a-z])(${inflected})([^a-z]|$)`, "gi");
+  /*
+   * The trailing boundary is a lookahead, not a match. Consuming it moved the
+   * cursor past the separator, so "nao eh vaquinha vaquinha" reported the
+   * first occurrence as denied and never saw the second at all — the second
+   * being the affirmative one.
+   */
+  return new RegExp(`(^|[^a-z])(${inflected})(?=[^a-z]|$)`, "gi");
 }
 
 /** Every forbidden term appearing anywhere in the text, denied or not. */
@@ -215,7 +256,16 @@ export function forbiddenTerms(text: string): readonly string[] {
  * of a cash prize.
  */
 export function affirmativeUses(text: string): readonly AffirmativeUse[] {
-  const normalized = fold(text.toLowerCase().replace(/\s+/g, " "));
+  /*
+   * Folded before the whitespace collapse, not after.
+   *
+   * `\ufeff` is whitespace to a JavaScript regex, so collapsing first turned a
+   * zero-width no-break space *into a real space* — and "va\ufeffquinha", which
+   * a reader sees as one word, became two before anything looked at it. The
+   * one invisible character that defeats this check was the one the collapse
+   * was quietly converting.
+   */
+  const normalized = fold(text.toLowerCase()).replace(/\s+/g, " ");
   const found: AffirmativeUse[] = [];
 
   for (const term of FORBIDDEN_TERMS) {

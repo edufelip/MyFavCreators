@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { affirmativeUses, forbiddenTerms } from "../src/lib/forbidden-copy";
+import { affirmativeUses } from "../src/lib/forbidden-copy";
 import { platformText } from "./support/page-text";
 
 /**
@@ -21,11 +21,21 @@ const DISCLOSURE =
  */
 
 /**
- * `/regras` is deliberately absent from the plain scan: it is the one surface
- * whose job is to name these words and deny them ("não é vaquinha, não é
- * doação"). It gets a stricter test instead — every occurrence must sit inside
- * a denial — because "exempt" was being read as "unchecked", and an affirmative
- * "sorteio de exibição" survived there for exactly that reason.
+ * One rule for every page, `/regras` included.
+ *
+ * There used to be two: a plain "the word must not appear" scan everywhere, and
+ * a "the word may appear, but only inside a denial" scan on `/regras`. That
+ * split stopped being tenable the moment the terms became stems, because the
+ * *mandatory disclosure* — "Nenhum valor é repassado ao criador" — contains
+ * `repass`, and it is required verbatim on four surfaces.
+ *
+ * The denial rule is the right one anyway, and always was. The specification
+ * bans claiming these things, not uttering the words; the plain scan only
+ * looked equivalent while no required sentence happened to contain one. It is
+ * also the stricter rule where it matters: a plain scan cannot tell "não é
+ * vaquinha" from "é uma vaquinha", so it had to be waived exactly where the
+ * words appear — and that waiver is how an affirmative "sorteio de exibição"
+ * lived on `/regras`.
  */
 const PUBLIC_PAGES = [
   "/",
@@ -36,10 +46,11 @@ const PUBLIC_PAGES = [
 ];
 
 test.describe("what the platform says", () => {
-  for (const path of PUBLIC_PAGES) {
+  for (const path of [...PUBLIC_PAGES, "/regras"]) {
     test(`${path} never implies a payout, a donation or a game of chance`, async ({ page }) => {
       await page.goto(path);
-      expect(forbiddenTerms(await platformText(page))).toEqual([]);
+      const uses = affirmativeUses(await platformText(page));
+      expect(uses.map((use) => `${use.term}: ${use.context}`)).toEqual([]);
     });
   }
 
@@ -54,7 +65,7 @@ test.describe("what the platform says", () => {
     const href = await page.getByTestId("creator-category-link").first().getAttribute("href");
     await page.goto(href ?? "/");
 
-    expect(forbiddenTerms(await platformText(page))).toEqual([]);
+    expect(affirmativeUses(await platformText(page)).map((use) => use.term)).toEqual([]);
   });
 
   test("a creator page never implies it either", async ({ page }) => {
@@ -66,7 +77,7 @@ test.describe("what the platform says", () => {
       .getAttribute("href");
     await page.goto(href ?? "/");
 
-    expect(forbiddenTerms(await platformText(page))).toEqual([]);
+    expect(affirmativeUses(await platformText(page)).map((use) => use.term)).toEqual([]);
   });
 
   test("the checkout screen never implies it either", async ({ page }) => {
@@ -75,7 +86,7 @@ test.describe("what the platform says", () => {
     await page.getByTestId("boost-submit").click();
     await expect(page).toHaveURL(/\/impulsionar\//);
 
-    expect(forbiddenTerms(await platformText(page))).toEqual([]);
+    expect(affirmativeUses(await platformText(page)).map((use) => use.term)).toEqual([]);
   });
 
   test("never claims money reaches the creator", async ({ page }) => {
@@ -106,18 +117,6 @@ test.describe("what the platform says", () => {
     expect(text).toContain("não é apoio financeiro");
     expect(text).toContain("nunca entra em sorteio");
     expect(text).toContain("nenhum valor é repassado ao criador");
-  });
-
-  test("the rules page never uses a forbidden word affirmatively", async ({ page }) => {
-    /*
-     * The exemption is "may name them to deny them", not "is unchecked". Every
-     * one of these words has to sit next to a denial — without this, `/regras`
-     * was the one public page with no copy check at all, and an affirmative
-     * "sorteio de exibição" lived there.
-     */
-    await page.goto("/regras");
-    const uses = affirmativeUses(await platformText(page));
-    expect(uses.map((use) => `${use.term}: ${use.context}`)).toEqual([]);
   });
 
   test("carries the disclosure verbatim on every surface that must have it", async ({ page }) => {

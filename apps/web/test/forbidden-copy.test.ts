@@ -168,3 +168,93 @@ describe("the real denials on /regras still pass", () => {
     expect(affirmativeUses("Não é vaquinha ou doação.").length).toBe(1);
   });
 });
+
+describe("words that only look forbidden", () => {
+  /**
+   * The half of the rule that decides whether anybody keeps it.
+   *
+   * A check that flags the staff page gets switched off, and then it catches
+   * nothing at all. Every string here is ordinary Portuguese somebody could
+   * reasonably write on this site.
+   */
+  test("leaves ordinary words alone", () => {
+    for (const ordinary of [
+      "Trabalho colaborativo entre times",
+      "Nossos colaboradores",
+      "Boa sorte a todos",
+      "Fundo de tela",
+      "Um tipo de destaque",
+      "Este é o tipo de fundo que usamos",
+      "Fundamental para o ranking",
+      "Típico de uma semana movimentada",
+    ]) {
+      expect(
+        affirmativeUses(ordinary).map((use) => use.term),
+        ordinary,
+      ).toEqual([]);
+    }
+  });
+
+  test("counts ninguém as a denial, because it is one", () => {
+    // Missing from the denial list, so "Ninguém doa nada aqui" — a sentence
+    // that denies the thing as plainly as "não" does — was reported.
+    expect(affirmativeUses("Ninguém doa nada aqui")).toEqual([]);
+    expect(affirmativeUses("Ninguém recebe repasse")).toEqual([]);
+  });
+});
+
+describe("the English terms the specification names", () => {
+  test("catches the forms an English page would actually use", () => {
+    /*
+     * The endings used to be `(?:es|s)?`, which covered plurals and nothing
+     * else — so "supporter", "donations" and "funding" all passed while the
+     * bare verbs were caught. Those are the words a page uses.
+     */
+    for (const claim of [
+      "Make a donation today",
+      "Donations welcome",
+      "Become a supporter",
+      "Our supporters",
+      "Supporting your favourite creator",
+      "Funding the creators",
+      "Tipping is welcome",
+      "Crowdfunding for creators",
+      "Donate now",
+      "Leave a tip",
+    ]) {
+      expect(affirmativeUses(claim).length, claim).toBeGreaterThan(0);
+    }
+  });
+
+  test("and stays out of the Portuguese words that begin the same way", () => {
+    // Which is why these are matched whole rather than stemmed: `tip[a-z]*`
+    // fires on "tipo", `fund[a-z]*` on "fundo", and /regras itself says
+    // "prêmio de qualquer tipo".
+    expect(affirmativeUses("Impulsionar não é prêmio de qualquer tipo")).toEqual([]);
+    expect(affirmativeUses("O fundo do card é escuro")).toEqual([]);
+  });
+});
+
+describe("two occurrences of the same word", () => {
+  test("are both found, not just the first", () => {
+    /*
+     * The trailing boundary used to be consumed rather than looked ahead at,
+     * so the cursor landed past the separator and the second occurrence was
+     * never examined — and in a coordinated phrase the second is the one that
+     * is affirmative.
+     */
+    expect(affirmativeUses("vaquinha vaquinha")).toHaveLength(2);
+    expect(affirmativeUses(`nao eh vaquinha, ${"palavra ".repeat(8)} vaquinha`)).toHaveLength(1);
+  });
+});
+
+describe("invisible characters", () => {
+  test("do not split a word out of the rule", () => {
+    // Each of these renders as nothing and separates two letters as far as any
+    // pattern is concerned.
+    for (const invisible of ["\u00ad", "\u200b", "\u200c", "\u200d", "\u2060", "\ufeff"]) {
+      const split = `Faça uma va${invisible}quinha`;
+      expect(affirmativeUses(split).length, JSON.stringify(invisible)).toBeGreaterThan(0);
+    }
+  });
+});
