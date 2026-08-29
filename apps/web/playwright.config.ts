@@ -66,6 +66,14 @@ export default defineConfig({
       timeout: 120_000,
       stdout: "pipe",
       stderr: "pipe",
+      env: {
+        RATE_LIMIT_SUBMISSIONS_PER_HOUR: "500",
+        RATE_LIMIT_BOOSTS_PER_HOUR: "500",
+        RATE_LIMIT_REPORTS_PER_HOUR: "500",
+        RATE_LIMIT_OPT_OUT_REQUESTS_PER_HOUR: "500",
+        RATE_LIMIT_OPT_OUT_VERIFICATIONS_PER_HOUR: "500",
+        RATE_LIMIT_IMPRESSIONS_PER_MINUTE: "5000",
+      },
     },
     {
       command: "bun run start",
