@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { describeError } from "../../src/observability/errors";
 import {
   currentRequestId,
   type LogRecord,
@@ -168,5 +169,89 @@ describe("request correlation", () => {
     const generated = resolveRequestId(null);
     expect(generated).toMatch(/^[0-9a-f-]{36}$/);
     expect(resolveRequestId(null)).not.toBe(generated);
+  });
+});
+
+describe("a log line that cannot be read", () => {
+  /**
+   * Every one of these is a change nothing would have noticed being deleted.
+   *
+   * Reverting the guards individually left the suite green: the outer
+   * `try/catch` in the error tracker absorbed what the logger let through, so
+   * "capture resolves" kept passing while the line itself was lost or the
+   * process took a throw from inside its own error handler. Each is asserted
+   * here, on the logger, where the behaviour actually lives.
+   */
+  test("marks the field it could not read and keeps the rest", () => {
+    /*
+     * The whole record used to be replaced with `{ fields: "[unreadable]" }`.
+     * `log.error` merges the error's own name and reason into that record, so
+     * one hostile field erased the description of the failure being reported.
+     */
+    const records = capture();
+    const fields: Record<string, unknown> = { creatorSlug: "luna-verso", amountCents: 500 };
+    Object.defineProperty(fields, "hostile", {
+      enumerable: true,
+      get() {
+        throw new Error("boom");
+      },
+    });
+
+    log.error("payment_failed", new Error("provider said no"), fields);
+
+    const record: LogRecord = records[0] ?? { level: "error", event: "none" };
+    expect(record["hostile"]).toBe("[unreadable]");
+    expect(record["creatorSlug"]).toBe("luna-verso");
+    expect(record["amountCents"]).toBe(500);
+    // The half a reader actually needs survives.
+    expect(record["error"]).toBe("Error");
+    expect(record["reason"]).toBe("provider said no");
+  });
+
+  test("turns a BigInt into something a report can carry", () => {
+    /*
+     * The sink has a replacer, so a BigInt reached the console fine — and the
+     * error tracker, which serialises the same fields with its own
+     * `JSON.stringify`, dropped the whole report. The symptom was a line
+     * reading `error_report_failed` beside a test asserting `capture` resolves.
+     */
+    const records = capture();
+    log.info("weekly_total", { amountCents: 9_007_199_254_740_993n });
+
+    const record: LogRecord = records[0] ?? { level: "info", event: "none" };
+    expect(record["amountCents"]).toBe("9007199254740993");
+    expect(() => JSON.stringify(record)).not.toThrow();
+  });
+
+  test("survives an error whose own name and message throw", () => {
+    // `describeError` is called from Elysia's `onError`, the handler of last
+    // resort, so a throw here is an unhandled exception inside the thing that
+    // handles exceptions.
+    const records = capture();
+    const hostile = new Error("readable");
+    Object.defineProperty(hostile, "message", {
+      get() {
+        throw new Error("boom");
+      },
+    });
+
+    expect(() => log.error("api_error", hostile)).not.toThrow();
+    const record: LogRecord = records[0] ?? { level: "error", event: "none" };
+    // Named, so a reader knows an error existed and could not be read — rather
+    // than that there was no error.
+    expect(record["error"]).toBe("Unreadable");
+  });
+
+  test("prints the stack frames sanitised, not verbatim", () => {
+    // Frames are file paths and function names, which carry nothing about a
+    // request — until a stack is built by hand, and then this is the one thing
+    // being forwarded as it arrived.
+    const forged = new Error("failed");
+    forged.stack = "Error: failed\n    at handler (/app/x.ts?email=ana.silva@example.com:1:1)";
+
+    const described = describeError(forged);
+    expect(described.frames).toHaveLength(1);
+    expect(described.frames[0]).not.toContain("ana.silva");
+    expect(described.frames[0]).toContain("[email]");
   });
 });

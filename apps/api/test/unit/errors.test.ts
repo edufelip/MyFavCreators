@@ -149,6 +149,32 @@ describe("what an oversized message costs", () => {
     expect(sanitize("chave sk_live_abcdef123456 usada")).toBe("chave [key] usada");
   });
 
+  test("redacts a real PIX code, spaces and all", () => {
+    /*
+     * A real BR Code carries the merchant name and city in fields 59 and 60,
+     * so it contains spaces — "CREATOR OUTDOOR PAGAMENTO", "SAO PAULO". The
+     * character class had no space in it, so it stopped at the first one and
+     * printed the rest: the city, the full txid, and the CRC. Every test used
+     * `fake-pix`'s payload, which has no spaces in it at all.
+     */
+    const real =
+      "cobranca 00020126360014br.gov.bcb.pix013611111111-2222-3333-4444-5555555555555204" +
+      "00005303986540510.005802BR5925CREATOR OUTDOOR PAGAMENTO6009SAO PAULO" +
+      "62290525abcdef0123456789abcdef0163043A2F pronto";
+    const cleaned = sanitize(real);
+    expect(cleaned).toBe("cobranca [pix-payload] pronto");
+    expect(cleaned).not.toContain("SAO PAULO");
+    expect(cleaned).not.toContain("abcdef0123456789");
+  });
+
+  test("redacts a payload that was cut off before its CRC", () => {
+    // The shape a log line usually holds: a fragment, truncated by whatever
+    // quoted it. Anchoring only on the terminator stopped matching exactly the
+    // case the pattern was originally written for.
+    const truncated = "note 00020126580014br.gov.bcb.pix0136abcdef-1234-5678-9012-abcdef5204 end";
+    expect(sanitize(truncated)).toBe("note [pix-payload] end");
+  });
+
   test("redacts a secret that begins inside the part it prints", () => {
     /*
      * The risk the scan cap introduces. Everything past the cap is dropped, so

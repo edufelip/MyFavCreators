@@ -58,8 +58,27 @@ const REDACTIONS: ReadonlyArray<readonly [RegExp, string]> = [
    * character, so there is no `\b` before `TOKEN` — and a provider SDK quoting
    * its own configuration back is exactly how one of these reaches a message.
    */
-  [/[\w-]{0,64}(?:token|secret|password|key|credential|session)=[\w.~+/=-]{1,512}/gi, "[redacted]"],
-  // A PIX "copia e cola" always begins with the EMV payload-format indicator.
+  [
+    /[\w-]{0,64}(?:token|secret|password|key|credential|session)"?\s{0,8}[:=]\s{0,8}"?[\w.~+/=-]{1,512}/gi,
+    "[redacted]",
+  ],
+  /*
+   * A PIX "copia e cola", in two shapes, and both are needed.
+   *
+   * The first matches a complete BR Code, from its EMV payload-format
+   * indicator to its CRC. Anchoring on the terminator is what lets it span
+   * spaces: a real code carries the merchant name and city in fields 59 and
+   * 60 — "CREATOR OUTDOOR PAGAMENTO", "SAO PAULO" — so a character class
+   * without a space stopped at the first one and printed everything after it,
+   * including the full txid. Only `fake-pix` produces the space-free payload
+   * the tests happened to use.
+   *
+   * The second catches a payload with no CRC on it, which is the shape a log
+   * line usually holds: a fragment, cut off by whatever quoted it. Dropping
+   * this one for the terminator form stopped redacting exactly the case the
+   * original pattern was written for.
+   */
+  [/\b000201[\s\S]{16,600}?6304[0-9A-Fa-f]{4}/g, "[pix-payload]"],
   [/\b000201[\w.*$%:;,+/=-]{16,512}/g, "[pix-payload]"],
   [/\b(sk|pk|rk)_(live|test)_[\w-]{1,128}/gi, "[key]"],
 ];
@@ -92,14 +111,31 @@ export function describeError(error: unknown): DescribedError {
   if (!(error instanceof Error)) {
     return { name: "Unknown", message: "unknown", frames: [] };
   }
-  const deepest = deepestCause(error);
-  return {
-    // The name is sanitised too. It looks like a constant, and is — until a
-    // library builds one out of a response it received.
-    name: sanitize(deepest.name),
-    message: sanitize(deepest.message),
-    frames: safeFrames(deepest.stack),
-  };
+  /*
+   * Every read below can throw. `name`, `message`, `stack` and `cause` are
+   * ordinary properties, which means they can be getters, and an object that
+   * raises from one is a shape a proxy or a hostile payload produces.
+   *
+   * This is called from Elysia's `onError` — the handler of last resort — so a
+   * throw here is not a failed log line but an unhandled exception inside the
+   * thing that handles exceptions. The rest of the observability code was
+   * given this guard; this function, which every one of them calls first, was
+   * not.
+   */
+  try {
+    const deepest = deepestCause(error);
+    return {
+      // The name is sanitised too. It looks like a constant, and is — until a
+      // library builds one out of a response it received.
+      name: sanitize(deepest.name),
+      message: sanitize(deepest.message),
+      frames: safeFrames(deepest.stack),
+    };
+  } catch {
+    // Named so a reader knows the error existed and could not be read, rather
+    // than that there was no error.
+    return { name: "Unreadable", message: "unreadable", frames: [] };
+  }
 }
 
 function safeFrames(stack: string | undefined): readonly string[] {
