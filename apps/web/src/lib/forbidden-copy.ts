@@ -7,35 +7,73 @@
  * except one place: `/regras` exists to answer "is this a vaquinha?", and it
  * cannot answer without saying the word.
  *
- * So the rule on that page is not "exempt" but "only to deny". This module is
- * what decides whether a given use is a denial, and it lives in the app rather
- * than in a test so that the rule itself can be tested directly against the
- * sentences somebody might actually write.
+ * So the rule on that page is not "exempt" but "only to deny", and the form the
+ * denial has to take is deliberately narrow:
+ *
+ *   **Each forbidden word carries its own denial, in its own clause.**
+ *
+ * "Não é vaquinha, não é doação e não é apoio" passes. "Nunca entra em sorteio,
+ * rifa ou prêmio" does not — the denial governs the list in Portuguese, but it
+ * is one comma away from "não é vaquinha, é uma doação", which reads almost the
+ * same and means the opposite. Deciding between them needs a parser; requiring
+ * the repetition needs nothing, costs a few words, and fails closed.
+ *
+ * This module lives in the app rather than in a test so the rule itself can be
+ * tested directly against the sentences somebody might actually write.
  */
 export const FORBIDDEN_TERMS = [
-  "apoie",
-  "apoio",
-  "apoiar",
-  "doe",
-  // One spelling each: matching folds accents away, so carrying "doacao"
-  // alongside "doação" would report the same word twice.
-  "doação",
-  "vaquinha",
-  "contribuição",
-  "gorjeta",
-  "repasse",
-  // The English terms the specification names too. A word boundary keeps them
-  // from firing on Portuguese words that merely contain them — "fund" does not
-  // match "fundo", "tip" does not match "múltiplo".
+  /*
+   * Portuguese entries are stems, not words. Matching whole words caught
+   * "apoie" and missed "apoiando", "apoiador" and "apoiamos" — one step
+   * sideways from the same claim. A stem matches every derivation of it, which
+   * is what the rule is actually about.
+   *
+   * One spelling each: matching folds accents away, so carrying "doacao"
+   * alongside "doação" would report the same word twice.
+   */
+  "apoi",
+  "doa",
+  "vaquinh",
+  "contribu",
+  "gorjet",
+  "repass",
+  /*
+   * Words that name the same thing without being on the specification's list.
+   * "Financiamento coletivo" is the standard Brazilian term for a vaquinha and
+   * the one a lawyer would reach for; "caixinha" is the everyday tip jar. A
+   * list covering only the words somebody thought of stops working the moment
+   * somebody thinks of another.
+   */
+  "financiamento coletivo",
+  "caixinh",
+  "colabor",
+  /*
+   * `sorteio` rather than `sorte`, deliberately. "Boa sorte" is an ordinary
+   * thing to write, and a rule nobody can live with is a rule somebody removes.
+   */
+  "sorteio",
+  "rifa",
+  "concorra",
+  "prêmio em dinheiro",
+  "chance de ganhar",
+  // The English terms the specification names. Matched exactly — see
+  // EXACT_TERMS: `tip` as a stem would fire on "tipo", `fund` on "fundo".
   "support",
   "donate",
   "tip",
   "fund",
-  "sorteio",
-  "concorra",
-  "prêmio em dinheiro",
-  "chance de ganhar",
+  "crowdfunding",
 ] as const;
+
+/**
+ * Terms matched as whole words rather than as stems.
+ *
+ * Every one is an English word that is also the start of a common Portuguese
+ * one. `tip[a-z]*` matches "tipo" and "típico"; `fund[a-z]*` matches "fundo"
+ * and "fundamental". A check that cries wolf on ordinary copy is a check
+ * somebody switches off.
+ */
+const EXACT_TERMS = new Set<string>(["support", "donate", "tip", "fund", "crowdfunding"]);
 
 /**
  * Words that turn a mention into a denial.
@@ -100,7 +138,9 @@ function fold(text: string): string {
       .replace(/[\u0300-\u036f]/g, "")
       // Zero-width characters, which are invisible and split a word in two as
       // far as any pattern is concerned.
-      .replace(/[\u200b-\u200d\ufeff]/g, "")
+      // Zero-width and soft-hyphen characters: invisible, and each one splits a
+      // word in two as far as any pattern is concerned.
+      .replace(/[\u00ad\u200b-\u200d\ufeff]/g, "")
   );
 }
 
@@ -115,8 +155,28 @@ function fold(text: string): string {
  * `-ão` needs its own branch: Portuguese pluralises it as `-ões`, which no
  * suffix on the singular can produce. Folded, that is `doacao` -> `doacoes`.
  */
-function inflect(word: string): string {
-  return word.endsWith("ao") ? `${word.slice(0, -2)}(?:ao|oes)` : `${word}(?:es|s)?`;
+/**
+ * A word and every derivation of it.
+ *
+ * `-ão` needs its own branch: Portuguese pluralises it as `-ões`, which no
+ * suffix on the singular can produce. Folded, that is `doacao` -> `doacoes`.
+ *
+ * Everything else takes a trailing `[a-z]*`, which covers plurals, verb forms
+ * and agent nouns in one rule — `doar`, `doando`, `apoiador`, `sorteando`. It
+ * over-matches by design: being told to rephrase costs a minute, and a page
+ * that promises a donation costs more than that. The stem is `sorteio` rather
+ * than `sorte` for the same reason in reverse — "boa sorte" is an ordinary
+ * thing to write, and a rule nobody can live with is a rule somebody removes.
+ */
+function inflect(word: string, exact: boolean): string {
+  if (exact) {
+    return `${word}(?:es|s)?`;
+  }
+  /*
+   * `-ão` needs its own branch: Portuguese pluralises it as `-ões`, which no
+   * suffix on the singular can produce. Folded, that is `doacao` -> `doacoes`.
+   */
+  return word.endsWith("ao") ? `${word.slice(0, -2)}(?:ao|oes|[a-z]*)` : `${word}[a-z]*`;
 }
 
 /** Where the nearest clause-starting conjunction before `at` ends. */
@@ -132,7 +192,11 @@ function lastConjunctionBefore(text: string, at: number): number {
 function boundary(term: string): RegExp {
   // Word by word, because a phrase pluralises on its head: the plural of
   // "premio em dinheiro" is "premios em dinheiro", not "premio em dinheiros".
-  const inflected = fold(term).split(" ").map(inflect).join(String.raw`\s+`);
+  const exact = EXACT_TERMS.has(term);
+  const inflected = fold(term)
+    .split(" ")
+    .map((word) => inflect(word, exact))
+    .join(String.raw`\s+`);
   return new RegExp(`(^|[^a-z])(${inflected})([^a-z]|$)`, "gi");
 }
 

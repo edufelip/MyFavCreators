@@ -58,8 +58,8 @@ export default function RulesPage() {
             descontadas taxas de pagamento, impostos, estornos e despesas operacionais.
           </p>
           <p>
-            Impulsionar também nunca entra em sorteio, rifa ou prêmio de qualquer tipo. O que um
-            impulso compra está descrito acima e é tudo o que ele compra.
+            Impulsionar também nunca entra em sorteio. Não é rifa e não é prêmio de qualquer tipo. O
+            que um impulso compra está descrito acima e é tudo o que ele compra.
           </p>
         </Rule>
 
