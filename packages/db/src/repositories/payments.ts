@@ -401,6 +401,23 @@ export type OwedRefund = {
  * reason to complete it, not to record that nothing happened. `getPaymentStatus`
  * is there to keep the already-refunded case from being refunded twice.
  */
+/**
+ * The audit actions that mean "a refund was ordered for this payment".
+ *
+ * Two of them, and the second is not dead weight. `payment.refund_uncertain` is
+ * what this marker was called before it was renamed to say what it records, and
+ * `audit_logs.action` is free text with no migration behind the rename — so a
+ * row written by the previous release still means what it always meant.
+ * Matching only the new name would make every one of them unreachable here:
+ * CONFIRMED, `refunded_at` null, the boost still scoring, and nothing anywhere
+ * pointing at money the platform may no longer hold. That is the exact failure
+ * ADR 0015 exists to prevent, reintroduced by a rename.
+ *
+ * Named here rather than inlined so the query and this explanation cannot drift,
+ * and so the next rename has one place to add to rather than one to replace.
+ */
+export const REFUND_MARKERS = ["payment.refund_attempted", "payment.refund_uncertain"] as const;
+
 export async function listOwedRefunds(
   executor: DatabaseExecutor,
   provider: string,
@@ -422,7 +439,11 @@ export async function listOwedRefunds(
           select 1 from audit_logs a
           where a.target_type = 'payment'
             and a.target_id = p.id::text
-            and a.action = 'payment.refund_attempted'
+            -- Bound from REFUND_MARKERS above, so the list has one home.
+            and a.action in (${sql.join(
+              REFUND_MARKERS.map((marker) => sql`${marker}`),
+              sql`, `,
+            )})
         )
       )
     order by p.confirmed_at asc

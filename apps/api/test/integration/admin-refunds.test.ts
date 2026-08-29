@@ -588,6 +588,33 @@ describe("when the provider does not answer", () => {
     expect(await provider.getPaymentStatus(providerPaymentId)).toBe("REFUNDED");
   });
 
+  test("still finds money flagged under the marker's previous name", async () => {
+    /*
+     * `audit_logs.action` is free text and the rename shipped without a
+     * migration, so rows written by the previous release still say
+     * `payment.refund_uncertain`. They mean exactly what the new name means —
+     * a refund was ordered — and a sweep that matched only the new one would
+     * leave every one of them unreachable, which is the failure the marker
+     * exists to prevent.
+     */
+    const { paymentId, providerPaymentId } = await confirmedPayment("ana");
+    await provider.refundPayment(providerPaymentId);
+    await testDatabase.db.execute(
+      `insert into audit_logs (actor, action, target_type, target_id, metadata)
+       values ('edu', 'payment.refund_uncertain', 'payment', '${paymentId}', '{}'::jsonb)` as never,
+    );
+
+    const summary = await reconcilePayments(testDatabase.db, PRODUCT_DEFAULTS, provider, {
+      now: NOW,
+    });
+    expect(summary.refunded).toBe(1);
+
+    const after = await call(`/internal/admin/payments/${paymentId}`, { headers: ADMIN_HEADERS });
+    expect(parseContract(AdminPaymentDto, await after.json(), "AdminPayment").status).toBe(
+      "REFUNDED",
+    );
+  });
+
   test("a payment nobody flagged is left alone by the sweep", async () => {
     await confirmedPayment("bea");
     const summary = await reconcilePayments(testDatabase.db, PRODUCT_DEFAULTS, provider, {
