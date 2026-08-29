@@ -41,10 +41,10 @@ pages pass a WCAG 2.1 AA scan. See [Phase boundaries](#phase-boundaries) for the
 ```bash
 cp .env.example .env      # adjust if your ports differ
 bun install
-bun run db:up             # starts postgres:18.6-alpine on :5432
+bun run db:up             # starts postgres:18.6-alpine on port :25432 (:5432 internal)
 bun run db:migrate        # applies the committed migrations
 bun run db:seed           # 13 categories, 15 creators, boosts, and six closed weeks
-bun run dev               # web :3000, api :3001, admin :3002
+bun run dev               # starts web :3000, api :3001, admin :3002 in parallel
 ```
 
 Then open <http://localhost:3000>.
@@ -53,8 +53,20 @@ Then open <http://localhost:3000>.
 | --- | --- | --- |
 | `apps/web` | 3000 | Public Creator Outdoor product |
 | `apps/api` | 3001 | Authoritative backend (the only application that reaches PostgreSQL) |
-| `apps/admin` | 3002 | Internal administration (placeholder until Phase 2) |
-| PostgreSQL | 5432 | Local database |
+| `apps/admin` | 3002 | Internal administration & moderation console |
+| PostgreSQL | 25432 | Local database container (`postgres://creator_outdoor:creator_outdoor@localhost:25432/creator_outdoor`) |
+
+### Admin Console Login (Local Dev)
+
+To access the Admin Console at <http://localhost:3002>:
+- **Operator Name:** `operator`
+- **Password:** `operator-secret-change-me`
+- **TOTP / 2FA Secret:** `QSRZQA4PSAPBBEK7ERZEBDTIBWXXEJUV`
+
+Generate a live TOTP token in your terminal anytime with:
+```bash
+bun -e "const { TOTP } = await import('otpauth'); const totp = new TOTP({ secret: 'QSRZQA4PSAPBBEK7ERZEBDTIBWXXEJUV' }); console.log(totp.generate());"
+```
 
 ## Scripts
 
@@ -73,8 +85,14 @@ Then open <http://localhost:3000>.
 | `bun run db:migrate` | Applies committed migrations |
 | `bun run db:seed` | Replaces fixture data and closes the weeks it invents, so the Hall da Fama has history (refuses to run with `NODE_ENV=production`) |
 | `bun run db:reset` | Drops the schema and re-applies migrations |
+| `bun run db:backup` | Takes a verified snapshot backup of the PostgreSQL database |
+| `bun run db:restore` | Restores the database from a snapshot backup file |
+| `bun run verify:pix` | Verifies live Mercado Pago PIX credentials against the API |
+| `bun run verify:email` | Verifies live Resend email configuration and sender domains |
 | `bun run admin:operator '<name>' '<password>'` | Enrols an administrator: prints the new `ADMIN_OPERATORS` value and the `otpauth://` URI to scan |
 | `bun run job:weekly-rollover` | Closes finished weeks and snapshots their rankings |
+| `bun run job:weekly-recap` | Dispatches weekly recap emails to subscribed fans |
+| `bun run job:payment-reconcile` | Reconciles pending payments with the payment provider |
 
 Migrations are explicit artifacts and are deliberately **not** part of `build`. Production
 schema changes happen through a separate deployment step.
