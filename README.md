@@ -43,7 +43,7 @@ cp .env.example .env      # adjust if your ports differ
 bun install
 bun run db:up             # starts postgres:18.6-alpine on :5432
 bun run db:migrate        # applies the committed migrations
-bun run db:seed           # 13 categories, 15 fictional creators, confirmed boosts
+bun run db:seed           # 13 categories, 15 creators, boosts, and six closed weeks
 bun run dev               # web :3000, api :3001, admin :3002
 ```
 
@@ -71,7 +71,7 @@ Then open <http://localhost:3000>.
 | `bun run db:up` / `db:down` | Starts / stops the local PostgreSQL container |
 | `bun run db:generate` | Generates a migration from schema changes |
 | `bun run db:migrate` | Applies committed migrations |
-| `bun run db:seed` | Replaces fixture data (refuses to run with `NODE_ENV=production`) |
+| `bun run db:seed` | Replaces fixture data and closes the weeks it invents, so the Hall da Fama has history (refuses to run with `NODE_ENV=production`) |
 | `bun run db:reset` | Drops the schema and re-applies migrations |
 | `bun run admin:operator '<name>' '<password>'` | Enrols an administrator: prints the new `ADMIN_OPERATORS` value and the `otpauth://` URI to scan |
 | `bun run job:weekly-rollover` | Closes finished weeks and snapshots their rankings |

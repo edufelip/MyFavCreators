@@ -28,7 +28,7 @@
     "db:down": "docker compose down",
     "db:generate": "bun run --filter @creator-outdoor/db db:generate",
     "db:migrate": "bun run --filter @creator-outdoor/db db:migrate",
-    "db:seed": "bun run --filter @creator-outdoor/db db:seed",
+    "db:seed": "bun run --filter @creator-outdoor/db db:seed && bun run --filter @creator-outdoor/api job:weekly-rollover",
     "db:reset": "bun run --filter @creator-outdoor/db db:reset",
     "prepare": "husky || true",
     "admin:operator": "bun run --cwd packages/config ../../scripts/enroll-admin-operator.ts",

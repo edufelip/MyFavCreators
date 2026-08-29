@@ -173,13 +173,12 @@ jobs:
       - name: Prepare database
         run: |
           bun run db:migrate
+          # Seeds and then closes the weeks it invented. The fixture data alone
+          # leaves every ranking period open, so the Hall da Fama has nothing to
+          # show and three tests fail — they passed locally only on a database
+          # where somebody had run the rollover by hand. `db:seed` runs it, and
+          # it is idempotent, so this stays one command.
           bun run db:seed
-          # The seed truncates the ranking periods and inserts none, so a fresh
-          # database has no closed week and the Hall da Fama has nothing to
-          # show. The rollover is what creates that history, and three tests
-          # need it — they passed locally only on a database where somebody had
-          # run this by hand.
-          bun run job:weekly-rollover
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
         working-directory: apps/web
