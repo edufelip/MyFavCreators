@@ -11,6 +11,7 @@ import {
 } from "@creator-outdoor/db";
 import {
   formatOwnershipCode,
+  normalizeEmail,
   OWNERSHIP_CODE_ALPHABET,
   OWNERSHIP_CODE_LENGTH,
   textContainsOwnershipCode,
@@ -53,6 +54,11 @@ export async function requestOptOut(
   database: Database,
   input: { readonly slug: string; readonly contactEmail?: string | undefined; readonly now: Date },
 ): Promise<OptOutChallengeDto> {
+  const normalizedEmail =
+    input.contactEmail !== undefined && input.contactEmail.trim() !== ""
+      ? normalizeEmail(input.contactEmail)
+      : null;
+
   const creator = await findCreatorBySlug(database, input.slug);
   if (creator === null || creator.moderationStatus === "OPTED_OUT") {
     throw new CreatorNotPubliclyVisibleError(`No open profile for ${input.slug}`);
@@ -69,7 +75,7 @@ export async function requestOptOut(
     purpose: "OPTOUT",
     code: generateOwnershipCode(),
     expiresAt,
-    contactEmail: input.contactEmail ?? null,
+    contactEmail: normalizedEmail,
   });
 
   // The request itself is only recorded, never acted on.

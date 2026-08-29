@@ -441,6 +441,14 @@ describe("opt-out", () => {
   test("answers 404 for a profile that does not exist", async () => {
     expect((await post("/v1/creators/nao-existe/opt-out", {})).status).toBe(404);
   });
+
+  test("answers 422 for an invalid contact email", async () => {
+    const creator = await approvedCreator();
+    const response = await post(`/v1/creators/${creator.slug}/opt-out`, {
+      contactEmail: "not-an-email",
+    });
+    expect(response.status).toBe(422);
+  });
 });
 
 describe("reports", () => {

@@ -19,10 +19,10 @@ export function validateBoostAmount(amountCents: number, minBoostCents: number):
     throw new BoostAmountError("A boost amount must be a positive whole number of centavos");
   }
   if (amountCents < minBoostCents) {
-    throw new BoostAmountError(`The minimum boost is ${minBoostCents} centavos`);
+    throw new BoostAmountError(`O valor mínimo para impulsionar é de ${minBoostCents} centavos`);
   }
   if (amountCents > MAX_BOOST_CENTS) {
-    throw new BoostAmountError(`The maximum boost is ${MAX_BOOST_CENTS} centavos`);
+    throw new BoostAmountError(`O valor máximo para impulsionar é de ${MAX_BOOST_CENTS} centavos`);
   }
   return moneyCents(amountCents);
 }

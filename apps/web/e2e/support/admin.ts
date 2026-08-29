@@ -14,7 +14,7 @@ export const ADMIN_ORIGIN = process.env["ADMIN_ORIGIN"] ?? "http://localhost:300
 
 const OPERATOR = process.env["E2E_ADMIN_OPERATOR"] ?? "edu";
 const PASSWORD = process.env["E2E_ADMIN_PASSWORD"] ?? "creator-outdoor-dev";
-const TOTP_SECRET = process.env["E2E_ADMIN_TOTP_SECRET"] ?? "";
+const TOTP_SECRET = process.env["E2E_ADMIN_TOTP_SECRET"] ?? "QSRZQA4PSAPBBEK7ERZEBDTIBWXXEJUV";
 
 type Cookies =
   Awaited<ReturnType<Page["context"]>["storageState"]> extends Promise<infer TState>

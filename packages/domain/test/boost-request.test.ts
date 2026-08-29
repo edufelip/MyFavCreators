@@ -17,7 +17,7 @@ describe("boost amount", () => {
 
   test("refuses anything below the minimum boost", () => {
     expect(() => validateBoostAmount(499, 500)).toThrow(BoostAmountError);
-    expect(() => validateBoostAmount(1, 500)).toThrow(/minimum/);
+    expect(() => validateBoostAmount(1, 500)).toThrow(/mínimo/);
   });
 
   test("refuses zero, negative and fractional amounts", () => {

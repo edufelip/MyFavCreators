@@ -20,7 +20,7 @@ import {
   insertReport,
   listPublicCreatorRefs,
 } from "@creator-outdoor/db";
-import { isPubliclyEligible } from "@creator-outdoor/domain";
+import { InvalidEmailError, isPubliclyEligible } from "@creator-outdoor/domain";
 import { Elysia, t } from "elysia";
 import {
   clientKey,
@@ -59,6 +59,9 @@ const TOO_MANY_REQUESTS = {
 };
 const NOT_FOUND = {
   error: { code: "NOT_FOUND" as const, message: "Perfil não encontrado." },
+};
+const INVALID_EMAIL = {
+  error: { code: "UNPROCESSABLE" as const, message: "Endereco de email invalido" },
 };
 
 export function creatorRoutes(dependencies: CreatorRouteDependencies) {
@@ -187,13 +190,21 @@ export function creatorRoutes(dependencies: CreatorRouteDependencies) {
             if (error instanceof CreatorNotPubliclyVisibleError) {
               return status(404, NOT_FOUND);
             }
+            if (error instanceof InvalidEmailError) {
+              return status(422, INVALID_EMAIL);
+            }
             throw error;
           }
         },
         {
           params: slugParams,
           body: OptOutRequestDto,
-          response: { 200: OptOutChallengeDto, 404: ApiErrorDto, 429: ApiErrorDto },
+          response: {
+            200: OptOutChallengeDto,
+            404: ApiErrorDto,
+            422: ApiErrorDto,
+            429: ApiErrorDto,
+          },
         },
       )
       .post(
