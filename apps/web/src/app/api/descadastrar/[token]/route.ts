@@ -1,3 +1,4 @@
+import { UNSUBSCRIBE_PAGE_PATH } from "@creator-outdoor/contracts";
 import { unsubscribeFromNotifications } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +48,7 @@ export async function GET(
 ): Promise<Response> {
   const { token } = await context.params;
   return Response.redirect(
-    new URL(`/descadastrar/${encodeURIComponent(token)}`, request.url).toString(),
+    new URL(`${UNSUBSCRIBE_PAGE_PATH}/${encodeURIComponent(token)}`, request.url).toString(),
     303,
   );
 }

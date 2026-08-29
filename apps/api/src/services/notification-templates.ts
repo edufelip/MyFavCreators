@@ -1,3 +1,4 @@
+import { ONE_CLICK_UNSUBSCRIBE_PATH } from "@creator-outdoor/contracts";
 import type { EmailMessage } from "../email/provider";
 
 /**
@@ -12,14 +13,17 @@ import type { EmailMessage } from "../email/provider";
 /**
  * The address a mail client posts to for one-click unsubscribe.
  *
- * `/api/descadastrar/...`, not `/descadastrar/...`. The latter is the
- * confirmation page, and a page cannot answer a POST — a one-click request to it
- * was served the page's own HTML with a 200, which every mail client reads as
- * "unsubscribed" while the subscription stayed active. The route handler here
- * performs the change on POST and redirects a person to the page on GET.
+ * The path is a shared constant rather than a literal here, because the web app
+ * has to serve exactly it and cannot see this file. It named the confirmation
+ * *page* once — a page cannot answer a POST, so the one-click request was
+ * served the page's own HTML with a 200, which every mail client reads as
+ * "unsubscribed" while the subscription stayed active.
  */
 export function unsubscribeUrl(webOrigin: string, token: string): string {
-  return new URL(`/api/descadastrar/${encodeURIComponent(token)}`, webOrigin).toString();
+  return new URL(
+    `${ONE_CLICK_UNSUBSCRIBE_PATH}/${encodeURIComponent(token)}`,
+    webOrigin,
+  ).toString();
 }
 
 export type DethroneEmailInput = {
