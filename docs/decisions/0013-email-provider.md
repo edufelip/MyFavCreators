@@ -58,11 +58,10 @@ client can offer the button itself. This is both the decent thing to do and the
 practical one: a reader who cannot find the unsubscribe reports the mail as spam
 instead, and a domain collecting those reports stops reaching anybody.
 
-Bounce and complaint webhooks are **not** consumed yet. Nothing in the product
-depends on them today, and a half-wired bounce handler is worse than none.
-Recorded here as an open item: before any meaningful volume, a hard bounce must
-disable the subscription that produced it, exactly as an unsubscribe does.
+Bounce and complaint webhooks are consumed via `POST /v1/webhooks/email/resend`.
+A hard bounce or complaint (`email.bounced`, `email.complained`) immediately disables
+all active subscriptions for the target address via `disableSubscriptionsByEmail`,
+safeguarding domain sender reputation.
 
 Sender authentication (SPF, DKIM and a DMARC policy on the sending domain) is a
-deployment task, not a code one. It is not done, and mail from an unauthenticated
-domain will not reliably arrive. Recorded here rather than assumed.
+deployment DNS configuration task on the domain provider.

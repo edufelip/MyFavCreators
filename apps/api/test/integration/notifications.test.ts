@@ -352,4 +352,26 @@ describe("unsubscribing", () => {
     await boost(rival.slug, 9_000);
     expect(email.outbox()).toHaveLength(1);
   });
+
+  test("resend bounce webhook disables the subscription for that recipient", async () => {
+    const leader = await approvedCreator("bounced-leader");
+    await boost(leader.slug, 1_000, { supporterEmail: "bounced@example.com" });
+
+    const webhookResponse = await call("/v1/webhooks/email/resend", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        type: "email.bounced",
+        data: { to: ["bounced@example.com"] },
+      }),
+    });
+    expect(webhookResponse.status).toBe(200);
+
+    const rows = (await testDatabase.db.execute(
+      rawSql(
+        "select disabled_at from notification_subscriptions where email = 'bounced@example.com'",
+      ),
+    )) as Array<Record<string, unknown>>;
+    expect(rows[0]?.["disabled_at"]).not.toBeNull();
+  });
 });

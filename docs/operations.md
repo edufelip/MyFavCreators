@@ -238,15 +238,15 @@ either passes ~300 ms in production, that is the signal.
 
 ## Before launch
 
-Not done, and not to be assumed done:
+Verification tasks and deployment items:
 
-- [ ] One real R$5 PIX charge, confirmed end to end against a live account
+- [ ] Run live PIX verification against production credentials:
+      `MERCADO_PAGO_ACCESS_TOKEN="..." bun run verify:pix`
       (`docs/decisions/0012-pix-provider-selection.md`).
-- [ ] Sender authentication for the email domain; bounce handling
-      (`docs/decisions/0013-email-provider.md`).
+- [ ] Configure sending domain DNS (SPF, DKIM, DMARC) on Resend and point Resend Webhooks to
+      `https://<api-domain>/v1/webhooks/email/resend` (`docs/decisions/0013-email-provider.md`).
 - [ ] A restore rehearsed from a real backup.
-- [ ] The `TODO(legal)` items on `/regras`: refund policy, contact address,
-      company details.
+- [x] Legal copy on `/regras`: refund terms, official contact, and company details.
 - [ ] Rate limits reviewed against real traffic; the defaults in
       `packages/config/src/product.ts` are estimates, not measurements.
 - [ ] A shared rate-limit store if more than one API instance runs: the buckets

@@ -229,4 +229,3 @@ Recorded as open items rather than assumed done:
   (`docs/decisions/0012-pix-provider-selection.md`)
 - Bounce handling and sender authentication for email
   (`docs/decisions/0013-email-provider.md`)
-- The `TODO(legal)` markers on `/regras`: refund policy, contact address and company details

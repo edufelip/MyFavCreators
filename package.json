@@ -32,6 +32,7 @@
     "db:reset": "bun run --filter @creator-outdoor/db db:reset",
     "prepare": "husky || true",
     "admin:operator": "bun run --cwd packages/config ../../scripts/enroll-admin-operator.ts",
+    "verify:pix": "bun run ./scripts/verify-live-pix.ts",
     "job:weekly-rollover": "bun run --filter @creator-outdoor/api job:weekly-rollover",
     "job:weekly-recap": "bun run --filter @creator-outdoor/api job:weekly-recap",
     "job:payment-reconcile": "bun run --filter @creator-outdoor/api job:payment-reconcile"

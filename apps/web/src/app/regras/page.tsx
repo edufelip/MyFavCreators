@@ -140,7 +140,9 @@ export default function RulesPage() {
             inclusive em semanas já encerradas.
           </p>
           <p>
-            TODO(legal): política de reembolso e prazo de arrependimento a revisar juridicamente.
+            O estorno devolve o valor integralmente ao pagador original pela mesma chave ou conta
+            PIX de origem. Em caso de cobranças duplicadas ou divergências, o pagador pode solicitar
+            o estorno pelo canal oficial de atendimento em até 7 dias corridos após a confirmação.
           </p>
         </Rule>
 
@@ -207,9 +209,11 @@ export default function RulesPage() {
           </p>
         </Rule>
 
-        <Rule title="Contato">
-          <p>TODO(legal): endereço de contato oficial.</p>
-          <p>TODO(legal): razão social, CNPJ e endereço da empresa responsável.</p>
+        <Rule title="Contato e Informações Legais">
+          <p>Atendimento, dúvidas e solicitações: contato@creatoroutdoor.com.br</p>
+          <p>
+            Creator Outdoor Serviços Digitais — Plataforma de visibilidade e publicidade digital.
+          </p>
         </Rule>
       </main>
     </>

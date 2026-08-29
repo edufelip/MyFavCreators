@@ -217,6 +217,24 @@ export async function disableSubscriptionByToken(
   return updated[0]?.type ?? null;
 }
 
+/**
+ * Disables all active subscriptions for an address upon a bounce or complaint (ADR 0013).
+ */
+export async function disableSubscriptionsByEmail(
+  executor: DatabaseExecutor,
+  email: string,
+  at: Date,
+): Promise<number> {
+  const updated = await executor
+    .update(notificationSubscriptions)
+    .set({ disabledAt: at })
+    .where(
+      and(eq(notificationSubscriptions.email, email), isNull(notificationSubscriptions.disabledAt)),
+    )
+    .returning({ id: notificationSubscriptions.id });
+  return updated.length;
+}
+
 /** Every active subscriber, grouped for the weekly recap. */
 export async function listActiveSubscriptions(
   executor: DatabaseExecutor,
