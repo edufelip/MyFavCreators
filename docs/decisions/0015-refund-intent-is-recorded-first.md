@@ -30,19 +30,24 @@ payment again.
 
 **The intent is written before the instruction goes out.**
 
-An operator-ordered refund writes `payment.refund_uncertain` to the audit log,
+An operator-ordered refund writes `payment.refund_attempted` to the audit log,
 committed, and only then calls the provider. The reconciliation sweep matches a
 `CONFIRMED` payment with no `refunded_at` that carries that marker, regardless of
-its boost's status, and settles it: it asks the provider first, so a marker for a
-refund that never actually left is answered by finding the money still here.
+its boost's status, and settles it. It asks the provider first and then acts on
+the answer: a refund the provider already made is recorded, and one it never
+made is *sent*. The instruction was given; a marker whose refund never left is a
+job half done, not a false alarm. Asking first is what keeps the already-refunded
+case from being refunded twice.
 
 This makes the two paths the same shape. Both commit something durable before
 touching a provider, and both let the sweep finish the job. The rule generalises:
 **a durable marker before a network call that moves money, never after it.**
 
-Asking the provider before acting is what keeps this idempotent, and it is why
-recording an intent that turns out to have moved nothing is cheap — it costs one
-query on the next sweep.
+Asking the provider before acting is what keeps this idempotent. It is not what
+makes the marker cheap: a marker whose refund never left costs the refund, on the
+next sweep, because that is what was ordered. What it costs is bounded and
+correct — never a second refund, and never a payment that stays `CONFIRMED` for
+money the platform no longer holds.
 
 ## Consequences
 

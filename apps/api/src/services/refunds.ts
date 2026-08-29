@@ -105,15 +105,21 @@ export async function refundPaymentOnRequest(
      * money gone, the payment CONFIRMED, the boost still scoring, and no record
      * anywhere that anything had been attempted. The sweep looks for this
      * marker, so writing it first means every state in which money can have
-     * moved is findable. Recording an intent that turns out not to have moved
-     * anything costs one provider query on the next sweep.
+     * moved is findable.
+     *
+     * If the instruction turns out never to have left, the next sweep sends it.
+     * That is deliberate: an operator ordered this refund, and a marker whose
+     * refund never left is a job half done rather than a false alarm. It also
+     * means the button cannot be un-pressed — written into the runbook, because
+     * the alternative is a marker that can be withdrawn by mistake, and that
+     * failure leaves money gone with nothing pointing at it.
      */
     await writeAuditLog(database, {
       actor: request.actor,
-      action: "payment.refund_uncertain",
+      action: "payment.refund_attempted",
       targetType: "payment",
       targetId: payment.id,
-      metadata: { reason: request.reason, provider: payment.provider, stage: "attempting" },
+      metadata: { reason: request.reason, provider: payment.provider },
     });
 
     try {

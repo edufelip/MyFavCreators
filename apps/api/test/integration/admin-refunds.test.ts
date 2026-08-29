@@ -460,7 +460,13 @@ describe("when the provider does not answer", () => {
     const body: unknown = await response.json();
     expect(JSON.stringify(body)).not.toContain("Nada foi alterado");
     expect(JSON.stringify(body)).toContain("Verifique");
-    expect(await auditActions(paymentId)).toContain("payment.refund_uncertain");
+    /*
+     * `attempted`, not `uncertain`. The marker is written before the provider
+     * is called, so it means "we asked" — a fact that is true whatever comes
+     * back — rather than "we do not know", which only one of the three
+     * outcomes could ever claim.
+     */
+    expect(await auditActions(paymentId)).toContain("payment.refund_attempted");
   });
 
   test("the sweep finds the money the lost answer left behind", async () => {
@@ -512,7 +518,7 @@ describe("when the provider does not answer", () => {
     await provider.refundPayment(providerPaymentId);
     await testDatabase.db.execute(
       `insert into audit_logs (actor, action, target_type, target_id, metadata)
-       values ('edu', 'payment.refund_uncertain', 'payment', '${paymentId}', '{}'::jsonb)` as never,
+       values ('edu', 'payment.refund_attempted', 'payment', '${paymentId}', '{}'::jsonb)` as never,
     );
 
     const summary = await reconcilePayments(testDatabase.db, PRODUCT_DEFAULTS, provider, {
@@ -524,6 +530,62 @@ describe("when the provider does not answer", () => {
     expect(parseContract(AdminPaymentDto, await after.json(), "AdminPayment").status).toBe(
       "REFUNDED",
     );
+  });
+
+  test("an ordered refund the provider never took is sent by the sweep", async () => {
+    /*
+     * The half of the marker's meaning that nothing else covers. The other
+     * tests all leave the money already gone at the provider; here the
+     * instruction was recorded and then genuinely never left — a `refundPayment`
+     * that threw before it reached anyone.
+     *
+     * The sweep sends it. That is the decision rather than an accident (ADR
+     * 0015): an operator ordered this refund, so a marker whose refund never
+     * left is a job half done, not a false alarm. It is also why the runbook
+     * says the button cannot be un-pressed, and this test is what would fail if
+     * somebody made the sweep "safer" by only recording what it finds.
+     */
+    const { paymentId, providerPaymentId } = await confirmedPayment("ana");
+    await testDatabase.db.execute(
+      `insert into audit_logs (actor, action, target_type, target_id, metadata)
+       values ('edu', 'payment.refund_attempted', 'payment', '${paymentId}', '{}'::jsonb)` as never,
+    );
+    // Nothing moved: the provider still holds it.
+    expect(await provider.getPaymentStatus(providerPaymentId)).toBe("CONFIRMED");
+
+    const summary = await reconcilePayments(testDatabase.db, PRODUCT_DEFAULTS, provider, {
+      now: NOW,
+    });
+    expect(summary.refunded).toBe(1);
+    expect(await provider.getPaymentStatus(providerPaymentId)).toBe("REFUNDED");
+
+    const after = await call(`/internal/admin/payments/${paymentId}`, { headers: ADMIN_HEADERS });
+    expect(parseContract(AdminPaymentDto, await after.json(), "AdminPayment").status).toBe(
+      "REFUNDED",
+    );
+  });
+
+  test("a settled refund is not sent a second time by a later sweep", async () => {
+    // The marker stays in the audit log forever, so the guard against a second
+    // refund is `refunded_at`, not the absence of a marker. A sweep that ran
+    // twice on a busy hour must not move money twice.
+    const { paymentId, providerPaymentId } = await confirmedPayment("ana");
+    await testDatabase.db.execute(
+      `insert into audit_logs (actor, action, target_type, target_id, metadata)
+       values ('edu', 'payment.refund_attempted', 'payment', '${paymentId}', '{}'::jsonb)` as never,
+    );
+
+    const first = await reconcilePayments(testDatabase.db, PRODUCT_DEFAULTS, provider, {
+      now: NOW,
+    });
+    expect(first.refunded).toBe(1);
+
+    const second = await reconcilePayments(testDatabase.db, PRODUCT_DEFAULTS, provider, {
+      now: NOW,
+    });
+    expect(second.examined).toBe(0);
+    expect(second.refunded).toBe(0);
+    expect(await provider.getPaymentStatus(providerPaymentId)).toBe("REFUNDED");
   });
 
   test("a payment nobody flagged is left alone by the sweep", async () => {

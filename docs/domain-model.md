@@ -247,7 +247,7 @@ with exactly one place that reacts to it.
 | Payment refunded | `applyPaymentEvent` | closed-period recomputation |
 | Creator became ineligible mid-flight | `applyPaymentEvent` | boost voided, refund issued; retried by `settleOwedRefunds` if that call fails |
 | Operator ordered a refund | `refundPaymentOnRequest` | the same transition service a webhook uses; audited as `payment.refunded_by_operator` with the operator's name and their reason |
-| An operator's refund is about to be sent | `refundPaymentOnRequest` | audited as `payment.refund_uncertain` **before** the provider is called, so a refund that moves money and then loses the write is still findable by `settleOwedRefunds` (ADR 0015) |
+| An operator's refund is about to be sent | `refundPaymentOnRequest` | audited as `payment.refund_attempted` **before** the provider is called, so a refund that moves money and then loses the write is still findable by `settleOwedRefunds` (ADR 0015) |
 | A boost transition was refused | `applyBoostSideEffect` | audited as `boost.transition_refused`; the payment still moves, the promotion's own history does not |
 | Weekly period ended | `runWeeklyRollover` | snapshots, champion, weekly recap |
 

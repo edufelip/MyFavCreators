@@ -385,15 +385,21 @@ export type OwedRefund = {
  * refused and a refund was owed. If that refund call failed, this is the only
  * record that it is still owed.
  *
- * An operator refund whose provider call timed out is the other. There the
- * boost is ACTIVE — the promotion really did run — and the audit log carries a
- * `payment.refund_uncertain` entry saying the instruction went out and the
- * answer never came back. Restricting this query to VOID boosts left exactly
- * that payment unreachable: CONFIRMED, so the unsettled sweep ignores it, and
- * not VOID, so this one did too. The money would simply have stayed here.
+ * An operator refund is the other. There the boost is ACTIVE — the promotion
+ * really did run — and the audit log carries a `payment.refund_attempted`
+ * entry, written *before* the provider was called (ADR 0015), so it is present
+ * whether the call succeeded, failed, or never came back. Restricting this
+ * query to VOID boosts left exactly that payment unreachable: CONFIRMED, so
+ * the unsettled sweep ignores it, and not VOID, so this one did too. The money
+ * would simply have stayed here.
  *
- * Both are only *candidates*. The provider is asked before anything is
- * recorded, so a candidate that was never actually refunded is left alone.
+ * These are *candidates*, not confirmed losses: a marker means an instruction
+ * went out, not that money moved. So the sweep asks the provider first — and
+ * then, for a candidate the provider says it never refunded, it sends the
+ * refund. That is the point rather than an accident. Both situations are ones
+ * where a refund is owed and was ordered; finding one still outstanding is a
+ * reason to complete it, not to record that nothing happened. `getPaymentStatus`
+ * is there to keep the already-refunded case from being refunded twice.
  */
 export async function listOwedRefunds(
   executor: DatabaseExecutor,
@@ -416,7 +422,7 @@ export async function listOwedRefunds(
           select 1 from audit_logs a
           where a.target_type = 'payment'
             and a.target_id = p.id::text
-            and a.action = 'payment.refund_uncertain'
+            and a.action = 'payment.refund_attempted'
         )
       )
     order by p.confirmed_at asc
