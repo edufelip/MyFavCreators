@@ -19,10 +19,26 @@ export const adminCopy = {
     // is exactly what somebody guessing would like to know.
     invalid: "Operador, senha ou código incorretos.",
     throttled: "Muitas tentativas. Aguarde alguns minutos.",
+    /*
+     * The one failure that says what went wrong, because the operator cannot
+     * fix it by trying again. It is only ever shown to somebody who already
+     * presented the published password and the published TOTP seed, so it
+     * reveals nothing they could not read in the repository it came from.
+     */
+    publishedCredentials:
+      "Estas credenciais são as de exemplo publicadas no repositório e não valem em produção. " +
+      "Cadastre um operador real com: bun run admin:operator '<nome>' '<senha>'",
   },
   error: {
     title: "A ação não foi concluída",
-    body: "Nada foi alterado. Tente de novo; se continuar, use a referência abaixo ao relatar.",
+    /*
+     * Not "nothing was changed". A provider call is not inside a transaction
+     * and cannot be, so a failure that reaches this page may have moved money —
+     * and telling an operator otherwise, next to a retry button, is the worst
+     * thing this page could say. The known cases now surface their own message
+     * on the screen they happened on; this is for the ones that do not.
+     */
+    body: "Confira o estado antes de repetir. Se continuar, use a referência abaixo ao relatar.",
     retry: "Tentar de novo",
     back: "Voltar para a moderação",
     reference: (digest: string) => `Referência: ${digest}`,

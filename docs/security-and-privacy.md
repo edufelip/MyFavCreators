@@ -119,6 +119,15 @@ there is no path that records an action nobody signed for.
 Failed sign-ins are budgeted per operator name rather than per client address,
 because a client-supplied address is not a budget an attacker has to respect.
 
+The operator `.env.example` ships is refused in production. Its password and TOTP
+secret are published in this repository so the admin app runs on a fresh clone,
+which makes it, in production, an account anybody can use to approve creators and
+issue refunds. The refusal is per credential rather than per registry: that one
+account is dead and every operator enrolled beside it still works, so a stale
+entry costs an account rather than the whole admin app. It is checked *after* the
+password and code match, so the message — the one sign-in failure that explains
+itself — only ever reaches somebody who already holds the published secrets.
+
 **Not done:** there is no account recovery. An operator who loses their second
 factor is re-enrolled by somebody with access to the environment, which is the
 right shape at this size but means the environment is the recovery mechanism.

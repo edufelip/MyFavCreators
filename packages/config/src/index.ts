@@ -4,6 +4,7 @@ export {
   encodeOperators,
   findOperator,
   isOperatorId,
+  usesPublishedExampleCredentials,
 } from "./operators";
 export { originSchema, portSchema } from "./origins";
 export { ConfigurationError, type EnvSource, parseOrThrow } from "./parse";

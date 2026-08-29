@@ -6,6 +6,20 @@ import { adminCopy } from "@/lib/copy";
 
 const INITIAL: LoginState = { error: null };
 
+/**
+ * A message per failure, looked up rather than chained.
+ *
+ * A ternary falls through to "wrong password" for anything it does not name, so
+ * a new outcome that nobody wired up here would show the operator a confident
+ * and wrong explanation. An unknown key shows the generic message instead,
+ * which is at least true.
+ */
+const LOGIN_ERRORS: Readonly<Record<string, string>> = {
+  throttled: adminCopy.login.throttled,
+  invalid: adminCopy.login.invalid,
+  "published-credentials": adminCopy.login.publishedCredentials,
+};
+
 const FIELD =
   "rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-base outline-none focus:border-white/40";
 
@@ -61,7 +75,7 @@ export function LoginForm() {
 
       {state.error === null ? null : (
         <p role="alert" data-testid="login-error" className="text-sm text-red-300">
-          {state.error === "throttled" ? adminCopy.login.throttled : adminCopy.login.invalid}
+          {LOGIN_ERRORS[state.error] ?? adminCopy.login.invalid}
         </p>
       )}
       <button

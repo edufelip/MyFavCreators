@@ -3,6 +3,7 @@ import {
   findOperator,
   hashPassword,
   isOperatorId,
+  usesPublishedExampleCredentials,
   verifyPassword,
   verifyTotp,
 } from "@creator-outdoor/config";
@@ -29,7 +30,15 @@ export type LoginAttempt = {
 export type LoginOutcome =
   | { readonly kind: "OK"; readonly operator: string }
   | { readonly kind: "THROTTLED" }
-  | { readonly kind: "INVALID" };
+  | { readonly kind: "INVALID" }
+  /**
+   * The credentials published in this repository, offered to a production
+   * deployment. Named rather than folded into `INVALID` because it is the one
+   * failure whose cause the person in front of the screen needs to know: they
+   * are holding a password anybody can read, and the fix is to enrol a real
+   * operator, not to try a different code.
+   */
+  | { readonly kind: "PUBLISHED_CREDENTIALS" };
 
 type Attempt = { count: number; resetAt: number };
 
@@ -65,11 +74,38 @@ const spentSteps = new Map<string, Set<number>>();
 /** A hash to check against when the name is unknown, so timing tells nothing. */
 const DECOY_HASH = hashPassword("decoy-for-constant-time-rejection");
 
+/**
+ * Where the example credentials are refused, and why it is here.
+ *
+ * `.env.example` ships a working operator so the admin app runs the moment
+ * somebody clones this repository — which means its password and TOTP seed are
+ * public. In production that is an account anybody on the internet can use to
+ * approve creators and issue refunds.
+ *
+ * The refusal was first written into `parseAdminConfig`, and that was wrong
+ * twice over. `next build` sets `NODE_ENV=production` too, so building the
+ * admin app locally failed on a check about deployments — the same conflation
+ * of "built for production" with "running in production" that the cookie
+ * `Secure` flag hit from the other side. And refusing at parse time is
+ * all-or-nothing: a deployment that enrolled a real operator but left the
+ * example entry behind lost its whole admin app over an account that grants
+ * nothing once this check exists.
+ *
+ * Here it costs a build nothing — a build signs nobody in — and it refuses
+ * exactly the credential that is public.
+ */
+export type AuthenticateOptions = {
+  /** True only when this process is actually serving production traffic. */
+  readonly isProduction: boolean;
+  readonly now?: number;
+};
+
 export function authenticateOperator(
   operators: readonly AdminOperator[],
   attempt: LoginAttempt,
-  now = Date.now(),
+  options: AuthenticateOptions,
 ): LoginOutcome {
+  const now = options.now ?? Date.now();
   /*
    * A name that could never be an operator is still budgeted, otherwise the
    * shape of a valid name is free to probe for. They all share one bucket: none
@@ -95,6 +131,19 @@ export function authenticateOperator(
   if (operator === null || !passwordMatches || step === null || isSpent(operator.id, step)) {
     recordFailure(key, now);
     return { kind: "INVALID" };
+  }
+
+  /*
+   * Checked after the credentials, not before. Answering "those are the example
+   * credentials" to somebody who did not present them tells an unauthenticated
+   * caller which accounts exist and which are unusable — the reconnaissance the
+   * single INVALID message exists to withhold. Whoever sees this message has
+   * already proved they hold the password and the TOTP seed, which is to say
+   * they have already read the file it came from.
+   */
+  if (options.isProduction && usesPublishedExampleCredentials(operator)) {
+    recordFailure(key, now);
+    return { kind: "PUBLISHED_CREDENTIALS" };
   }
 
   spend(operator.id, step);

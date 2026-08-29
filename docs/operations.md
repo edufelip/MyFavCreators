@@ -103,7 +103,7 @@ sent, and retrying is safe. The audit log carries `payment.refund_not_attempted`
 "O estorno foi enviado, mas o provedor não confirmou" means the instruction went
 out and the answer was lost. Whether the money moved is genuinely unknown from
 here, so **check the provider's own panel before retrying**. The audit log
-carries `payment.refund_uncertain`, and `bun run job:payment-reconcile` picks the
+carries `payment.refund_attempted`, and `bun run job:payment-reconcile` picks the
 payment up on its next run: it asks the provider, refunds if the money is still
 here, and records one that already happened. Doing nothing settles it either
 way; a support conversation usually cannot wait for the next run.
@@ -138,6 +138,19 @@ there is no separate revocation step and no session to hunt down.
 
 A locked-out operator is not a bug. Five failures against one name close that
 name for ten minutes, and the window is per name, so nobody else is affected.
+
+**`.env.example` ships a working operator, and production refuses it.** Its
+password (`creator-outdoor-dev`) and TOTP secret are in this repository, so in
+production it is an account anybody on the internet can use to approve creators
+and issue refunds. A production admin app rejects that sign-in and says so — the
+only failure on that screen that explains itself, because trying again cannot
+fix it. Every real operator enrolled beside it keeps working, so a deployment
+that forgot to drop the stale entry loses that account rather than its whole
+admin app.
+
+The check is at sign-in, not at startup, and not in the config parser. `next
+build` sets `NODE_ENV=production` too, so a parse-time refusal failed the build
+rather than the deployment; a build signs nobody in.
 
 ### The ranking looks wrong
 

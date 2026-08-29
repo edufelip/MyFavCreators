@@ -60,6 +60,31 @@ const registrySchema = z
     "operator ids must be unique",
   );
 
+/**
+ * The password hash `.env.example` ships.
+ *
+ * The neighbouring secrets say `change-me` in their own text; this one is an
+ * opaque base64 document, so somebody rotating the obvious ones has no cue that
+ * the third is a publicly known password and TOTP seed for an operator who can
+ * issue refunds.
+ */
+const PUBLISHED_EXAMPLE_HASH =
+  "scrypt:16384:8:1:OkqxKa7iUEjmq3If6l1SWA:cps2SknbPo1f2EylWCDts-N-647wGqaX7blQstoAfhcWto57sMe5YXEGaVziVuDEai3HXIUcFJNO6kCE0rjwLA";
+
+/**
+ * Whether this operator's credentials are the ones published in this repository.
+ *
+ * Asked of one operator rather than of the registry, and that is the whole
+ * point. "Does the file still contain the example?" can only be answered by
+ * refusing everything, which takes a working admin app down over a stale entry
+ * that may grant nothing. "May this credential sign in?" refuses exactly the
+ * operator whose password is public, and leaves every real operator alongside
+ * it working.
+ */
+export function usesPublishedExampleCredentials(operator: AdminOperator): boolean {
+  return operator.passwordHash === PUBLISHED_EXAMPLE_HASH;
+}
+
 export function encodeOperators(operators: readonly AdminOperator[]): string {
   return Buffer.from(JSON.stringify(operators), "utf8").toString("base64url");
 }
