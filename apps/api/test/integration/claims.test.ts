@@ -12,6 +12,7 @@ import {
   insertBoost,
   insertCategory,
   insertCreator,
+  rawSql,
   setCreatorModerationStatus,
   type TestDatabase,
 } from "@creator-outdoor/testkit";
@@ -180,7 +181,7 @@ describe("claiming a profile", () => {
   test("never stores the management token in the clear", async () => {
     const token = await claimed();
     const rows = (await testDatabase.db.execute(
-      "select token_hash from creator_claims" as never,
+      rawSql("select token_hash from creator_claims"),
     )) as Array<Record<string, unknown>>;
     expect(rows).toHaveLength(1);
     expect(String(rows[0]?.["token_hash"])).not.toContain(token);

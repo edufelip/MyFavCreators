@@ -5,6 +5,7 @@ import {
   createTestDatabase,
   insertCategory,
   insertCreator,
+  rawSql,
   setCreatorModerationStatus,
   type TestDatabase,
 } from "@creator-outdoor/testkit";
@@ -73,16 +74,16 @@ async function call(path: string, init?: RequestInit): Promise<Response> {
 
 async function providerPaymentIdFor(paymentId: string): Promise<string> {
   const rows = (await testDatabase.db.execute(
-    `select provider_payment_id from payments where id = '${paymentId}'` as never,
+    rawSql(`select provider_payment_id from payments where id = '${paymentId}'`),
   )) as Array<Record<string, unknown>>;
   return String(rows[0]?.["provider_payment_id"] ?? "");
 }
 
 async function paymentRow(paymentId: string) {
   const rows = (await testDatabase.db.execute(
-    `select p.status, p.refunded_at, b.status as boost_status
+    rawSql(`select p.status, p.refunded_at, b.status as boost_status
      from payments p join boosts b on b.payment_id = p.id
-     where p.id = '${paymentId}'` as never,
+     where p.id = '${paymentId}'`),
   )) as Array<Record<string, unknown>>;
   const row = rows[0];
   return {
@@ -194,7 +195,7 @@ describe("a refund the platform owes but could not make", () => {
     await reconcile();
 
     const rows = (await testDatabase.db.execute(
-      `select metadata from audit_logs where action = 'boost.transition_refused'` as never,
+      rawSql(`select metadata from audit_logs where action = 'boost.transition_refused'`),
     )) as Array<Record<string, unknown>>;
 
     // The guard is not silent. An operator reading the log can see that the

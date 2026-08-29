@@ -16,7 +16,7 @@ import {
   RANKING_PERIOD_TYPES,
   REJECTION_REASONS,
 } from "@creator-outdoor/domain";
-import { createTestDatabase, type TestDatabase } from "@creator-outdoor/testkit";
+import { createTestDatabase, rawSql, type TestDatabase } from "@creator-outdoor/testkit";
 
 /**
  * The domain's enums against the database's own.
@@ -39,11 +39,11 @@ afterAll(async () => {
 
 async function labelsOf(typeName: string): Promise<string[]> {
   const rows = (await testDatabase.db.execute(
-    `select e.enumlabel as label
+    rawSql(`select e.enumlabel as label
      from pg_enum e
      join pg_type t on t.oid = e.enumtypid
      where t.typname = '${typeName}'
-     order by e.enumsortorder` as never,
+     order by e.enumsortorder`),
   )) as Array<Record<string, unknown>>;
   return rows.map((row) => String(row["label"]));
 }
@@ -120,10 +120,10 @@ describe("every database enum holds exactly what the domain says", () => {
      * enum is added, nobody adds it here, and the guarantee quietly shrinks.
      */
     const rows = (await testDatabase.db.execute(
-      `select t.typname as name
+      rawSql(`select t.typname as name
        from pg_type t
        join pg_namespace n on n.oid = t.typnamespace
-       where t.typtype = 'e' and n.nspname = 'public'` as never,
+       where t.typtype = 'e' and n.nspname = 'public'`),
     )) as Array<Record<string, unknown>>;
 
     const inDatabase = rows.map((row) => String(row["name"])).sort();

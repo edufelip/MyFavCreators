@@ -10,6 +10,7 @@ import {
   createTestDatabase,
   insertCategory,
   insertCreator,
+  rawSql,
   type TestDatabase,
 } from "@creator-outdoor/testkit";
 import { createApp } from "../../src/app";
@@ -85,7 +86,7 @@ async function call(path: string, init?: RequestInit): Promise<Response> {
 
 async function providerPaymentIdFor(paymentId: string): Promise<string> {
   const rows = (await testDatabase.db.execute(
-    `select provider_payment_id from payments where id = '${paymentId}'` as never,
+    rawSql(`select provider_payment_id from payments where id = '${paymentId}'`),
   )) as Array<Record<string, unknown>>;
   return String(rows[0]?.["provider_payment_id"] ?? "");
 }
@@ -138,7 +139,7 @@ async function refund(paymentId: string, reason = "PIX duplicado, cliente pagou 
 
 async function auditEntries(action: string) {
   const rows = (await testDatabase.db.execute(
-    `select actor, metadata from audit_logs where action = '${action}'` as never,
+    rawSql(`select actor, metadata from audit_logs where action = '${action}'`),
   )) as Array<Record<string, unknown>>;
   return rows;
 }
@@ -244,8 +245,8 @@ describe("refunding on an operator's instruction", () => {
     expect(second.status).toBe(200);
 
     const events = (await testDatabase.db.execute(
-      `select count(*)::int as total from payment_events
-       where payload::text like '%admin%'` as never,
+      rawSql(`select count(*)::int as total from payment_events
+       where payload::text like '%admin%'`),
     )) as Array<Record<string, unknown>>;
     expect(events[0]?.["total"]).toBe(1);
   });
@@ -360,13 +361,13 @@ describe("what a refund is not", () => {
   test("the creator's own row is untouched by a refund", async () => {
     const { paymentId } = await confirmedPayment("ana");
     const before = (await testDatabase.db.execute(
-      `select updated_at from creators where slug = 'ana'` as never,
+      rawSql(`select updated_at from creators where slug = 'ana'`),
     )) as Array<Record<string, unknown>>;
 
     await refund(paymentId);
 
     const after = (await testDatabase.db.execute(
-      `select updated_at from creators where slug = 'ana'` as never,
+      rawSql(`select updated_at from creators where slug = 'ana'`),
     )) as Array<Record<string, unknown>>;
     expect(String(after[0]?.["updated_at"])).toBe(String(before[0]?.["updated_at"]));
   });
@@ -417,8 +418,8 @@ function appWith(target: PixPaymentProvider) {
 
 async function auditActions(paymentId: string): Promise<string[]> {
   const rows = (await testDatabase.db.execute(
-    `select action from audit_logs where target_type = 'payment' and target_id = '${paymentId}'
-     order by created_at asc` as never,
+    rawSql(`select action from audit_logs where target_type = 'payment' and target_id = '${paymentId}'
+     order by created_at asc`),
   )) as Array<Record<string, unknown>>;
   return rows.map((row) => String(row["action"]));
 }
@@ -517,8 +518,8 @@ describe("when the provider does not answer", () => {
     const { paymentId, providerPaymentId } = await confirmedPayment("ana");
     await provider.refundPayment(providerPaymentId);
     await testDatabase.db.execute(
-      `insert into audit_logs (actor, action, target_type, target_id, metadata)
-       values ('edu', 'payment.refund_attempted', 'payment', '${paymentId}', '{}'::jsonb)` as never,
+      rawSql(`insert into audit_logs (actor, action, target_type, target_id, metadata)
+       values ('edu', 'payment.refund_attempted', 'payment', '${paymentId}', '{}'::jsonb)`),
     );
 
     const summary = await reconcilePayments(testDatabase.db, PRODUCT_DEFAULTS, provider, {
@@ -547,8 +548,8 @@ describe("when the provider does not answer", () => {
      */
     const { paymentId, providerPaymentId } = await confirmedPayment("ana");
     await testDatabase.db.execute(
-      `insert into audit_logs (actor, action, target_type, target_id, metadata)
-       values ('edu', 'payment.refund_attempted', 'payment', '${paymentId}', '{}'::jsonb)` as never,
+      rawSql(`insert into audit_logs (actor, action, target_type, target_id, metadata)
+       values ('edu', 'payment.refund_attempted', 'payment', '${paymentId}', '{}'::jsonb)`),
     );
     // Nothing moved: the provider still holds it.
     expect(await provider.getPaymentStatus(providerPaymentId)).toBe("CONFIRMED");
@@ -571,8 +572,8 @@ describe("when the provider does not answer", () => {
     // twice on a busy hour must not move money twice.
     const { paymentId, providerPaymentId } = await confirmedPayment("ana");
     await testDatabase.db.execute(
-      `insert into audit_logs (actor, action, target_type, target_id, metadata)
-       values ('edu', 'payment.refund_attempted', 'payment', '${paymentId}', '{}'::jsonb)` as never,
+      rawSql(`insert into audit_logs (actor, action, target_type, target_id, metadata)
+       values ('edu', 'payment.refund_attempted', 'payment', '${paymentId}', '{}'::jsonb)`),
     );
 
     const first = await reconcilePayments(testDatabase.db, PRODUCT_DEFAULTS, provider, {
@@ -600,8 +601,8 @@ describe("when the provider does not answer", () => {
     const { paymentId, providerPaymentId } = await confirmedPayment("ana");
     await provider.refundPayment(providerPaymentId);
     await testDatabase.db.execute(
-      `insert into audit_logs (actor, action, target_type, target_id, metadata)
-       values ('edu', 'payment.refund_uncertain', 'payment', '${paymentId}', '{}'::jsonb)` as never,
+      rawSql(`insert into audit_logs (actor, action, target_type, target_id, metadata)
+       values ('edu', 'payment.refund_uncertain', 'payment', '${paymentId}', '{}'::jsonb)`),
     );
 
     const summary = await reconcilePayments(testDatabase.db, PRODUCT_DEFAULTS, provider, {

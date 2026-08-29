@@ -8,6 +8,7 @@ import {
   insertBoost,
   insertCategory,
   insertCreator,
+  rawSql,
   refundBoost,
   type TestDatabase,
 } from "@creator-outdoor/testkit";
@@ -63,9 +64,9 @@ async function creatorWithRotation(slug: string, hoursLeft: number, amountCents 
     confirmedAt: NOW,
   });
   await testDatabase.db.execute(
-    `update boosts set rotation_starts_at = '${NOW.toISOString()}',
+    rawSql(`update boosts set rotation_starts_at = '${NOW.toISOString()}',
        rotation_ends_at = '${new Date(NOW.getTime() + hoursLeft * 3_600_000).toISOString()}'
-     where id = '${ids.boostId}'` as never,
+     where id = '${ids.boostId}'`),
   );
   return { creator, ids };
 }
@@ -93,8 +94,8 @@ describe("rotation", () => {
         confirmedAt: NOW,
       });
       await testDatabase.db.execute(
-        `update boosts set rotation_ends_at = '${new Date(NOW.getTime() + 3_600_000).toISOString()}'
-         where id = '${ids.boostId}'` as never,
+        rawSql(`update boosts set rotation_ends_at = '${new Date(NOW.getTime() + 3_600_000).toISOString()}'
+         where id = '${ids.boostId}'`),
       );
     }
 
@@ -113,7 +114,7 @@ describe("rotation", () => {
   test("excludes a creator who stopped being publicly eligible", async () => {
     const { creator } = await creatorWithRotation("removido", 5);
     await testDatabase.db.execute(
-      `update creators set moderation_status = 'REMOVED' where id = '${creator.id}'` as never,
+      rawSql(`update creators set moderation_status = 'REMOVED' where id = '${creator.id}'`),
     );
     const rotation = parseContract(
       RotationResponseDto,

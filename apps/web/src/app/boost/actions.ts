@@ -1,6 +1,7 @@
 "use server";
 
 import type { BoostOrigin } from "@creator-outdoor/contracts";
+import { sanitize } from "@creator-outdoor/domain";
 import { redirect } from "next/navigation";
 import { createBoost, RateLimitedError } from "@/lib/api";
 import { copy } from "@/lib/copy";
@@ -61,7 +62,10 @@ export async function startBoostAction(
     if (error instanceof RateLimitedError) {
       return { error: "Muitas tentativas em pouco tempo. Tente novamente mais tarde." };
     }
-    console.error("boost_creation_failed", error instanceof Error ? error.message : "unknown");
+    console.error(
+      "boost_creation_failed",
+      sanitize(error instanceof Error ? error.message : "unknown"),
+    );
     return { error: copy.boostForm.failed };
   }
 

@@ -5,6 +5,7 @@ import {
   createTestDatabase,
   insertCategory,
   insertCreator,
+  rawSql,
   type TestDatabase,
 } from "@creator-outdoor/testkit";
 import { createApp } from "../../src/app";
@@ -78,7 +79,7 @@ async function approvedCreator(slug: string) {
 
 async function providerPaymentIdFor(paymentId: string): Promise<string> {
   const rows = await testDatabase.db.execute(
-    `select provider_payment_id from payments where id = '${paymentId}'` as never,
+    rawSql(`select provider_payment_id from payments where id = '${paymentId}'`),
   );
   const row = (rows as Array<Record<string, unknown>>)[0];
   return String(row?.["provider_payment_id"] ?? "");
@@ -124,7 +125,7 @@ async function boost(
 
 async function subscriptionCount(): Promise<number> {
   const rows = (await testDatabase.db.execute(
-    "select count(*)::int as total from notification_subscriptions" as never,
+    rawSql("select count(*)::int as total from notification_subscriptions"),
   )) as Array<Record<string, unknown>>;
   return Number(rows[0]?.["total"] ?? 0);
 }
@@ -260,7 +261,7 @@ describe("the dethrone notification", () => {
 describe("unsubscribing", () => {
   async function tokenFor(email_: string): Promise<string> {
     const rows = (await testDatabase.db.execute(
-      `select unsub_token from notification_subscriptions where email = '${email_}'` as never,
+      rawSql(`select unsub_token from notification_subscriptions where email = '${email_}'`),
     )) as Array<Record<string, unknown>>;
     return String(rows[0]?.["unsub_token"] ?? "");
   }
@@ -312,7 +313,9 @@ describe("unsubscribing", () => {
 
     // And it really switched something off, rather than merely answering.
     const rows = (await testDatabase.db.execute(
-      `select disabled_at from notification_subscriptions where email = 'clicou@example.com'` as never,
+      rawSql(
+        `select disabled_at from notification_subscriptions where email = 'clicou@example.com'`,
+      ),
     )) as Array<Record<string, unknown>>;
     expect(rows[0]?.["disabled_at"]).not.toBeNull();
   });

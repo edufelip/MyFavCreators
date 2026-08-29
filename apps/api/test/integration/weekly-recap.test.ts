@@ -6,6 +6,7 @@ import {
   insertBoost,
   insertCategory,
   insertCreator,
+  rawSql,
   setCreatorModerationStatus,
   type TestDatabase,
 } from "@creator-outdoor/testkit";
@@ -137,7 +138,7 @@ describe("the weekly recap", () => {
   test("skips somebody who unsubscribed", async () => {
     await creatorWithFollower("nao-quer", "torcedora@example.com", 1_000);
     await testDatabase.db.execute(
-      `update notification_subscriptions set disabled_at = now()` as never,
+      rawSql("update notification_subscriptions set disabled_at = now()"),
     );
 
     expect(await run()).toEqual({ considered: 0, sent: 0, skipped: 0, failed: 0 });

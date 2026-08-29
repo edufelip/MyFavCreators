@@ -152,24 +152,10 @@ recognise the shape, not as a to-do list:
 
 Small, deliberate, and stated so nobody thinks they are oversights:
 
-1. **`apps/web` logs `error.message` in fourteen places** without the API's
-   sanitiser, on paths carrying an address, a supporter's name and a creator's
-   URL. Safe *today* only because contract errors name the path and the rule and
-   never quote the value — a property nothing recorded until
-   `packages/contracts/test/errors.test.ts` pinned it. The real fix is a shared
-   sanitiser both apps can import; there is no natural home for it yet
-   (`packages/config` is env handling, `packages/domain` is pure rules).
-2. **`as never` on test SQL** — 44 occurrences, all in tests, to satisfy
-   `db.execute`. It is a repo-wide convention but it *is* a type-silencing
-   assertion under the hard rules. A typed `sql` helper in
-   `packages/testkit` would remove the whole class.
-3. **`RATE_LIMIT_IMPRESSIONS_PER_MINUTE` is not raised in CI** with the other
-   five. Measured to have headroom at 240, so it is optional — but it is the one
-   limit that could make CI flaky under load.
-4. **No per-operator authorisation.** Every enrolled operator can do everything,
+1. **No per-operator authorisation.** Every enrolled operator can do everything,
    refunds included. Documented in `docs/security-and-privacy.md` as a
    deliberate choice at this size, not an oversight.
-5. **No account recovery.** An operator who loses their second factor is
+2. **No account recovery.** An operator who loses their second factor is
    re-enrolled by somebody with environment access.
 
 ## Where to read next

@@ -1,5 +1,6 @@
 "use server";
 
+import { sanitize } from "@creator-outdoor/domain";
 import { RateLimitedError, submitCreatorUrl } from "@/lib/api";
 import type { SubmissionState } from "./state";
 
@@ -37,7 +38,10 @@ export async function submitCreatorAction(
         creatorSlug: null,
       };
     }
-    console.error("submission_failed", error instanceof Error ? error.message : "unknown");
+    console.error(
+      "submission_failed",
+      sanitize(error instanceof Error ? error.message : "unknown"),
+    );
     return {
       outcome: null,
       message: "Não foi possível enviar agora. Tente novamente em instantes.",

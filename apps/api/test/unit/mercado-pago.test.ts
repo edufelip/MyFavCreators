@@ -49,7 +49,9 @@ describe("status mapping", () => {
     for (const status of ["approved", "pending", "rejected", "cancelled", "expired", "refunded"]) {
       const mapped = mapMercadoPagoStatus(status);
       expect(mapped).not.toBeNull();
-      expect(PAYMENT_STATUSES).toContain(mapped as never);
+      if (mapped !== null) {
+        expect(PAYMENT_STATUSES).toContain(mapped);
+      }
     }
   });
 });

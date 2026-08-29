@@ -10,6 +10,7 @@ import {
   createTestDatabase,
   insertCategory,
   insertCreator,
+  rawSql,
   setCreatorModerationStatus,
   type TestDatabase,
 } from "@creator-outdoor/testkit";
@@ -101,7 +102,7 @@ async function deliverWebhook(payload: Record<string, unknown>) {
 async function providerPaymentIdFor(paymentId: string): Promise<string> {
   const rows = await testDatabase.db.execute(
     // Reading the provider identifier is a test-only concern; it is never public.
-    `select provider_payment_id from payments where id = '${paymentId}'` as never,
+    rawSql(`select provider_payment_id from payments where id = '${paymentId}'`),
   );
   const row = (rows as Array<Record<string, unknown>>)[0];
   return String(row?.["provider_payment_id"] ?? "");
@@ -219,7 +220,9 @@ describe("creating a boost", () => {
     });
     const checkout = parseContract(CheckoutDto, body, "Checkout");
     const rows = (await testDatabase.db.execute(
-      `select supporter_name, supporter_message, anonymous from boosts where id = '${checkout.boostId}'` as never,
+      rawSql(
+        `select supporter_name, supporter_message, anonymous from boosts where id = '${checkout.boostId}'`,
+      ),
     )) as Array<Record<string, unknown>>;
     expect(rows[0]?.["supporter_name"]).toBeNull();
     expect(rows[0]?.["supporter_message"]).toBeNull();
@@ -235,8 +238,8 @@ describe("stored payment metadata", () => {
     // Drizzle's built-in jsonb() plus Bun's SQL driver would double-encode this
     // into a JSON string, making every `->>` lookup null for ever.
     const rows = (await testDatabase.db.execute(
-      `select jsonb_typeof(raw_metadata) as type, raw_metadata->>'origin' as origin
-       from payments where id = '${checkout.paymentId}'` as never,
+      rawSql(`select jsonb_typeof(raw_metadata) as type, raw_metadata->>'origin' as origin
+       from payments where id = '${checkout.paymentId}'`),
     )) as Array<Record<string, unknown>>;
     expect(rows[0]?.["type"]).toBe("object");
     expect(rows[0]?.["origin"]).toBe("DIRECT");
@@ -250,7 +253,7 @@ describe("stored payment metadata", () => {
     await deliverWebhook({ eventId: "evt-json-r", providerPaymentId, status: "REFUNDED" });
 
     const events = (await testDatabase.db.execute(
-      "select jsonb_typeof(payload) as type from payment_events" as never,
+      rawSql("select jsonb_typeof(payload) as type from payment_events"),
     )) as Array<Record<string, unknown>>;
     expect(events.length).toBeGreaterThan(0);
     for (const event of events) {
@@ -258,7 +261,7 @@ describe("stored payment metadata", () => {
     }
 
     const audits = (await testDatabase.db.execute(
-      "select jsonb_typeof(metadata) as type from audit_logs" as never,
+      rawSql("select jsonb_typeof(metadata) as type from audit_logs"),
     )) as Array<Record<string, unknown>>;
     expect(audits.length).toBeGreaterThan(0);
     for (const audit of audits) {
@@ -332,7 +335,9 @@ describe("payment confirmation", () => {
     await deliverWebhook({ eventId: "evt-rot", providerPaymentId, status: "CONFIRMED" });
 
     const rows = (await testDatabase.db.execute(
-      `select rotation_starts_at, rotation_ends_at, confirmed_at from boosts where id = '${checkout.boostId}'` as never,
+      rawSql(
+        `select rotation_starts_at, rotation_ends_at, confirmed_at from boosts where id = '${checkout.boostId}'`,
+      ),
     )) as Array<Record<string, unknown>>;
     const startsAt = new Date(String(rows[0]?.["rotation_starts_at"]));
     const endsAt = new Date(String(rows[0]?.["rotation_ends_at"]));

@@ -15,5 +15,6 @@ export * from "./payment";
 export * from "./periods";
 export * from "./ranking";
 export * from "./rotation";
+export * from "./sanitization";
 export * from "./supporter";
 export * from "./url";

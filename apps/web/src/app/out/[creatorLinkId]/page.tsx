@@ -1,3 +1,4 @@
+import { sanitize } from "@creator-outdoor/domain";
 import { headers } from "next/headers";
 import { notFound, RedirectType, redirect } from "next/navigation";
 import { readAnalyticsSession } from "@/lib/analytics-session";
@@ -36,7 +37,10 @@ export default async function OutboundRedirect({ params }: OutboundPageProps) {
     const resolved = await resolveOutboundLink(creatorLinkId, sessionId, headerList.get("referer"));
     destination = resolved?.url ?? null;
   } catch (error) {
-    console.error("outbound_redirect_failed", error instanceof Error ? error.message : "unknown");
+    console.error(
+      "outbound_redirect_failed",
+      sanitize(error instanceof Error ? error.message : "unknown"),
+    );
   }
 
   if (destination === null) {

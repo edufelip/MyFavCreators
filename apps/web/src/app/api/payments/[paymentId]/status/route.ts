@@ -1,3 +1,4 @@
+import { sanitize } from "@creator-outdoor/domain";
 import { fetchPaymentStatus } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +26,7 @@ export async function GET(
   } catch (error) {
     console.error(
       "payment_status_proxy_failed",
-      error instanceof Error ? error.message : "unknown",
+      sanitize(error instanceof Error ? error.message : "unknown"),
     );
     return Response.json({ error: "unavailable" }, { status: 502 });
   }

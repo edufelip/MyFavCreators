@@ -1,6 +1,7 @@
 "use server";
 
 import type { ReportReason } from "@creator-outdoor/contracts";
+import { sanitize } from "@creator-outdoor/domain";
 import { reportCreator, requestCreatorOptOut, verifyCreatorOptOut } from "@/lib/api";
 import { copy } from "@/lib/copy";
 import { INITIAL_OWNERSHIP_STATE, type OwnershipState, type ReportState } from "./state";
@@ -33,7 +34,10 @@ export async function requestOptOutAction(
       outcome: null,
     };
   } catch (error) {
-    console.error("opt_out_request_failed", error instanceof Error ? error.message : "unknown");
+    console.error(
+      "opt_out_request_failed",
+      sanitize(error instanceof Error ? error.message : "unknown"),
+    );
     return { ...INITIAL_OWNERSHIP_STATE, stage: "failed", message: copy.submission.unavailable };
   }
 }
@@ -55,7 +59,10 @@ export async function verifyOptOutAction(
       outcome: result.outcome,
     };
   } catch (error) {
-    console.error("opt_out_verify_failed", error instanceof Error ? error.message : "unknown");
+    console.error(
+      "opt_out_verify_failed",
+      sanitize(error instanceof Error ? error.message : "unknown"),
+    );
     return { ...previous, stage: "failed", message: copy.submission.unavailable };
   }
 }
@@ -73,7 +80,7 @@ export async function reportCreatorAction(
     });
     return { message: result.message };
   } catch (error) {
-    console.error("report_failed", error instanceof Error ? error.message : "unknown");
+    console.error("report_failed", sanitize(error instanceof Error ? error.message : "unknown"));
     return { message: copy.submission.unavailable };
   }
 }

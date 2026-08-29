@@ -1,4 +1,5 @@
 import { webConfig } from "@creator-outdoor/config/web";
+import { sanitize } from "@creator-outdoor/domain";
 import { readAnalyticsSession } from "@/lib/analytics-session";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +50,10 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("badge_proxy_failed", error instanceof Error ? error.message : "unknown");
+    console.error(
+      "badge_proxy_failed",
+      sanitize(error instanceof Error ? error.message : "unknown"),
+    );
     return new Response(null, { status: 502 });
   }
 }

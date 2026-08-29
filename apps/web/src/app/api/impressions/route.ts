@@ -1,4 +1,5 @@
 import { ImpressionBatchRequestDto, matchesContract } from "@creator-outdoor/contracts";
+import { sanitize } from "@creator-outdoor/domain";
 import { readOrCreateAnalyticsSession } from "@/lib/analytics-session";
 import { RateLimitedError, reportImpressions } from "@/lib/api";
 
@@ -47,7 +48,10 @@ export async function POST(request: Request): Promise<Response> {
     await reportImpressions(await readOrCreateAnalyticsSession(), payload.entries);
   } catch (error) {
     if (!(error instanceof RateLimitedError)) {
-      console.error("impression_ingest_failed", error instanceof Error ? error.message : "unknown");
+      console.error(
+        "impression_ingest_failed",
+        sanitize(error instanceof Error ? error.message : "unknown"),
+      );
     }
   }
   return noContent;

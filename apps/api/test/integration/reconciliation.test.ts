@@ -13,6 +13,7 @@ import {
   insertBoost,
   insertCategory,
   insertCreator,
+  rawSql,
   setCreatorModerationStatus,
   type TestDatabase,
 } from "@creator-outdoor/testkit";
@@ -114,7 +115,7 @@ async function boostFor(
 
 async function providerPaymentIdFor(paymentId: string): Promise<string> {
   const rows = await testDatabase.db.execute(
-    `select provider_payment_id from payments where id = '${paymentId}'` as never,
+    rawSql(`select provider_payment_id from payments where id = '${paymentId}'`),
   );
   const row = (rows as Array<Record<string, unknown>>)[0];
   return String(row?.["provider_payment_id"] ?? "");
@@ -126,7 +127,7 @@ async function providerPaymentIdFor(paymentId: string): Promise<string> {
  */
 async function backdatePayments(minutes = 60): Promise<void> {
   const at = new Date(NOW.getTime() - minutes * 60_000).toISOString();
-  await testDatabase.db.execute(`update payments set updated_at = '${at}'` as never);
+  await testDatabase.db.execute(rawSql(`update payments set updated_at = '${at}'`));
 }
 
 async function reconcile(

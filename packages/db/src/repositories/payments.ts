@@ -234,6 +234,10 @@ export async function claimPaymentEvent(
     readonly payload: unknown;
   },
 ): Promise<boolean> {
+  const payloadObject =
+    typeof input.payload === "object" && input.payload !== null && !Array.isArray(input.payload)
+      ? (input.payload as Record<string, unknown>)
+      : {};
   const rows = await executor
     .insert(paymentEvents)
     .values({
@@ -242,7 +246,7 @@ export async function claimPaymentEvent(
       eventFingerprint: input.eventFingerprint,
       fromStatus: input.fromStatus,
       toStatus: input.toStatus,
-      payload: input.payload as never,
+      payload: payloadObject,
     })
     .onConflictDoNothing({ target: paymentEvents.eventFingerprint })
     .returning({ id: paymentEvents.id });

@@ -1,5 +1,6 @@
 "use server";
 
+import { sanitize } from "@creator-outdoor/domain";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -45,7 +46,10 @@ export async function requestClaimAction(
       outcome: null,
     };
   } catch (error) {
-    console.error("claim_request_failed", error instanceof Error ? error.message : "unknown");
+    console.error(
+      "claim_request_failed",
+      sanitize(error instanceof Error ? error.message : "unknown"),
+    );
     return { ...INITIAL_CLAIM_STATE, stage: "failed", message: copy.submission.unavailable };
   }
 }
@@ -83,7 +87,10 @@ export async function verifyClaimAction(
     }
     await storeManageToken(result.manageToken);
   } catch (error) {
-    console.error("claim_verify_failed", error instanceof Error ? error.message : "unknown");
+    console.error(
+      "claim_verify_failed",
+      sanitize(error instanceof Error ? error.message : "unknown"),
+    );
     return { ...previous, stage: "failed", message: copy.submission.unavailable };
   }
 
@@ -110,7 +117,10 @@ export async function updateProfileAction(
       return { message: copy.manage.signedOut, saved: false };
     }
   } catch (error) {
-    console.error("profile_update_failed", error instanceof Error ? error.message : "unknown");
+    console.error(
+      "profile_update_failed",
+      sanitize(error instanceof Error ? error.message : "unknown"),
+    );
     return { message: copy.manage.unavailable, saved: false };
   }
 
@@ -158,7 +168,10 @@ export async function setNotificationsAction(
       return { message: copy.manage.notificationsNeedEmail, saved: false };
     }
   } catch (error) {
-    console.error("notification_pref_failed", error instanceof Error ? error.message : "unknown");
+    console.error(
+      "notification_pref_failed",
+      sanitize(error instanceof Error ? error.message : "unknown"),
+    );
     return { message: copy.manage.unavailable, saved: false };
   }
 

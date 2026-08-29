@@ -1,5 +1,6 @@
 "use server";
 
+import { sanitize } from "@creator-outdoor/domain";
 import { unsubscribeFromNotifications } from "@/lib/api";
 import type { UnsubscribeState } from "./state";
 
@@ -23,7 +24,10 @@ export async function unsubscribeAction(
   try {
     await unsubscribeFromNotifications(token);
   } catch (error) {
-    console.error("unsubscribe_failed", error instanceof Error ? error.message : "unknown");
+    console.error(
+      "unsubscribe_failed",
+      sanitize(error instanceof Error ? error.message : "unknown"),
+    );
     return { status: "error" };
   }
   return { status: "done" };

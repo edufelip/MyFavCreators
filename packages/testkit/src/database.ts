@@ -1,6 +1,15 @@
 import { applyMigrations, closeDatabase, createDatabase, type Database } from "@creator-outdoor/db";
 import { sql } from "drizzle-orm";
 
+export { sql };
+
+/**
+ * Wraps a raw SQL string into a typed SQL expression for test queries.
+ */
+export function rawSql(statement: string) {
+  return sql.raw(statement);
+}
+
 /** Tables truncated between tests, ordered so foreign keys stay satisfied. */
 const ALL_TABLES = [
   "rank_events",

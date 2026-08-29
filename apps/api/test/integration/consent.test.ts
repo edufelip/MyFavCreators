@@ -5,6 +5,7 @@ import {
   createTestDatabase,
   insertCategory,
   insertCreator,
+  rawSql,
   type TestDatabase,
 } from "@creator-outdoor/testkit";
 import { createApp } from "../../src/app";
@@ -86,7 +87,7 @@ async function approvedCreator(slug: string) {
 
 async function providerPaymentIdFor(paymentId: string): Promise<string> {
   const rows = (await testDatabase.db.execute(
-    `select provider_payment_id from payments where id = '${paymentId}'` as never,
+    rawSql(`select provider_payment_id from payments where id = '${paymentId}'`),
   )) as Array<Record<string, unknown>>;
   return String(rows[0]?.["provider_payment_id"] ?? "");
 }
@@ -134,7 +135,9 @@ async function boost(creatorSlug: string, amountCents: number, options: BoostOpt
 
 async function subscriptions(): Promise<Array<{ email: string; type: string }>> {
   const rows = (await testDatabase.db.execute(
-    "select email, type from notification_subscriptions where disabled_at is null order by type" as never,
+    rawSql(
+      "select email, type from notification_subscriptions where disabled_at is null order by type",
+    ),
   )) as Array<Record<string, unknown>>;
   return rows.map((row) => ({ email: String(row["email"]), type: String(row["type"]) }));
 }
@@ -242,7 +245,7 @@ describe("the notification consent box", () => {
     });
 
     const rows = (await testDatabase.db.execute(
-      "select notify_on_dethrone, notify_weekly_recap from boosts" as never,
+      rawSql("select notify_on_dethrone, notify_weekly_recap from boosts"),
     )) as Array<Record<string, unknown>>;
     expect(rows).toHaveLength(1);
     expect(rows[0]?.["notify_on_dethrone"]).toBe(true);
@@ -264,8 +267,8 @@ describe("the notification consent box", () => {
     expect(await subscriptions()).toEqual([{ email: "quem.mudou@example.com", type: "DETHRONE" }]);
 
     await testDatabase.db.execute(
-      `update notification_subscriptions set disabled_at = now()
-       where email = 'quem.mudou@example.com'` as never,
+      rawSql(`update notification_subscriptions set disabled_at = now()
+       where email = 'quem.mudou@example.com'`),
     );
     expect(await subscriptions()).toEqual([]);
 
@@ -281,8 +284,8 @@ describe("the notification consent box", () => {
       notifyWeeklyRecap: true,
     });
     await testDatabase.db.execute(
-      `update notification_subscriptions set disabled_at = now()
-       where email = 'declinou@example.com'` as never,
+      rawSql(`update notification_subscriptions set disabled_at = now()
+       where email = 'declinou@example.com'`),
     );
 
     await boost("declina-depois", 2_000, {

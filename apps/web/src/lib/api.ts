@@ -48,6 +48,7 @@ import {
   type UnsubscribeResponseDto,
   UnsubscribeResponseDto as UnsubscribeSchema,
 } from "@creator-outdoor/contracts";
+import { sanitize } from "@creator-outdoor/domain";
 import { headers } from "next/headers";
 
 export const RANKING_TABS = ["weekly", "all-time"] as const;
@@ -97,7 +98,10 @@ export async function loadLeaderboard(request: LeaderboardRequest): Promise<Lead
   try {
     return { ok: true, data: await fetchLeaderboard(request) };
   } catch (error) {
-    console.error("leaderboard_fetch_failed", error instanceof Error ? error.message : "unknown");
+    console.error(
+      "leaderboard_fetch_failed",
+      sanitize(error instanceof Error ? error.message : "unknown"),
+    );
     return { ok: false };
   }
 }
@@ -579,7 +583,10 @@ export async function loadOptional<TResult>(load: () => Promise<TResult>): Promi
   try {
     return await load();
   } catch (error) {
-    console.error("optional_surface_failed", error instanceof Error ? error.message : "unknown");
+    console.error(
+      "optional_surface_failed",
+      sanitize(error instanceof Error ? error.message : "unknown"),
+    );
     return null;
   }
 }

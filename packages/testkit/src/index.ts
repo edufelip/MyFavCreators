@@ -1,6 +1,8 @@
 export {
   createTestDatabase,
+  rawSql,
   resolveTestDatabaseUrl,
+  sql,
   type TestDatabase,
 } from "./database";
 export {
