@@ -258,3 +258,38 @@ describe("invisible characters", () => {
     }
   });
 });
+
+describe("the words the specification did not think of", () => {
+  /**
+   * Each of these was added because the published list covers only the words
+   * somebody thought of, and that stops working the moment somebody thinks of
+   * another. Without this, deleting any of them leaves the suite green.
+   */
+  test("names the same idea by its other names", () => {
+    for (const claim of [
+      "Financiamento coletivo para criadores",
+      "Deixe algo na caixinha",
+      "Colabore com o criador",
+      "Participe da rifa semanal",
+      "Crowdfunding for creators",
+    ]) {
+      expect(affirmativeUses(claim).length, claim).toBeGreaterThan(0);
+    }
+  });
+
+  test("and still lets each of them be denied", () => {
+    // The exemption has to reach these too, or /regras cannot answer "is this
+    // a financiamento coletivo?" — which is the question it exists for.
+    for (const denial of [
+      "Não é financiamento coletivo.",
+      "Não é caixinha.",
+      "Ninguém colabora com o criador aqui.",
+      "Não é rifa.",
+    ]) {
+      expect(
+        affirmativeUses(denial).map((use) => use.term),
+        denial,
+      ).toEqual([]);
+    }
+  });
+});

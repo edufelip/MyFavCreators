@@ -261,6 +261,27 @@ describe("the credentials published in this repository", () => {
     ).toBe("PUBLISHED_CREDENTIALS");
   });
 
+  test("say nothing to somebody who did not present the credentials", () => {
+    /*
+     * The message names the published credentials, so where it is checked
+     * matters as much as what it checks. Before the password and the code, it
+     * would tell an unauthenticated caller which accounts exist and which are
+     * unusable — the reconnaissance the single INVALID message exists to
+     * withhold. Moving the check earlier leaves every other assertion here
+     * green, so this is what holds it in place.
+     */
+    for (const wrong of [
+      { ...publishedAttempt, password: "chute" },
+      { ...publishedAttempt, code: "000000" },
+      { ...publishedAttempt, password: "chute", code: "000000" },
+    ]) {
+      expect(
+        authenticateOperator(published, wrong, { isLiveDeployment: true, now: NOW }).kind,
+        JSON.stringify(wrong),
+      ).toBe("INVALID");
+    }
+  });
+
   test("are refused when only the password was rotated, leaving the public seed", () => {
     /*
      * The likely mistake rather than an unlikely one. Somebody who reads "this
