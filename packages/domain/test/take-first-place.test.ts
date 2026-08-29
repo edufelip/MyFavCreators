@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { moneyCents } from "../src/money";
-import { calculateTakeFirstPlace, takeFirstPlaceQuote } from "../src/ranking";
+import {
+  calculateOvertakeQuote,
+  calculateTakeFirstPlace,
+  takeFirstPlaceQuote,
+} from "../src/ranking";
 import { cents } from "./support";
 
 const MIN_INCREMENT = moneyCents(100);
@@ -82,5 +86,29 @@ describe("takeFirstPlaceQuote", () => {
     // simply whatever the ranking says, and #1 is not guaranteed.
     expect(cents(creatorAfterPaying)).toBe(48800);
     expect(creatorAfterPaying < leaderNow).toBe(true);
+  });
+});
+
+describe("calculateOvertakeQuote", () => {
+  test("calculates quote to overtake a mid-ranking competitor or reach Top 3", () => {
+    // Creator has R$ 50, Target has R$ 80 -> needs R$ 31 (gap R$ 30 + R$ 1 increment)
+    const needed = calculateOvertakeQuote({
+      targetCreatorAmountCents: moneyCents(8000),
+      creatorAmountCents: moneyCents(5000),
+      minIncrementCents: MIN_INCREMENT,
+      minBoostCents: MIN_BOOST,
+    });
+    expect(cents(needed)).toBe(3100);
+  });
+
+  test("floors small gap to minimum boost", () => {
+    // Gap is R$ 2 -> raw is R$ 3, floored to R$ 5
+    const needed = calculateOvertakeQuote({
+      targetCreatorAmountCents: moneyCents(5200),
+      creatorAmountCents: moneyCents(5000),
+      minIncrementCents: MIN_INCREMENT,
+      minBoostCents: MIN_BOOST,
+    });
+    expect(cents(needed)).toBe(500);
   });
 });

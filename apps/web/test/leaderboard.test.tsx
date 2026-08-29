@@ -126,6 +126,12 @@ describe("Billboard", () => {
     expect(cta.textContent).toBe("IMPULSIONAR");
     expect(cta.getAttribute("href")).toBe("/criador/luna-verso#impulsionar");
   });
+
+  test("renders heat mode urgency badge when heatMode is active", () => {
+    render(<Billboard leader={entry()} heatMode={true} />);
+    const billboard = screen.getByTestId("billboard");
+    expect(within(billboard).getByText("DECIDE HOJE")).toBeDefined();
+  });
 });
 
 describe("Leaderboard", () => {

@@ -112,7 +112,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           <p className="text-sm text-white/60 sm:text-base">{copy.hero.subheadline}</p>
         </section>
 
-        {leader === null ? null : <Billboard leader={leader} />}
+        {leader === null ? null : <Billboard leader={leader} heatMode={heat} />}
 
         {boostableCreators.length === 0 ? null : (
           <section aria-label={copy.boostForm.title} className="flex flex-col gap-4">

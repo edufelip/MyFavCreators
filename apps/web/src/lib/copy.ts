@@ -37,6 +37,7 @@ export const copy = {
     viewProfile: "VER PERFIL",
     /** The quote is calculated against the ranking at this moment. */
     takeFirstPlace: (amount: string) => `Assuma o #1 por ${amount}`,
+    overtake: (amount: string, targetRank: number) => `Alcance o #${targetRank} por ${amount}`,
   },
 
   /**

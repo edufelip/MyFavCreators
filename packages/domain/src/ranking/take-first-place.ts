@@ -7,6 +7,22 @@ export type TakeFirstPlaceInput = {
   readonly minBoostCents: MoneyCents;
 };
 
+export type TargetRankQuoteInput = {
+  readonly targetCreatorAmountCents: MoneyCents;
+  readonly creatorAmountCents: MoneyCents;
+  readonly minIncrementCents: MoneyCents;
+  readonly minBoostCents: MoneyCents;
+};
+
+/**
+ * The amount required to overtake a target score in the ranking.
+ */
+export function calculateOvertakeQuote(input: TargetRankQuoteInput): MoneyCents {
+  const gap = subtractCents(input.targetCreatorAmountCents, input.creatorAmountCents);
+  const required = moneyCents(gap + input.minIncrementCents);
+  return maxCents(required, input.minBoostCents);
+}
+
 /**
  * The amount that would put a creator ahead of the current leader.
  *
@@ -16,9 +32,12 @@ export type TakeFirstPlaceInput = {
  * resulting position is whatever the ranking says after confirmation.
  */
 export function calculateTakeFirstPlace(input: TakeFirstPlaceInput): MoneyCents {
-  const gap = subtractCents(input.leaderAmountCents, input.creatorAmountCents);
-  const required = moneyCents(gap + input.minIncrementCents);
-  return maxCents(required, input.minBoostCents);
+  return calculateOvertakeQuote({
+    targetCreatorAmountCents: input.leaderAmountCents,
+    creatorAmountCents: input.creatorAmountCents,
+    minIncrementCents: input.minIncrementCents,
+    minBoostCents: input.minBoostCents,
+  });
 }
 
 export type TakeFirstPlaceQuoteInput = TakeFirstPlaceInput & { readonly isCurrentLeader: boolean };

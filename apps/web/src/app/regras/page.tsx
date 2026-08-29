@@ -134,15 +134,21 @@ export default function RulesPage() {
           <p>Depois da remoção confirmada, o perfil não pode ser reenviado.</p>
         </Rule>
 
-        <Rule title="Estornos">
+        <Rule title="Natureza do serviço e estornos">
+          <p>
+            O impulso constitui uma prestação de serviço de veiculação e destaque publicitário
+            digital de execução imediata no Creator Outdoor.
+          </p>
           <p>
             Um impulso estornado deixa de contar imediatamente, na semana atual e no ranking geral,
             inclusive em semanas já encerradas.
           </p>
           <p>
             O estorno devolve o valor integralmente ao pagador original pela mesma chave ou conta
-            PIX de origem. Em caso de cobranças duplicadas ou divergências, o pagador pode solicitar
-            o estorno pelo canal oficial de atendimento em até 7 dias corridos após a confirmação.
+            PIX de origem. Em caso de cobranças duplicadas, divergências operacionais ou
+            solicitações de cancelamento em conformidade com o Código de Defesa do Consumidor, o
+            pagador pode solicitar o atendimento pelo canal oficial (contato@creatoroutdoor.com.br)
+            em até 7 dias corridos após a confirmação.
           </p>
         </Rule>
 

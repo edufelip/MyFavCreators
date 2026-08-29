@@ -93,6 +93,9 @@ export function CheckoutView({ checkout, initialStatus, qrSvg }: CheckoutViewPro
 
   const copyCode = useCallback(async () => {
     try {
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        navigator.vibrate?.([40, 30, 40]);
+      }
       await navigator.clipboard.writeText(checkout.copyPaste);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
@@ -214,42 +217,74 @@ function BoostSuccess({
       ? `Eu impulsionei @${handle}. 🔥 Quem leva ao #1?`
       : copy.boost.share(handle, movement.fromRank, movement.toRank);
 
+  const handleShare = async () => {
+    try {
+      if (typeof navigator !== "undefined" && "share" in navigator) {
+        await navigator.share({
+          title: `Creator Outdoor — @${handle}`,
+          text: shareText,
+          url: `${window.location.origin}/criador/${handle}`,
+        });
+        setShared(true);
+        setTimeout(() => setShared(false), 2500);
+        return;
+      }
+    } catch {
+      // User cancelled share sheet or share unsupported; fallback to clipboard
+    }
+
+    try {
+      if (typeof navigator !== "undefined" && "clipboard" in navigator) {
+        await navigator.clipboard.writeText(shareText);
+        setShared(true);
+        setTimeout(() => setShared(false), 2500);
+      }
+    } catch {
+      setShared(false);
+    }
+  };
+
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-col gap-5 px-4 py-10">
-      <h1 data-testid="boost-success" className="text-2xl font-black tracking-tight text-white">
-        {copy.success.title}
-      </h1>
-      {successLine === null ? null : (
-        <p data-testid="boost-movement" className="text-lg font-bold text-amber-300">
-          {successLine}
+    <main className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-10">
+      <div className="flex flex-col gap-2 rounded-2xl border border-amber-400/30 bg-gradient-to-b from-amber-400/10 to-transparent p-6 text-center shadow-lg shadow-amber-500/5">
+        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-400/20 text-3xl">
+          🎉
+        </span>
+        <h1 data-testid="boost-success" className="text-2xl font-black tracking-tight text-white">
+          {copy.success.title}
+        </h1>
+        {successLine === null ? null : (
+          <p data-testid="boost-movement" className="text-lg font-bold text-amber-300">
+            {successLine}
+          </p>
+        )}
+        <p className="text-sm text-white/70">
+          {checkout.creatorDisplayName} · {formatBrl(checkout.amountCents)}
         </p>
-      )}
-      <p className="text-sm text-white/60">
-        {checkout.creatorDisplayName} · {formatBrl(checkout.amountCents)}
-      </p>
+      </div>
 
-      <button
-        type="button"
-        data-testid="boost-share"
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(shareText);
-            setShared(true);
-          } catch {
-            setShared(false);
-          }
-        }}
-        className="self-start rounded-xl bg-amber-400 px-5 py-3 text-base font-black uppercase tracking-wide text-neutral-950"
-      >
-        {shared ? copy.success.shareCopied : copy.success.share}
-      </button>
+      <div className="flex flex-col gap-3">
+        <button
+          type="button"
+          data-testid="boost-share"
+          onClick={handleShare}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-400 px-5 py-3.5 text-base font-black uppercase tracking-wide text-neutral-950 transition hover:bg-amber-300"
+        >
+          <span>📲</span>
+          <span>{shared ? copy.success.shareCopied : copy.success.share}</span>
+        </button>
 
-      <a
-        href={`/criador/${checkout.creatorSlug}`}
-        className="text-sm font-semibold text-amber-300 underline"
-      >
-        {copy.success.seeProfile}
-      </a>
+        <a
+          href={`/criador/${checkout.creatorSlug}`}
+          className="flex w-full items-center justify-center rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+        >
+          {copy.success.seeProfile}
+        </a>
+
+        <a href="/" className="text-center text-xs text-white/50 underline hover:text-white/80">
+          {copy.checkout.backToRanking}
+        </a>
+      </div>
     </main>
   );
 }

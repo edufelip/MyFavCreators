@@ -13,8 +13,10 @@ export {
   type ScoreContribution,
 } from "./score";
 export {
+  calculateOvertakeQuote,
   calculateTakeFirstPlace,
   type TakeFirstPlaceInput,
   type TakeFirstPlaceQuoteInput,
+  type TargetRankQuoteInput,
   takeFirstPlaceQuote,
 } from "./take-first-place";

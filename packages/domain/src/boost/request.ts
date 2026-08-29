@@ -42,6 +42,23 @@ function stripControlCharacters(value: string): string {
   );
 }
 
+const PII_REDACTIONS: ReadonlyArray<readonly [RegExp, string]> = [
+  // Email addresses (bounded RFC structure, avoids swallowing trailing sentence punctuation)
+  [/[a-zA-Z0-9._%+-]{1,64}@[a-zA-Z0-9.-]{1,255}\.[a-zA-Z]{2,63}/g, "[dado protegido]"],
+
+  // Brazilian CPFs: formatted (123.456.789-01, 123.456.789.01) or raw 11-digit numbers
+  [/\b\d{3}\.\d{3}\.\d{3}[-.]?\d{2}\b/g, "[dado protegido]"],
+  [/\b\d{11}\b/g, "[dado protegido]"],
+
+  // Brazilian Phone Numbers with DDD:
+  // Mobile: (11) 98888-7777, +55 11 98888-7777, 11 98888-7777, 11 98888 7777, (11) 9 8888-7777
+  // Landline: (11) 3456-7890, +55 11 3456-7890, 11 3456-7890
+  [
+    /(?:(?:\+?55\s*)?(?:\(\s*[1-9]{2}\s*\)|(?:\b[1-9]{2}\s*))\s*)(?:9\s*\d{4}[-\s]?\d{4}|[2-5]\d{3}[-\s]?\d{4})\b/g,
+    "[dado protegido]",
+  ],
+];
+
 export function sanitizeSupporterText(
   value: string | null | undefined,
   maxLength: number,
@@ -49,7 +66,14 @@ export function sanitizeSupporterText(
   if (value === null || value === undefined) {
     return null;
   }
-  const cleaned = stripControlCharacters(value).replace(/\s+/g, " ").trim();
+  let cleaned = stripControlCharacters(value).replace(/\s+/g, " ").trim();
+  if (cleaned === "") {
+    return null;
+  }
+  for (const [pattern, replacement] of PII_REDACTIONS) {
+    cleaned = cleaned.replace(pattern, replacement);
+  }
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
   return cleaned === "" ? null : cleaned.slice(0, maxLength);
 }
 

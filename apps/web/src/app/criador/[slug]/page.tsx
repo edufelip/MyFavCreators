@@ -140,14 +140,26 @@ export default async function CreatorPage({ params }: CreatorPageProps) {
           />
         </section>
 
-        {creator.weekly.takeFirstPlaceAmountCents === null ? null : (
-          <p
-            data-testid="take-first-place"
-            className="inline-block self-start rounded-lg border border-white/15 px-3 py-2 text-sm font-semibold text-white/80"
+        <div className="flex flex-wrap items-center gap-3">
+          {creator.weekly.takeFirstPlaceAmountCents === null ? null : (
+            <p
+              data-testid="take-first-place"
+              className="inline-block rounded-lg border border-white/15 px-3 py-2 text-sm font-semibold text-white/80"
+            >
+              {copy.cta.takeFirstPlace(formatBrl(creator.weekly.takeFirstPlaceAmountCents))}
+            </p>
+          )}
+          <a
+            href={`/criador/${creator.slug}/story-image`}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="creator-story-card"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm font-semibold text-amber-300 transition hover:bg-amber-400/20"
           >
-            {copy.cta.takeFirstPlace(formatBrl(creator.weekly.takeFirstPlaceAmountCents))}
-          </p>
-        )}
+            <span>📱</span>
+            <span>Card para Story</span>
+          </a>
+        </div>
 
         <section
           id="impulsionar"
