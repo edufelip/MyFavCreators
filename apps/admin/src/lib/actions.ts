@@ -80,7 +80,7 @@ export async function signIn(_previous: LoginState, formData: FormData): Promise
         typeof formData.get("password") === "string" ? String(formData.get("password")) : "",
       code: field(formData, "code").replace(/\s/g, ""),
     },
-    { isProduction: adminConfig.isProduction },
+    { isLiveDeployment: adminConfig.isLiveDeployment },
   );
 
   if (outcome.kind === "THROTTLED") {

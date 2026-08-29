@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { verifyPassword } from "./password";
 import { decodeBase32 } from "./totp";
 
 /**
@@ -61,28 +62,57 @@ const registrySchema = z
   );
 
 /**
- * The password hash `.env.example` ships.
+ * The password `.env.example` documents, in plain text and on purpose.
  *
- * The neighbouring secrets say `change-me` in their own text; this one is an
- * opaque base64 document, so somebody rotating the obvious ones has no cue that
- * the third is a publicly known password and TOTP seed for an operator who can
- * issue refunds.
+ * The neighbouring secrets say `change-me` in their own text; the registry is
+ * an opaque base64 document, so somebody rotating the obvious ones has no cue
+ * that the third is a publicly known password and TOTP seed for an operator who
+ * can issue refunds.
+ *
+ * The password rather than its hash, because scrypt salts: `bun run
+ * admin:operator 'edu' 'creator-outdoor-dev'` produces a different hash string
+ * for the same public password, and comparing the serialized hash would wave it
+ * straight through. Re-enrolling the example operator is exactly what somebody
+ * setting up a deployment does.
  */
-const PUBLISHED_EXAMPLE_HASH =
-  "scrypt:16384:8:1:OkqxKa7iUEjmq3If6l1SWA:cps2SknbPo1f2EylWCDts-N-647wGqaX7blQstoAfhcWto57sMe5YXEGaVziVuDEai3HXIUcFJNO6kCE0rjwLA";
+const PUBLISHED_EXAMPLE_PASSWORD = "creator-outdoor-dev";
 
 /**
- * Whether this operator's credentials are the ones published in this repository.
+ * The TOTP seed `.env.example` ships, which is the other half of the account.
+ *
+ * Checked separately, because rotating one credential and not the other is the
+ * likely mistake rather than an unlikely one. Somebody who reads "this operator
+ * is public" changes the password; the seed is an opaque base32 string two
+ * lines down that looks like it was generated for them. Keeping it means the
+ * second factor — the thing that is supposed to make a leaked password
+ * survivable — is printed in this repository.
+ */
+const PUBLISHED_EXAMPLE_TOTP_SECRET = "QSRZQA4PSAPBBEK7ERZEBDTIBWXXEJUV";
+
+/**
+ * Whether either of this operator's factors is the one published here.
  *
  * Asked of one operator rather than of the registry, and that is the whole
  * point. "Does the file still contain the example?" can only be answered by
  * refusing everything, which takes a working admin app down over a stale entry
  * that may grant nothing. "May this credential sign in?" refuses exactly the
- * operator whose password is public, and leaves every real operator alongside
+ * operator whose secrets are public, and leaves every real operator alongside
  * it working.
+ *
+ * Either factor, not both: an account with one public factor has one factor,
+ * and this exists precisely because a single leaked credential should not be
+ * enough to approve creators and issue refunds.
+ *
+ * The password is compared through `verifyPassword` rather than by its hash,
+ * because scrypt salts — `bun run admin:operator 'edu' 'creator-outdoor-dev'`
+ * produces a different hash string for the same public password, and comparing
+ * the serialized hash waved it straight through.
  */
 export function usesPublishedExampleCredentials(operator: AdminOperator): boolean {
-  return operator.passwordHash === PUBLISHED_EXAMPLE_HASH;
+  return (
+    verifyPassword(PUBLISHED_EXAMPLE_PASSWORD, operator.passwordHash) ||
+    operator.totpSecret.replace(/[\s=]/g, "").toUpperCase() === PUBLISHED_EXAMPLE_TOTP_SECRET
+  );
 }
 
 export function encodeOperators(operators: readonly AdminOperator[]): string {

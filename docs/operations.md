@@ -148,9 +148,16 @@ fix it. Every real operator enrolled beside it keeps working, so a deployment
 that forgot to drop the stale entry loses that account rather than its whole
 admin app.
 
-The check is at sign-in, not at startup, and not in the config parser. `next
-build` sets `NODE_ENV=production` too, so a parse-time refusal failed the build
-rather than the deployment; a build signs nobody in.
+The check reads `DEPLOY_ENV`, not `NODE_ENV`, and it is at sign-in rather than
+at startup. Both details are scars. `next build` **and** `next start` set
+`NODE_ENV=production` themselves, so for this app that variable says "this is
+the production build" and never "this is the production system": a parse-time
+refusal failed the build, and a `NODE_ENV`-gated one refused the E2E suite's
+own sign-in. `DEPLOY_ENV` is set by a person on a real deployment and by
+nothing else; a build signs nobody in.
+
+**So set `DEPLOY_ENV=production` when you deploy.** Without it the example
+operator can still sign in, which is the failure this section is about.
 
 ### The ranking looks wrong
 

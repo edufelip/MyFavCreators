@@ -172,10 +172,34 @@ const adminEnvSchema = z.object({
     }),
   /** 32+ byte secret used to seal the administrator session cookie. */
   adminSessionSecret: z.string().min(32, "ADMIN_SESSION_SECRET must be at least 32 characters"),
+  /**
+   * Whether this process is serving a real deployment.
+   *
+   * A separate variable from `NODE_ENV`, and it has to be. Next sets
+   * `NODE_ENV=production` itself for both `next build` and `next start`, so for
+   * this app that value means "this is the production build" and never "this is
+   * the production system". CI runs the production build. So does anybody
+   * checking a build locally, and so does the E2E suite.
+   *
+   * Two security decisions were derived from `NODE_ENV` in this repository and
+   * both were wrong in the same way: one failed a local build, the other
+   * refused the E2E suite's own sign-in. Nothing sets this one for you, which
+   * is the property being bought.
+   */
+  deployEnv: z.enum(["development", "production"]).default("development"),
 });
 
 export type AdminConfig = z.infer<typeof adminEnvSchema> & {
+  /** True for the production *build*. Says nothing about where it runs. */
   readonly isProduction: boolean;
+  /**
+   * True only where a real deployment says so, in `DEPLOY_ENV`.
+   *
+   * This is the one to reach for when the question is "can the public reach
+   * this?" — `isProduction` answers "was this built with optimisations on",
+   * which `next build` and `next start` both answer yes to.
+   */
+  readonly isLiveDeployment: boolean;
   /** Whether cookies this app sets may carry `Secure`. */
   readonly cookiesAreSecure: boolean;
 };
@@ -190,6 +214,7 @@ export function parseAdminConfig(env: EnvSource): AdminConfig {
       adminApiSecret: env["ADMIN_API_SECRET"],
       adminOperators: env["ADMIN_OPERATORS"],
       adminSessionSecret: env["ADMIN_SESSION_SECRET"],
+      deployEnv: env["DEPLOY_ENV"],
     },
     "apps/admin",
   );
@@ -198,6 +223,7 @@ export function parseAdminConfig(env: EnvSource): AdminConfig {
   return {
     ...parsed,
     isProduction,
+    isLiveDeployment: parsed.deployEnv === "production",
     cookiesAreSecure: resolveCookieSecurity(parsed.adminOrigin),
   };
 }

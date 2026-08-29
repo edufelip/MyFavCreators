@@ -4,6 +4,7 @@
   "globalDependencies": ["tsconfig.base.json", "biome.json", ".env.example"],
   "globalEnv": [
     "NODE_ENV",
+    "DEPLOY_ENV",
     "TIMEZONE",
     "CURRENCY",
     "MIN_BOOST_CENTS",

@@ -3,8 +3,10 @@ import { readFileSync } from "node:fs";
 import {
   type AdminOperator,
   decodeOperators,
+  encodeOperators,
   generateTotpSecret,
   hashPassword,
+  parseAdminConfig,
   totpCodeAt,
 } from "@creator-outdoor/config";
 import {
@@ -37,7 +39,7 @@ function auth(
   attempt: LoginAttempt,
   now: number,
 ): LoginOutcome {
-  return authenticateOperator(operators, attempt, { isProduction: false, now });
+  return authenticateOperator(operators, attempt, { isLiveDeployment: false, now });
 }
 
 function attempt(overrides: Partial<{ operator: string; password: string; code: string }> = {}) {
@@ -162,7 +164,7 @@ describe("the credentials published in this repository", () => {
 
   test("are refused in production, by name, so the operator knows why", () => {
     expect(
-      authenticateOperator(published, publishedAttempt, { isProduction: true, now: NOW }),
+      authenticateOperator(published, publishedAttempt, { isLiveDeployment: true, now: NOW }),
     ).toEqual({ kind: "PUBLISHED_CREDENTIALS" });
   });
 
@@ -178,7 +180,7 @@ describe("the credentials published in this repository", () => {
       authenticateOperator(
         mixed,
         { operator: "ana.silva", password: "senha-da-ana", code: totpCodeAt(anaSecret, STEP) },
-        { isProduction: true, now: NOW },
+        { isLiveDeployment: true, now: NOW },
       ).kind,
     ).toBe("OK");
   });
@@ -191,13 +193,136 @@ describe("the credentials published in this repository", () => {
       authenticateOperator(
         published,
         { ...publishedAttempt, password: "chute" },
-        { isProduction: true, now: NOW },
+        { isLiveDeployment: true, now: NOW },
       ).kind,
     ).toBe("INVALID");
   });
 
-  test("are accepted outside production, or nobody could run this locally", () => {
+  test("are accepted outside a real deployment, or nobody could run this locally", () => {
     expect(auth(published, publishedAttempt, NOW).kind).toBe("OK");
+  });
+
+  test("are not refused merely because this is the production build", () => {
+    /*
+     * The bug this rule shipped with, caught by the E2E suite refusing to sign
+     * itself in. `next build` and `next start` both set `NODE_ENV=production`
+     * themselves, so gating on it refuses every run of the production build:
+     * CI's, and anybody checking one locally.
+     *
+     * The config keeps the two apart, and this asserts they really are two —
+     * `isProduction` describes the build, `isLiveDeployment` comes from
+     * `DEPLOY_ENV`, which no tool sets on your behalf.
+     */
+    const config = parseAdminConfig({
+      NODE_ENV: "production",
+      ADMIN_API_SECRET: "um-segredo-de-admin-suficiente",
+      ADMIN_OPERATORS: encodeOperators([...published]),
+      ADMIN_SESSION_SECRET: "um-segredo-de-sessao-com-32-bytes-ou-mais",
+    });
+    expect(config.isProduction).toBe(true);
+    expect(config.isLiveDeployment).toBe(false);
+
+    expect(
+      authenticateOperator(published, publishedAttempt, {
+        isLiveDeployment: config.isLiveDeployment,
+        now: NOW,
+      }).kind,
+    ).toBe("OK");
+  });
+
+  test("are refused however the example password was re-enrolled", () => {
+    /*
+     * scrypt salts, so `bun run admin:operator 'edu' 'creator-outdoor-dev'`
+     * produces a different hash string for the same public password — which is
+     * precisely what somebody setting up a deployment does when they see an
+     * operator already in the file. Comparing the serialized hash, as this
+     * first did, waved that straight through: a working production operator
+     * whose password is printed three lines above it in `.env.example`.
+     */
+    const reEnrolled: readonly AdminOperator[] = [
+      {
+        id: "edu",
+        passwordHash: hashPassword("creator-outdoor-dev"),
+        totpSecret: generateTotpSecret(),
+      },
+    ];
+    expect(reEnrolled[0]?.passwordHash).not.toBe(published[0]?.passwordHash);
+
+    const attemptWithNewSecret: LoginAttempt = {
+      operator: "edu",
+      password: "creator-outdoor-dev",
+      code: totpCodeAt(reEnrolled[0]?.totpSecret ?? "", STEP),
+    };
+    expect(
+      authenticateOperator(reEnrolled, attemptWithNewSecret, {
+        isLiveDeployment: true,
+        now: NOW,
+      }).kind,
+    ).toBe("PUBLISHED_CREDENTIALS");
+  });
+
+  test("are refused when only the password was rotated, leaving the public seed", () => {
+    /*
+     * The likely mistake rather than an unlikely one. Somebody who reads "this
+     * operator is public" changes the password; the TOTP seed is an opaque
+     * base32 string two lines further down that looks like it was generated
+     * for them. Keeping it means the second factor — the thing that makes a
+     * leaked password survivable — is printed in this repository, so the
+     * account has one factor and that one is public.
+     */
+    const halfRotated: readonly AdminOperator[] = [
+      {
+        id: "edu",
+        passwordHash: hashPassword("uma-senha-so-minha"),
+        totpSecret: published[0]?.totpSecret ?? "",
+      },
+    ];
+    expect(
+      authenticateOperator(
+        halfRotated,
+        {
+          operator: "edu",
+          password: "uma-senha-so-minha",
+          code: totpCodeAt(published[0]?.totpSecret ?? "", STEP),
+        },
+        { isLiveDeployment: true, now: NOW },
+      ).kind,
+    ).toBe("PUBLISHED_CREDENTIALS");
+  });
+
+  test("does not refuse an operator who merely shares the example's name", () => {
+    // The name is not the secret. Somebody called `edu` with a password of
+    // their own is a real operator and must be able to work.
+    const real: readonly AdminOperator[] = [
+      { id: "edu", passwordHash: hashPassword("uma-senha-so-minha"), totpSecret: eduSecret },
+    ];
+    expect(
+      authenticateOperator(
+        real,
+        { operator: "edu", password: "uma-senha-so-minha", code: totpCodeAt(eduSecret, STEP) },
+        { isLiveDeployment: true, now: NOW },
+      ).kind,
+    ).toBe("OK");
+  });
+
+  test("are refused once a deployment says it is one", () => {
+    const config = parseAdminConfig({
+      DEPLOY_ENV: "production",
+      ADMIN_API_SECRET: "um-segredo-de-admin-suficiente",
+      ADMIN_OPERATORS: encodeOperators([...published]),
+      ADMIN_SESSION_SECRET: "um-segredo-de-sessao-com-32-bytes-ou-mais",
+    });
+    // And it does not need NODE_ENV to agree: the two are independent, which is
+    // the whole reason there are two.
+    expect(config.isProduction).toBe(false);
+    expect(config.isLiveDeployment).toBe(true);
+
+    expect(
+      authenticateOperator(published, publishedAttempt, {
+        isLiveDeployment: config.isLiveDeployment,
+        now: NOW,
+      }).kind,
+    ).toBe("PUBLISHED_CREDENTIALS");
   });
 });
 

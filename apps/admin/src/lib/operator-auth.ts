@@ -84,19 +84,26 @@ const DECOY_HASH = hashPassword("decoy-for-constant-time-rejection");
  *
  * The refusal was first written into `parseAdminConfig`, and that was wrong
  * twice over. `next build` sets `NODE_ENV=production` too, so building the
- * admin app locally failed on a check about deployments — the same conflation
- * of "built for production" with "running in production" that the cookie
- * `Secure` flag hit from the other side. And refusing at parse time is
- * all-or-nothing: a deployment that enrolled a real operator but left the
- * example entry behind lost its whole admin app over an account that grants
- * nothing once this check exists.
+ * admin app locally failed on a check about deployments. And refusing at parse
+ * time is all-or-nothing: a deployment that enrolled a real operator but left
+ * the example entry behind lost its whole admin app over an account that
+ * grants nothing once this check exists.
  *
  * Here it costs a build nothing — a build signs nobody in — and it refuses
  * exactly the credential that is public.
  */
 export type AuthenticateOptions = {
-  /** True only when this process is actually serving production traffic. */
-  readonly isProduction: boolean;
+  /**
+   * Whether this process is serving a real deployment.
+   *
+   * Named for the deployment rather than for `NODE_ENV`, because reading it
+   * from `NODE_ENV` was the bug. `next start` sets `NODE_ENV=production` as
+   * well as `next build`, so the first version of this check refused the E2E
+   * suite's own sign-in: CI runs the production build, and so does anybody
+   * running one locally. `adminConfig.isLiveDeployment` comes from `DEPLOY_ENV`,
+   * which no tool sets on your behalf.
+   */
+  readonly isLiveDeployment: boolean;
   readonly now?: number;
 };
 
@@ -141,7 +148,7 @@ export function authenticateOperator(
    * already proved they hold the password and the TOTP seed, which is to say
    * they have already read the file it came from.
    */
-  if (options.isProduction && usesPublishedExampleCredentials(operator)) {
+  if (options.isLiveDeployment && usesPublishedExampleCredentials(operator)) {
     recordFailure(key, now);
     return { kind: "PUBLISHED_CREDENTIALS" };
   }

@@ -119,7 +119,9 @@ there is no path that records an action nobody signed for.
 Failed sign-ins are budgeted per operator name rather than per client address,
 because a client-supplied address is not a budget an attacker has to respect.
 
-The operator `.env.example` ships is refused in production. Its password and TOTP
+The operator `.env.example` ships is refused on a real deployment — one whose
+`DEPLOY_ENV` says `production`, which is a person's decision rather than
+`NODE_ENV`, a variable `next build` and `next start` both set themselves. Its password and TOTP
 secret are published in this repository so the admin app runs on a fresh clone,
 which makes it, in production, an account anybody can use to approve creators and
 issue refunds. The refusal is per credential rather than per registry: that one
