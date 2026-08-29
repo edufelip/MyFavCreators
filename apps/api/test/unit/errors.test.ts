@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { describeError } from "../../src/observability/errors";
+import { describeError, sanitize } from "../../src/observability/errors";
 
 describe("describing an error for a log", () => {
   test("keeps the name and the message of an ordinary error", () => {
@@ -89,5 +89,77 @@ describe("the stack frames a report may carry", () => {
       return depth === 0 ? new Error("deep") : recurse(depth - 1);
     }
     expect(describeError(recurse(80)).frames.length).toBeLessThanOrEqual(30);
+  });
+});
+
+describe("what an oversized message costs", () => {
+  /**
+   * Measured rather than reasoned about.
+   *
+   * `sanitize` runs on every error message and on every string in a log field,
+   * and plenty of those are as long as a request body — a claim's `profileText`
+   * is 4000 characters by contract, and a body that failed to parse can be
+   * anything. The redaction patterns were quadratic on input that nearly
+   * matches: a run of word characters with no `=` in it made the engine try
+   * every prefix length at every start position. 500 characters took 2ms, 1000
+   * took 7ms, 2000 took 29ms, 4000 took 120ms — four times the work for twice
+   * the input, spent producing a string this function then cuts to 200
+   * characters.
+   *
+   * A redactor that burns a core when somebody sends it 50KB of `a` is a denial
+   * of service in the one function that must never be the thing that goes
+   * wrong. Two changes fixed it: every quantifier is bounded, and the scan is
+   * capped just past what can be printed.
+   */
+  const NEARLY_MATCHING = [
+    ["a run with no delimiter", (n: number) => "a".repeat(n)],
+    ["a run ending in @", (n: number) => `${"a".repeat(n)}@`],
+    ["word characters and underscores", (n: number) => "a_".repeat(n / 2)],
+    ["the EMV prefix and nothing else", (n: number) => `000201${"a".repeat(n)}`],
+    ["a scheme with no credential", (n: number) => `bearer ${"a".repeat(n)}`],
+  ] as const;
+
+  test("does not grow with the length of the input", () => {
+    for (const [label, build] of NEARLY_MATCHING) {
+      const start = performance.now();
+      sanitize(build(200_000));
+      const elapsed = performance.now() - start;
+      /*
+       * Generously above the ~1ms this actually takes, and far below the
+       * seconds the unbounded patterns took: a threshold that only fails when
+       * the shape of the cost has changed, not when the machine is busy.
+       */
+      expect(elapsed, `${label} took ${elapsed.toFixed(0)}ms`).toBeLessThan(250);
+    }
+  });
+
+  test("still redacts everything it is for", () => {
+    // The cheap way to pass the test above is to stop matching. Each of these
+    // is a thing that reached a log before the redaction existed.
+    expect(sanitize("erro para ana.silva@example.com no pedido")).toBe(
+      "erro para [email] no pedido",
+    );
+    expect(sanitize("Authorization: Basic dXNlcjpwYXNzd29yZA==")).toBe(
+      "Authorization: Basic [redacted]",
+    );
+    expect(sanitize("MERCADO_PAGO_ACCESS_TOKEN=APP_USR-abc.def-123")).toBe("[redacted]");
+    expect(sanitize("cole isto: 00020126580014br.gov.bcb.pix0136abc6304ABCD")).toBe(
+      "cole isto: [pix-payload]",
+    );
+    expect(sanitize("chave sk_live_abcdef123456 usada")).toBe("chave [key] usada");
+  });
+
+  test("redacts a secret that begins inside the part it prints", () => {
+    /*
+     * The risk the scan cap introduces. Everything past the cap is dropped, so
+     * it cannot be printed — but a match that *starts* just inside the printed
+     * region must still be seen whole, or half an address would be printed and
+     * the other half merely truncated.
+     */
+    const padded = `${"x".repeat(190)} ana.silva@example.com resto`;
+    const cleaned = sanitize(padded);
+    expect(cleaned).toContain("[email]");
+    expect(cleaned).not.toContain("ana.silva");
+    expect(cleaned).not.toContain("ana.sil");
   });
 });

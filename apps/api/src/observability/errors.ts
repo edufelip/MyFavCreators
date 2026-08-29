@@ -9,6 +9,14 @@
  */
 
 const MAX_LENGTH = 200;
+/**
+ * How much of a message is looked at.
+ *
+ * `MAX_LENGTH` plus enough slack that a redaction beginning inside the printed
+ * region is never cut in half by this — the longest match `REDACTIONS` can
+ * produce is around 570 characters, so 1024 of slack is generous.
+ */
+const SCAN_LIMIT = MAX_LENGTH + 1024;
 /** Everything a driver appends from here on is parameter data. */
 const PARAMETER_MARKERS = ["params:", "parameters:"];
 
@@ -22,19 +30,38 @@ const PARAMETER_MARKERS = ["params:", "parameters:"];
  * back, and the PIX payload — the string somebody pastes into their bank, which
  * is the single field a support screenshot must never carry.
  */
+/**
+ * Every quantifier here is bounded, and that is not tidiness.
+ *
+ * `[\w-]*(?:token|...)=` and `[^\s@]+@[^\s@]+` are both quadratic on input
+ * that nearly matches: a run of word characters with no `=` in it makes the
+ * engine try every prefix length at every start position. Measured on the
+ * unbounded forms: 500 characters took 2ms, 1000 took 7ms, 2000 took 29ms,
+ * 4000 took 120ms — four times the work for twice the input, all of it spent
+ * producing a string this function then cuts to 200 characters.
+ *
+ * `sanitize` runs on every error message and on every string in a log field,
+ * and plenty of those are as long as a request body. A redactor that can be
+ * made to burn a core by sending it 50KB of `a` is a denial of service in the
+ * one function that must never be the thing that goes wrong.
+ *
+ * The bounds are the real limits of what is being matched — RFC 5321 caps an
+ * address at 64 characters before the `@` and 255 after — so nothing that
+ * would have been redacted stops being redacted.
+ */
 const REDACTIONS: ReadonlyArray<readonly [RegExp, string]> = [
-  [/[^\s@]+@[^\s@]+\.[^\s@]+/g, "[email]"],
-  [/\b(bearer|basic)\s+[\w.~+/=-]+/gi, "$1 [redacted]"],
+  [/[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{1,63}/g, "[email]"],
+  [/\b(bearer|basic)\s{1,8}[\w.~+/=-]{1,512}/gi, "$1 [redacted]"],
   /*
    * Any assignment whose name ends in a credential word. The earlier pattern
    * could not match `MERCADO_PAGO_ACCESS_TOKEN=` at all — `_` is a word
    * character, so there is no `\b` before `TOKEN` — and a provider SDK quoting
    * its own configuration back is exactly how one of these reaches a message.
    */
-  [/[\w-]*(?:token|secret|password|key|credential|session)=[\w.~+/=-]+/gi, "[redacted]"],
+  [/[\w-]{0,64}(?:token|secret|password|key|credential|session)=[\w.~+/=-]{1,512}/gi, "[redacted]"],
   // A PIX "copia e cola" always begins with the EMV payload-format indicator.
-  [/\b000201[\w.*$%:;,+/=-]{16,}/g, "[pix-payload]"],
-  [/\b(sk|pk|rk)_(live|test)_[\w-]+/gi, "[key]"],
+  [/\b000201[\w.*$%:;,+/=-]{16,512}/g, "[pix-payload]"],
+  [/\b(sk|pk|rk)_(live|test)_[\w-]{1,128}/gi, "[key]"],
 ];
 
 export type DescribedError = {
@@ -117,7 +144,19 @@ function deepestCause(error: Error): Error {
  * is under `pixPayload:`.
  */
 export function sanitize(message: string): string {
-  let cleaned = message;
+  /*
+   * Cut before matching, not only after.
+   *
+   * Only the first `MAX_LENGTH` characters can reach the output, and the
+   * longest thing `REDACTIONS` can match is well under the slack below — so
+   * anything whose *start* is inside the printed region is still matched
+   * whole, and everything past the cut is discarded rather than printed.
+   *
+   * Without this the cost is linear in the input, which sounds fine until the
+   * input is a 200KB request body a caller chose the length of. Bounded
+   * quantifiers stop that being quadratic; this stops it mattering at all.
+   */
+  let cleaned = message.length > SCAN_LIMIT ? message.slice(0, SCAN_LIMIT) : message;
   for (const marker of PARAMETER_MARKERS) {
     const at = cleaned.toLowerCase().indexOf(marker);
     if (at >= 0) {
