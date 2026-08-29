@@ -1,8 +1,9 @@
 import { afterAll, describe, expect, test } from "bun:test";
+import { schema } from "@creator-outdoor/db";
 // These three are owned by the db package rather than the domain: they describe
 // a row's bookkeeping, not a rule anybody outside applies. Where a list lives
 // does not change what this test is for.
-import { schema } from "@creator-outdoor/db";
+import * as enums from "@creator-outdoor/db/schema/enums";
 import {
   BOOST_STATUSES,
   CLAIM_STATUSES,
@@ -64,10 +65,17 @@ const PAIRS: ReadonlyArray<readonly [string, readonly string[]]> = [
 ];
 
 /**
- * The `pgEnum`s the schema module declares.
+ * The `pgEnum`s the schema declares.
  *
- * Drizzle builds one as a callable carrying `enumName` and `enumValues`, which
- * is what distinguishes it from the tables and helpers exported beside it.
+ * Read from the enums module itself, not from the `schema` barrel. The barrel
+ * re-exports by explicit name, so an enum somebody adds and forgets to list
+ * there is invisible to this check — while still being perfectly usable, since
+ * the tables import from `./enums` directly. That is the same blind spot one
+ * level up: a check that reads a hand-maintained list cannot see what is
+ * missing from it.
+ *
+ * Drizzle builds a `pgEnum` as a callable carrying `enumName` and `enumValues`,
+ * which is what distinguishes one from the plain arrays exported beside them.
  * Narrowed with `in` rather than an assertion, so nothing here claims a shape
  * the runtime has not shown.
  */
@@ -81,7 +89,7 @@ function declaredEnums(): readonly DeclaredEnum[] {
    * the guard would only compile with an assertion, which is the one thing a
    * test about two sides agreeing must not do.
    */
-  return Object.values(schema).flatMap((value) => {
+  return Object.values(enums).flatMap((value) => {
     if (typeof value !== "function" || !("enumName" in value) || !("enumValues" in value)) {
       return [];
     }
