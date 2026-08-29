@@ -169,7 +169,6 @@ jobs:
             echo "RATE_LIMIT_REPORTS_PER_HOUR=500"
             echo "RATE_LIMIT_OPT_OUT_REQUESTS_PER_HOUR=500"
             echo "RATE_LIMIT_OPT_OUT_VERIFICATIONS_PER_HOUR=500"
-            echo "RATE_LIMIT_IMPRESSIONS_PER_MINUTE=5000"
           } >> "$GITHUB_ENV"
       - name: Prepare database
         run: |
