@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
+  AdminApiError,
   approveCreator,
   refundPayment,
   rejectCreator,
@@ -71,14 +72,22 @@ function field(formData: FormData, name: string): string {
 export async function signIn(_previous: LoginState, formData: FormData): Promise<LoginState> {
   await assertSameOrigin();
 
-  const outcome = authenticateOperator(adminConfig.adminOperators, {
-    operator: field(formData, "operator").toLowerCase(),
-    password: typeof formData.get("password") === "string" ? String(formData.get("password")) : "",
-    code: field(formData, "code").replace(/\s/g, ""),
-  });
+  const outcome = authenticateOperator(
+    adminConfig.adminOperators,
+    {
+      operator: field(formData, "operator").toLowerCase(),
+      password:
+        typeof formData.get("password") === "string" ? String(formData.get("password")) : "",
+      code: field(formData, "code").replace(/\s/g, ""),
+    },
+    { isProduction: adminConfig.isProduction },
+  );
 
   if (outcome.kind === "THROTTLED") {
     return { error: "throttled" };
+  }
+  if (outcome.kind === "PUBLISHED_CREDENTIALS") {
+    return { error: "published-credentials" };
   }
   if (outcome.kind === "INVALID") {
     return { error: "invalid" };
@@ -197,10 +206,32 @@ export async function updateMetadataAction(formData: FormData): Promise<void> {
  * moves money toward a creator — a refund unsells prominence, which is the only
  * thing the platform ever sold.
  */
-export async function refundPaymentAction(formData: FormData): Promise<void> {
+export type RefundState = { readonly error: string | null };
+
+export async function refundPaymentAction(
+  _previous: RefundState,
+  formData: FormData,
+): Promise<RefundState> {
   await assertSameOrigin();
   await requireOperator();
-  await refundPayment(requiredString(formData, "paymentId"), requiredString(formData, "reason"));
+
+  try {
+    await refundPayment(requiredString(formData, "paymentId"), requiredString(formData, "reason"));
+  } catch (error) {
+    /*
+     * Shown on the screen rather than allowed to reach the error boundary. The
+     * API distinguishes "the provider was never reached, nothing changed" from
+     * "the instruction went out and was not confirmed", and those are different
+     * instructions to a person: one says retry, the other says go and look
+     * before you retry. The boundary can only say one thing, and it said the
+     * wrong one for the case where money may already be gone.
+     */
+    if (error instanceof AdminApiError) {
+      return { error: error.operatorMessage };
+    }
+    throw error;
+  }
+
   revalidatePath("/pagamentos");
   redirect("/pagamentos");
 }

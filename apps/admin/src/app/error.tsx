@@ -8,10 +8,15 @@ import { adminCopy } from "@/lib/copy";
  *
  * This matters more here than on the public site. An operator who approves a
  * creator, or sends money back, and then sees a bare browser error page has no
- * way to tell whether it happened. So the first thing this says is that nothing
- * changed — which is true: every mutation on this surface either completes in a
- * transaction or does not happen, and a failure that reaches here is a failure
- * before the redirect.
+ * way to tell whether it happened.
+ *
+ * What it must not do is claim to know. An earlier version said "nothing was
+ * changed", on the reasoning that every mutation here is a transaction — which
+ * is true of moderation and false of a refund, because a provider call cannot
+ * be inside a transaction. So it says what is true of every case instead: check
+ * before repeating. The failures whose meaning *is* known — the two refund
+ * 502s, which say opposite things — are surfaced on the screen they happened
+ * on rather than here.
  *
  * The digest is Next's identifier for the failure and is the only detail shown.
  * The message and the stack stay on the server, where the log and the error

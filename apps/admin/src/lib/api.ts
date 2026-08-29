@@ -9,7 +9,9 @@ import {
   AdminPaymentDto,
   AdminPaymentListDto,
   AdminReportListDto,
+  ApiErrorDto,
   type ModerationStatusDto,
+  matchesContract,
   type PaymentStatusDto,
   parseContract,
   type RejectionReasonDto,
@@ -51,9 +53,48 @@ async function adminFetch(path: string, init?: RequestInit): Promise<unknown> {
     cache: "no-store",
   });
   if (!response.ok) {
-    throw new Error(`Admin API ${path} responded ${response.status}`);
+    throw await adminApiError(path, response);
   }
   return response.json();
+}
+
+/**
+ * What an operator is actually told when a call fails.
+ *
+ * The API's error bodies on this surface are already operator-facing Portuguese
+ * with nothing internal in them, and they carry a distinction that matters:
+ * "nothing was changed" and "the instruction went out and was not confirmed"
+ * are different instructions to a person. Discarding the body and throwing the
+ * status meant the error boundary said "nothing was changed" for both — the
+ * opposite of the truth in the one case where money may already be gone.
+ */
+export class AdminApiError extends Error {
+  override readonly name = "AdminApiError";
+
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    /** Safe to show: written for an operator, and free of internals. */
+    readonly operatorMessage: string,
+  ) {
+    super(`Admin API responded ${status}: ${code}`);
+  }
+}
+
+async function adminApiError(path: string, response: Response): Promise<AdminApiError> {
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    body = null;
+  }
+  const parsed = matchesContract(ApiErrorDto, body) ? body.error : null;
+  return new AdminApiError(
+    response.status,
+    parsed?.code ?? "UNKNOWN",
+    // The fallback names the call rather than pretending to know what happened.
+    parsed?.message ?? `A chamada ${path} falhou (${response.status}).`,
+  );
 }
 
 export async function fetchModerationQueue(status: ModerationStatusDto) {
