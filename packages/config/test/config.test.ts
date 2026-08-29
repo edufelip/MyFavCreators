@@ -149,6 +149,14 @@ describe("api configuration", () => {
       ConfigurationError,
     );
   });
+
+  test("parses Resend webhook secret when provided", () => {
+    const config = parseApiConfig({
+      ...VALID_API_ENV,
+      RESEND_WEBHOOK_SECRET: "whsec_test_secret_123",
+    });
+    expect(config.resendWebhookSecret).toBe("whsec_test_secret_123");
+  });
 });
 
 describe("web configuration", () => {

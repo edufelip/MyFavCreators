@@ -16,6 +16,9 @@ const app = createApp({
   emailProvider: resolveEmailProvider(apiConfig),
   errorTracker: resolveErrorTracker(apiConfig),
   webOrigin: apiConfig.webOrigin,
+  ...(apiConfig.resendWebhookSecret === undefined
+    ? {}
+    : { resendWebhookSecret: apiConfig.resendWebhookSecret }),
   // The PIX simulation surface never exists in a production process.
   enableDevPixSimulation: !apiConfig.isProduction,
   selfOrigin: `http://localhost:${apiConfig.port}`,

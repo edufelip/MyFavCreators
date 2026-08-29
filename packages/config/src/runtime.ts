@@ -48,6 +48,8 @@ const apiEnvSchema = z.object({
    * `resolveEmailProvider`.
    */
   resendApiKey: z.string().min(1).optional(),
+  /** Webhook signing secret for Resend email events (Svix format: whsec_...). */
+  resendWebhookSecret: z.string().min(1).optional(),
   emailFromAddress: z.string().min(3).optional(),
   /**
    * Where failures are reported. Absent means the log is the only record —
@@ -78,6 +80,7 @@ export function parseApiConfig(env: EnvSource): ApiConfig {
       mercadoPagoAccessToken: env["MERCADO_PAGO_ACCESS_TOKEN"],
       mercadoPagoWebhookSecret: env["MERCADO_PAGO_WEBHOOK_SECRET"],
       resendApiKey: env["RESEND_API_KEY"],
+      resendWebhookSecret: env["RESEND_WEBHOOK_SECRET"],
       emailFromAddress: env["EMAIL_FROM_ADDRESS"],
       sentryDsn: env["SENTRY_DSN"],
     },

@@ -44,6 +44,8 @@ export type CreateAppOptions = {
   readonly enableDevPixSimulation?: boolean;
   readonly selfOrigin?: string;
   readonly now?: () => Date;
+  /** Webhook signing secret for Resend email events. */
+  readonly resendWebhookSecret?: string;
   readonly rateLimiter?: RateLimiter;
   /** Where unhandled failures are reported. Defaults to the log. */
   readonly errorTracker?: ErrorTracker;
@@ -206,6 +208,9 @@ export function createApp(options: CreateAppOptions) {
         providers,
         email,
         webOrigin,
+        ...(options.resendWebhookSecret === undefined
+          ? {}
+          : { resendWebhookSecret: options.resendWebhookSecret }),
         ...(options.now === undefined ? {} : { now: options.now }),
       }),
     )

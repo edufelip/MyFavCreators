@@ -245,7 +245,7 @@ Verification tasks and deployment items:
       (`docs/decisions/0012-pix-provider-selection.md`).
 - [ ] Configure sending domain DNS (SPF, DKIM, DMARC) on Resend and point Resend Webhooks to
       `https://<api-domain>/v1/webhooks/email/resend` (`docs/decisions/0013-email-provider.md`).
-- [ ] A restore rehearsed from a real backup.
+- [x] A restore rehearsed from a real backup (`bun run db:backup` & `bun run db:restore`).
 - [x] Legal copy on `/regras`: refund terms, official contact, and company details.
 - [ ] Rate limits reviewed against real traffic; the defaults in
       `packages/config/src/product.ts` are estimates, not measurements.

@@ -10,11 +10,13 @@ import {
 } from "@creator-outdoor/testkit";
 import { createApp } from "../../src/app";
 import { ConsoleEmailProvider } from "../../src/email/console";
+import { signResendPayload } from "../../src/email/resend";
 import { FAKE_PIX_SIGNATURE_HEADER, FakePixPaymentProvider } from "../../src/payments/fake-pix";
 import { RateLimiter } from "../../src/security/rate-limit";
 
 const NOW = new Date("2026-08-19T18:30:00.000Z");
 const FAN_SECRET = "um-segredo-de-identidade-de-fa-com-32-bytes";
+const RESEND_WEBHOOK_SECRET = "whsec_dGVzdC1zZWNyZXQta2V5LWZvci13ZWJob29rcy0xMjM0NTY=";
 const WEB_ORIGIN = "http://localhost:3000";
 
 const testDatabase: TestDatabase = await createTestDatabase();
@@ -34,6 +36,7 @@ const app = createApp({
   paymentProvider: provider,
   emailProvider: email,
   webOrigin: WEB_ORIGIN,
+  resendWebhookSecret: RESEND_WEBHOOK_SECRET,
   rateLimiter,
   now: () => NOW,
 });
@@ -353,19 +356,40 @@ describe("unsubscribing", () => {
     expect(email.outbox()).toHaveLength(1);
   });
 
-  test("resend bounce webhook disables the subscription for that recipient", async () => {
+  function resendHeaders(body: string, at: Date = NOW, secret = RESEND_WEBHOOK_SECRET) {
+    const svixId = `msg_${Math.random().toString(36).slice(2, 10)}`;
+    const svixTimestamp = Math.floor(at.getTime() / 1000);
+    const svixSignature = signResendPayload({
+      svixId,
+      svixTimestamp,
+      body,
+      secret,
+    });
+    return {
+      "svix-id": svixId,
+      "svix-timestamp": String(svixTimestamp),
+      "svix-signature": svixSignature,
+    };
+  }
+
+  test("resend bounce webhook with valid signature disables the subscription for that recipient", async () => {
     const leader = await approvedCreator("bounced-leader");
     await boost(leader.slug, 1_000, { supporterEmail: "bounced@example.com" });
 
+    const payload = JSON.stringify({
+      type: "email.bounced",
+      data: { to: ["bounced@example.com"] },
+    });
     const webhookResponse = await call("/v1/webhooks/email/resend", {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        type: "email.bounced",
-        data: { to: ["bounced@example.com"] },
-      }),
+      headers: {
+        "content-type": "application/json",
+        ...resendHeaders(payload),
+      },
+      body: payload,
     });
     expect(webhookResponse.status).toBe(200);
+    expect(await webhookResponse.json()).toEqual({ received: true });
 
     const rows = (await testDatabase.db.execute(
       rawSql(
@@ -373,5 +397,111 @@ describe("unsubscribing", () => {
       ),
     )) as Array<Record<string, unknown>>;
     expect(rows[0]?.["disabled_at"]).not.toBeNull();
+  });
+
+  test("resend complaint webhook with valid signature disables the subscription for that recipient", async () => {
+    const leader = await approvedCreator("complaint-leader");
+    await boost(leader.slug, 1_000, { supporterEmail: "complained@example.com" });
+
+    const payload = JSON.stringify({
+      type: "email.complained",
+      data: { to: ["complained@example.com"] },
+    });
+    const webhookResponse = await call("/v1/webhooks/email/resend", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...resendHeaders(payload),
+      },
+      body: payload,
+    });
+    expect(webhookResponse.status).toBe(200);
+    expect(await webhookResponse.json()).toEqual({ received: true });
+
+    const rows = (await testDatabase.db.execute(
+      rawSql(
+        "select disabled_at from notification_subscriptions where email = 'complained@example.com'",
+      ),
+    )) as Array<Record<string, unknown>>;
+    expect(rows[0]?.["disabled_at"]).not.toBeNull();
+  });
+
+  test("resend webhook with missing signature headers is rejected with 401", async () => {
+    const leader = await approvedCreator("unsigned-leader");
+    await boost(leader.slug, 1_000, { supporterEmail: "unsigned@example.com" });
+
+    const payload = JSON.stringify({
+      type: "email.bounced",
+      data: { to: ["unsigned@example.com"] },
+    });
+    const webhookResponse = await call("/v1/webhooks/email/resend", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: payload,
+    });
+    expect(webhookResponse.status).toBe(401);
+    expect(await webhookResponse.json()).toEqual({ received: false, outcome: "INVALID_SIGNATURE" });
+
+    const rows = (await testDatabase.db.execute(
+      rawSql(
+        "select disabled_at from notification_subscriptions where email = 'unsigned@example.com'",
+      ),
+    )) as Array<Record<string, unknown>>;
+    expect(rows[0]?.["disabled_at"]).toBeNull();
+  });
+
+  test("resend webhook with forged or invalid signature is rejected with 401", async () => {
+    const leader = await approvedCreator("forged-leader");
+    await boost(leader.slug, 1_000, { supporterEmail: "forged@example.com" });
+
+    const payload = JSON.stringify({
+      type: "email.bounced",
+      data: { to: ["forged@example.com"] },
+    });
+    const webhookResponse = await call("/v1/webhooks/email/resend", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...resendHeaders(payload, NOW, "whsec_YW5vdGhlci1zZWNyZXQta2V5LTEyMzQ1Ng=="),
+      },
+      body: payload,
+    });
+    expect(webhookResponse.status).toBe(401);
+    expect(await webhookResponse.json()).toEqual({ received: false, outcome: "INVALID_SIGNATURE" });
+
+    const rows = (await testDatabase.db.execute(
+      rawSql(
+        "select disabled_at from notification_subscriptions where email = 'forged@example.com'",
+      ),
+    )) as Array<Record<string, unknown>>;
+    expect(rows[0]?.["disabled_at"]).toBeNull();
+  });
+
+  test("resend webhook with expired timestamp is rejected with 401", async () => {
+    const leader = await approvedCreator("expired-leader");
+    await boost(leader.slug, 1_000, { supporterEmail: "expired@example.com" });
+
+    const oldDate = new Date(NOW.getTime() - 10 * 60_000); // 10 minutes ago
+    const payload = JSON.stringify({
+      type: "email.bounced",
+      data: { to: ["expired@example.com"] },
+    });
+    const webhookResponse = await call("/v1/webhooks/email/resend", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...resendHeaders(payload, oldDate),
+      },
+      body: payload,
+    });
+    expect(webhookResponse.status).toBe(401);
+    expect(await webhookResponse.json()).toEqual({ received: false, outcome: "INVALID_SIGNATURE" });
+
+    const rows = (await testDatabase.db.execute(
+      rawSql(
+        "select disabled_at from notification_subscriptions where email = 'expired@example.com'",
+      ),
+    )) as Array<Record<string, unknown>>;
+    expect(rows[0]?.["disabled_at"]).toBeNull();
   });
 });

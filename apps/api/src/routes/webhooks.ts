@@ -2,6 +2,7 @@ import type { ProductConfig } from "@creator-outdoor/config";
 import { type Database, disableSubscriptionsByEmail } from "@creator-outdoor/db";
 import { Elysia, t } from "elysia";
 import type { EmailProvider } from "../email/provider";
+import { verifyResendSignature } from "../email/resend";
 import { log } from "../observability/logger";
 import type { PixPaymentProvider } from "../payments/provider";
 import { WebhookValidationError } from "../payments/provider";
@@ -15,6 +16,7 @@ export type WebhookRouteDependencies = {
   readonly email?: EmailProvider;
   readonly webOrigin?: string;
   readonly now?: () => Date;
+  readonly resendWebhookSecret?: string;
 };
 
 /**
@@ -100,31 +102,34 @@ export function webhookRoutes(dependencies: WebhookRouteDependencies) {
     )
     .post(
       "/v1/webhooks/email/resend",
-      async ({ body }) => {
-        const payload = body as {
-          type?: string;
-          data?: { to?: string[] };
-        };
-        const eventType = payload.type;
-        const recipients = payload.data?.to ?? [];
+      async ({ body, headers, request, status }) => {
+        if (
+          dependencies.resendWebhookSecret !== undefined &&
+          dependencies.resendWebhookSecret !== ""
+        ) {
+          const svixId = request.headers.get("svix-id") ?? headers["svix-id"];
+          const svixTimestamp = request.headers.get("svix-timestamp") ?? headers["svix-timestamp"];
+          const svixSignature = request.headers.get("svix-signature") ?? headers["svix-signature"];
 
-        if (eventType === "email.bounced" || eventType === "email.complained") {
-          for (const recipient of recipients) {
-            if (typeof recipient === "string") {
-              const disabledCount = await disableSubscriptionsByEmail(
-                dependencies.database,
-                recipient.trim().toLowerCase(),
-                now(),
-              );
-              if (disabledCount > 0) {
-                log.info("email_subscription_disabled_on_bounce", {
-                  reason: eventType,
-                  count: disabledCount,
-                });
-              }
-            }
+          const isValid = verifyResendSignature({
+            svixId,
+            svixTimestamp,
+            svixSignature,
+            body,
+            secret: dependencies.resendWebhookSecret,
+            now: now(),
+          });
+
+          if (!isValid) {
+            log.warn("webhook_rejected", {
+              provider: "resend",
+              reason: "Invalid or missing webhook signature",
+            });
+            return status(401, { received: false, outcome: "INVALID_SIGNATURE" as const });
           }
         }
+
+        await handleResendEmailEvents(dependencies.database, body.type, body.data?.to ?? [], now());
 
         return { received: true };
       },
@@ -135,7 +140,37 @@ export function webhookRoutes(dependencies: WebhookRouteDependencies) {
         }),
         response: {
           200: t.Object({ received: t.Literal(true) }),
+          401: t.Object({
+            received: t.Literal(false),
+            outcome: t.Literal("INVALID_SIGNATURE"),
+          }),
         },
       },
     );
+}
+
+async function handleResendEmailEvents(
+  database: Database,
+  eventType: string | undefined,
+  recipients: readonly string[],
+  now: Date,
+): Promise<void> {
+  if (eventType !== "email.bounced" && eventType !== "email.complained") {
+    return;
+  }
+  for (const recipient of recipients) {
+    if (typeof recipient === "string") {
+      const disabledCount = await disableSubscriptionsByEmail(
+        database,
+        recipient.trim().toLowerCase(),
+        now,
+      );
+      if (disabledCount > 0) {
+        log.info("email_subscription_disabled_on_bounce", {
+          reason: eventType,
+          count: disabledCount,
+        });
+      }
+    }
+  }
 }

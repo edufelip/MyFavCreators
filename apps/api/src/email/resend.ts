@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { redactEmail } from "@creator-outdoor/domain";
 import {
   EmailDeliveryError,
@@ -81,4 +82,92 @@ export class ResendEmailProvider implements EmailProvider {
       );
     }
   }
+}
+
+export type VerifyResendSignatureInput = {
+  readonly svixId: string | null | undefined;
+  readonly svixTimestamp: string | null | undefined;
+  readonly svixSignature: string | null | undefined;
+  readonly body: string | unknown;
+  readonly secret: string;
+  readonly toleranceSeconds?: number;
+  readonly now?: Date;
+};
+
+/**
+ * Verifies Resend webhook signatures using Svix standard specification.
+ *
+ * The signature binds the delivery to this message id, timestamp and exact payload.
+ * Timestamp freshness is verified against toleranceSeconds (default: 300s / 5 minutes)
+ * to close replay attack windows.
+ */
+export function verifyResendSignature(input: VerifyResendSignatureInput): boolean {
+  if (
+    !input.svixId ||
+    !input.svixTimestamp ||
+    !input.svixSignature ||
+    !input.secret ||
+    input.body === undefined ||
+    input.body === null
+  ) {
+    return false;
+  }
+
+  const timestampNum = Number.parseInt(input.svixTimestamp, 10);
+  if (!Number.isFinite(timestampNum)) {
+    return false;
+  }
+
+  const now = input.now ?? new Date();
+  const nowSeconds = Math.floor(now.getTime() / 1000);
+  const toleranceSeconds = input.toleranceSeconds ?? 300;
+
+  if (Math.abs(nowSeconds - timestampNum) > toleranceSeconds) {
+    return false;
+  }
+
+  const rawBody = typeof input.body === "string" ? input.body : JSON.stringify(input.body);
+  const toSign = `${input.svixId}.${input.svixTimestamp}.${rawBody}`;
+
+  let secretKey: Buffer;
+  try {
+    secretKey = input.secret.startsWith("whsec_")
+      ? Buffer.from(input.secret.slice("whsec_".length), "base64")
+      : Buffer.from(input.secret, "utf8");
+  } catch {
+    return false;
+  }
+
+  const expectedBase64 = createHmac("sha256", secretKey).update(toSign).digest("base64");
+  const expectedSignature = `v1,${expectedBase64}`;
+  const expectedBuf = Buffer.from(expectedSignature, "utf8");
+
+  const candidates = input.svixSignature.trim().split(/\s+/);
+  for (const candidate of candidates) {
+    const candidateBuf = Buffer.from(candidate, "utf8");
+    if (candidateBuf.length === expectedBuf.length && timingSafeEqual(candidateBuf, expectedBuf)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Creates a valid Svix / Resend signature header for a payload.
+ * Useful for tests and simulated webhook deliveries.
+ */
+export function signResendPayload(input: {
+  readonly svixId: string;
+  readonly svixTimestamp: string | number;
+  readonly body: string | unknown;
+  readonly secret: string;
+}): string {
+  const ts = String(input.svixTimestamp);
+  const rawBody = typeof input.body === "string" ? input.body : JSON.stringify(input.body);
+  const toSign = `${input.svixId}.${ts}.${rawBody}`;
+  const secretKey = input.secret.startsWith("whsec_")
+    ? Buffer.from(input.secret.slice("whsec_".length), "base64")
+    : Buffer.from(input.secret, "utf8");
+  return `v1,${createHmac("sha256", secretKey).update(toSign).digest("base64")}`;
 }
