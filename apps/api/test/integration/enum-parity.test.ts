@@ -63,6 +63,38 @@ const PAIRS: ReadonlyArray<readonly [string, readonly string[]]> = [
   ["verification_status", schema.VERIFICATION_STATUSES],
 ];
 
+/**
+ * The `pgEnum`s the schema module declares.
+ *
+ * Drizzle builds one as a callable carrying `enumName` and `enumValues`, which
+ * is what distinguishes it from the tables and helpers exported beside it.
+ * Narrowed with `in` rather than an assertion, so nothing here claims a shape
+ * the runtime has not shown.
+ */
+type DeclaredEnum = { readonly enumName: string; readonly enumValues: readonly string[] };
+
+function declaredEnums(): readonly DeclaredEnum[] {
+  /*
+   * Rebuilt rather than narrowed with a predicate. A `value is DeclaredEnum`
+   * guard has to be assignable to the union `Object.values` produces, and
+   * Drizzle's `PgEnum` carries more than the two properties this needs — so
+   * the guard would only compile with an assertion, which is the one thing a
+   * test about two sides agreeing must not do.
+   */
+  return Object.values(schema).flatMap((value) => {
+    if (typeof value !== "function" || !("enumName" in value) || !("enumValues" in value)) {
+      return [];
+    }
+    return [{ enumName: value.enumName, enumValues: [...value.enumValues] }];
+  });
+}
+
+function declaredEnumNames(): readonly string[] {
+  return declaredEnums()
+    .map((enumeration) => enumeration.enumName)
+    .sort();
+}
+
 describe("every database enum holds exactly what the domain says", () => {
   for (const [typeName, domainValues] of PAIRS) {
     test(`${typeName}`, async () => {
@@ -74,7 +106,7 @@ describe("every database enum holds exactly what the domain says", () => {
     });
   }
 
-  test("covers every enum the schema declares", async () => {
+  test("covers every enum the database holds", async () => {
     /*
      * Otherwise this file rots the way the contract parity check did: a new
      * enum is added, nobody adds it here, and the guarantee quietly shrinks.
@@ -87,7 +119,37 @@ describe("every database enum holds exactly what the domain says", () => {
     )) as Array<Record<string, unknown>>;
 
     const inDatabase = rows.map((row) => String(row["name"])).sort();
-    const covered = PAIRS.map(([name]) => name).sort();
-    expect(inDatabase).toEqual(covered);
+    expect(inDatabase).toEqual(PAIRS.map(([name]) => name).sort());
+  });
+
+  test("covers every enum the schema declares", () => {
+    /*
+     * The blind spot the check above cannot see.
+     *
+     * It compares the database against this file, so it catches an enum that
+     * was migrated and never listed. An enum *declared* in the schema and never
+     * migrated is in neither set: not in the database, so that check is
+     * satisfied, and not in `PAIRS`, so nothing is missing from it either. The
+     * first insert using it is where anybody finds out.
+     *
+     * Read from the schema module rather than listed by hand, because a list
+     * that has to be updated alongside another list is the thing this test
+     * exists to replace.
+     */
+    expect(declaredEnumNames().length).toBeGreaterThan(0);
+    expect(declaredEnumNames()).toEqual(PAIRS.map(([name]) => name).sort());
+  });
+
+  test("declares exactly the values the domain lists", () => {
+    // Cheap, and it localises the failure: a declaration that drifted from the
+    // domain fails here, naming the enum, instead of failing above as a
+    // database that disagrees with a list nobody has looked at yet.
+    for (const [name, domainValues] of PAIRS) {
+      const declared = declaredEnums().find((enumeration) => enumeration.enumName === name);
+      expect(
+        declared?.enumValues === undefined ? null : [...declared.enumValues].sort(),
+        name,
+      ).toEqual([...domainValues].sort());
+    }
   });
 });
