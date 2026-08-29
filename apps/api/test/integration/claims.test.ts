@@ -351,6 +351,46 @@ describe("a claimed creator's own notifications", () => {
     expect((await dashboard(token)).notifyDethrone).toBe(true);
   });
 
+  test("says so when the address given at claim time could not be used", async () => {
+    /*
+     * The claim itself really did succeed — the code was on the profile — so
+     * refusing the whole request would make somebody redo verification over a
+     * typo. Dropping the address in silence is the other extreme: the reply
+     * said "Perfil reivindicado" and nothing else, and the creator found out
+     * the first time a notification did not arrive.
+     *
+     * `/v1/creators/me/notifications` answers 422 for the same input. The two
+     * surfaces need not behave identically — one is a correction, the other is
+     * a claim that stands — but neither may accept an address and keep quiet
+     * about not having it.
+     */
+    const verified = await verifyClaim(await requestClaim(), { email: "nao-e-um-endereco" });
+    expect(verified.outcome).toBe("VERIFIED");
+    expect(verified.manageToken).not.toBeNull();
+    expect(verified.message).toContain("Nao salvamos o e-mail");
+
+    /*
+     * And it really was not stored, rather than stored and disclaimed. Asking
+     * to switch a notification on now comes back off, because there is nowhere
+     * to send it — which is the honest answer, and the one the management page
+     * turns into "we need an address" rather than "saved".
+     */
+    const token = verified.manageToken ?? "";
+    const response = await call("/v1/creators/me/notifications", {
+      method: "PUT",
+      headers: { "content-type": "application/json", ...authorized(token) },
+      body: JSON.stringify({ notifyDethrone: true, notifyWeeklyRecap: false }),
+    });
+    expect(await response.json()).toEqual({ notifyDethrone: false, notifyWeeklyRecap: false });
+  });
+
+  test("stays quiet about the address when none was given", async () => {
+    // The extra sentence is a correction, so it must not appear for somebody
+    // who never offered an address in the first place.
+    const verified = await verifyClaim(await requestClaim());
+    expect(verified.message).not.toContain("Nao salvamos");
+  });
+
   test("switches each notification independently", async () => {
     // One switch off must not take the other with it.
     const verified = await verifyClaim(await requestClaim(), { email: "luna@example.com" });

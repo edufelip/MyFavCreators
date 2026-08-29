@@ -259,6 +259,12 @@ export const copy = {
     title: "Gerenciar perfil",
     signedOut: "Sua sessão de gerenciamento terminou. Reivindique o perfil de novo.",
     unavailable: "Não foi possível salvar agora. Tente novamente em instantes.",
+    /*
+     * Separate from `unavailable`, because the two ask for different things.
+     * "Tente novamente" is advice that cannot work for a typo, and the creator
+     * would keep pressing the button.
+     */
+    invalidEmail: "Confira o e-mail: o endereço informado não é válido.",
     saved: "Salvo.",
     bio: "Bio",
     category: "Categoria",

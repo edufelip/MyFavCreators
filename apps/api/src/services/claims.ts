@@ -155,7 +155,8 @@ export async function verifyClaim(
   }
 
   const token = createClaimToken();
-  const email = readEmail(input.email);
+  const supplied = readEmail(input.email);
+  const email = supplied.kind === "USABLE" ? supplied.email : null;
 
   await withTransaction(database, async (tx) => {
     await markVerificationVerified(tx, verification.id, input.now);
@@ -177,20 +178,38 @@ export async function verifyClaim(
 
   return {
     outcome: "VERIFIED",
-    message: "Perfil reivindicado. Guarde o link de gerenciamento.",
+    message:
+      supplied.kind === "UNUSABLE"
+        ? "Perfil reivindicado. Guarde o link de gerenciamento. Nao salvamos o e-mail informado: cadastre um endereco valido na pagina de gerenciamento."
+        : "Perfil reivindicado. Guarde o link de gerenciamento.",
     manageToken: token,
   };
 }
 
-function readEmail(value: string | undefined): string | null {
+/**
+ * An address a creator typed, and whether it can be used.
+ *
+ * Three outcomes rather than two. "None given" and "given but unusable" both
+ * stored `null`, which meant a creator who mistyped their address was told
+ * "Perfil reivindicado" and nothing else — the claim really did succeed, so the
+ * message was true, and the half they cared about had been dropped on the
+ * floor. They would find out the first time a notification did not arrive.
+ */
+type SuppliedEmail =
+  | { readonly kind: "NONE" }
+  | { readonly kind: "USABLE"; readonly email: string }
+  | { readonly kind: "UNUSABLE" };
+
+function readEmail(value: string | undefined): SuppliedEmail {
   if (value === undefined || value.trim() === "") {
-    return null;
+    return { kind: "NONE" };
   }
   try {
-    return normalizeEmail(value);
+    return { kind: "USABLE", email: normalizeEmail(value) };
   } catch {
-    // A bad address is not worth failing a proven claim over.
-    return null;
+    // Still not worth failing a proven claim over — the code really was on the
+    // profile. It is worth saying out loud, which is what the caller does.
+    return { kind: "UNUSABLE" };
   }
 }
 

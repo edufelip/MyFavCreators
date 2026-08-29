@@ -75,7 +75,26 @@ describe("recording what a creator agreed to be written about", () => {
         { notifyDethrone: false, notifyWeeklyRecap: false },
         null,
       ),
-    ).toBeNull();
+    ).toBe("SIGNED_OUT");
+  });
+
+  test("names a refused address rather than calling it a passing outage", async () => {
+    /*
+     * A 422 is the API saying the address cannot be used, and it is the one
+     * failure here the creator can fix. Folded in with everything else it
+     * reached the screen as "Não foi possível salvar agora. Tente novamente em
+     * instantes." — advice that can never work for a typo, so the creator keeps
+     * pressing the button.
+     */
+    handler = () =>
+      Response.json({ error: { code: "INVALID_EMAIL", message: "" } }, { status: 422 });
+    expect(
+      await setCreatorNotifications(
+        "tok",
+        { notifyDethrone: true, notifyWeeklyRecap: false },
+        "jose@exemplo",
+      ),
+    ).toBe("INVALID_EMAIL");
   });
 
   test("raises anything else, rather than reporting either outcome", async () => {

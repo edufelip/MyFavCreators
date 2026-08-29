@@ -135,10 +135,15 @@ export async function setNotificationsAction(
 
   try {
     const applied = await setCreatorNotifications(token, wanted, email === "" ? null : email);
-    if (applied === null) {
+    if (applied === "SIGNED_OUT") {
       // The session expired. Saying "saved" here would leave somebody believing
       // they had turned a notification off when they had not.
       return { message: copy.manage.signedOut, saved: false };
+    }
+    if (applied === "INVALID_EMAIL") {
+      // Named, because it is the one failure here the creator can fix, and the
+      // generic "try again in a moment" is advice that cannot work for a typo.
+      return { message: copy.manage.invalidEmail, saved: false };
     }
     if (
       applied.notifyDethrone !== wanted.notifyDethrone ||

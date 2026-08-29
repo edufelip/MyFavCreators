@@ -355,7 +355,7 @@ export async function setCreatorNotifications(
   token: string,
   preferences: NotificationPreferences,
   email: string | null,
-): Promise<NotificationPreferenceDto | null> {
+): Promise<NotificationPreferenceDto | "SIGNED_OUT" | "INVALID_EMAIL"> {
   const response = await fetch(new URL("/v1/creators/me/notifications", webConfig.apiOrigin), {
     method: "PUT",
     headers: {
@@ -368,7 +368,18 @@ export async function setCreatorNotifications(
     cache: "no-store",
   });
   if (response.status === 401) {
-    return null;
+    return "SIGNED_OUT";
+  }
+  /*
+   * A 422 is the API saying the address cannot be used, and it is the one
+   * failure here the creator can fix. Folded in with everything else it became
+   * "try again in a moment" — which is false, because trying again with the
+   * same typo never works. The same shape as the admin refund boundary, which
+   * told an operator "nothing was changed" for a refund that may have moved
+   * money: a confident, wrong explanation beside a retry.
+   */
+  if (response.status === 422) {
+    return "INVALID_EMAIL";
   }
   if (!response.ok) {
     throw new Error(`Notification preference failed with status ${response.status}`);

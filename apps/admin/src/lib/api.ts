@@ -53,7 +53,7 @@ async function adminFetch(path: string, init?: RequestInit): Promise<unknown> {
     cache: "no-store",
   });
   if (!response.ok) {
-    throw await adminApiError(path, response);
+    throw await adminApiError(response);
   }
   return response.json();
 }
@@ -81,7 +81,7 @@ export class AdminApiError extends Error {
   }
 }
 
-async function adminApiError(path: string, response: Response): Promise<AdminApiError> {
+async function adminApiError(response: Response): Promise<AdminApiError> {
   let body: unknown;
   try {
     body = await response.json();
@@ -92,8 +92,15 @@ async function adminApiError(path: string, response: Response): Promise<AdminApi
   return new AdminApiError(
     response.status,
     parsed?.code ?? "UNKNOWN",
-    // The fallback names the call rather than pretending to know what happened.
-    parsed?.message ?? `A chamada ${path} falhou (${response.status}).`,
+    /*
+     * The fallback says what happened without saying where.
+     *
+     * It used to interpolate `path`, which is an internal route carrying a
+     * payment id — and `operatorMessage` is rendered straight onto the screen
+     * beside a field documented as free of internals. The status is the part
+     * an operator can act on; the route is in the log, with the request id.
+     */
+    parsed?.message ?? `A API respondeu ${response.status} e não explicou o motivo.`,
   );
 }
 

@@ -24,8 +24,15 @@ try {
    * on its own leaves a database whose Hall da Fama is empty and whose home
    * page looks fine, which is the kind of half-state that gets debugged for an
    * hour before somebody remembers the second command.
+   *
+   * Worded as a condition rather than an instruction, because the root command
+   * runs the rollover on the next line: telling everybody to run something
+   * that is about to run makes the one message an operator sees a false one.
    */
-  console.info("Historical weeks are still open. Run: bun run job:weekly-rollover");
+  console.info(
+    "Historical weeks are left open. If you ran this script directly rather than " +
+      "`bun run db:seed`, finish with: bun run job:weekly-rollover",
+  );
 } finally {
   await closeDatabase(database);
 }
