@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
-import { describeError } from "./errors";
+import { describeError, sanitize } from "./errors";
 
 /**
  * Structured logging.
@@ -40,32 +40,44 @@ const REQUEST_CONTEXT = new AsyncLocalStorage<{ readonly requestId: string }>();
  * `supporterEmail`. Matching the exact spelling meant a header object — whose
  * keys arrive however the sender wrote them — walked straight through.
  */
-const FORBIDDEN_FIELDS = new Set([
+const FORBIDDEN_STEMS = [
   "authorization",
   "cookie",
-  "setcookie",
   "password",
   "secret",
   "token",
-  "managetoken",
-  "unsubtoken",
-  "adminapisecret",
-  "fanidentitykey",
-  "supporteremail",
+  "apikey",
+  "credential",
   "email",
+  /*
+   * The supporter's pseudonymous identity: an HMAC of their address, which is
+   * not an address but stands in for one everywhere. It is the one entry here
+   * that no generic stem covers, and it fell out of this list once already
+   * when exact names became stems — hence its own test below the others.
+   */
+  "identitykey",
   // The PIX payload is the string a person pastes into their bank. It is not a
   // credential, but it is the one field a support screenshot must never carry.
   "pixpayload",
   "qrcode",
   "copypaste",
   "emv",
-]);
+] as const;
 
 /** How deep a scrub descends before it stops looking. */
 const MAX_SCRUB_DEPTH = 4;
 
+/**
+ * Stems rather than exact names.
+ *
+ * Folding the spelling fixed `Cookie` and `set-cookie`; it did nothing for
+ * `cookies`, `accessToken`, `apiKey`, `sessionToken` or `refreshToken`, which
+ * are the words a caller actually reaches for. A field list that has to
+ * enumerate every synonym is a list that will be one synonym behind.
+ */
 function isForbiddenKey(key: string): boolean {
-  return FORBIDDEN_FIELDS.has(key.toLowerCase().replace(/[-_\s]/g, ""));
+  const folded = key.toLowerCase().replace(/[-_\s]/g, "");
+  return FORBIDDEN_STEMS.some((stem) => folded.includes(stem));
 }
 
 let sink: LogSink = defaultSink;
@@ -80,7 +92,11 @@ export function resetLogSink(): void {
 }
 
 function defaultSink(record: LogRecord): void {
-  const line = JSON.stringify(record);
+  // A BigInt has no JSON form and throws rather than serialising, which would
+  // turn a log line into a second fault.
+  const line = JSON.stringify(record, (_key, value) =>
+    typeof value === "bigint" ? value.toString() : value,
+  );
   if (record.level === "error") {
     console.error(line);
   } else if (record.level === "warn") {
@@ -143,13 +159,27 @@ export function resolveRequestId(header: string | null): string {
  */
 export function scrubFields(fields: LogFields): Record<string, unknown> {
   const safe: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(fields)) {
-    safe[key] = isForbiddenKey(key) ? "[redacted]" : scrubValue(value, 1);
+  /*
+   * Reading the fields can itself throw — a getter that raises, a proxy. This
+   * runs while something has already gone wrong, so it must not be the thing
+   * that goes wrong next.
+   */
+  try {
+    for (const [key, value] of Object.entries(fields)) {
+      safe[key] = isForbiddenKey(key) ? "[redacted]" : scrubValue(value, 1);
+    }
+  } catch {
+    return { fields: "[unreadable]" };
   }
   return safe;
 }
 
 function scrubValue(value: unknown, depth: number): unknown {
+  if (typeof value === "string") {
+    // Keys were checked; values were not. A PIX payload under `note:` is the
+    // same payload it is under `pixPayload:`.
+    return sanitize(value);
+  }
   if (typeof value !== "object" || value === null) {
     return value;
   }

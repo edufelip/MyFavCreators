@@ -48,6 +48,9 @@ const NOT_FOUND = { error: { code: "NOT_FOUND" as const, message: "Perfil nao en
 const UNAUTHORIZED = {
   error: { code: "UNAUTHORIZED" as const, message: "Link de gerenciamento invalido." },
 };
+const INVALID_EMAIL = {
+  error: { code: "UNPROCESSABLE" as const, message: "Informe um email valido." },
+};
 
 /**
  * The management token, carried as a bearer credential.
@@ -192,6 +195,21 @@ export function claimRoutes(dependencies: ClaimRouteDependencies) {
           return status(401, UNAUTHORIZED);
         }
 
+        if (
+          body.email !== undefined &&
+          body.email.trim() !== "" &&
+          readEmail(body.email) === null
+        ) {
+          /*
+           * Refused rather than ignored. Falling back to the address on the
+           * claim meant a creator who typed `jose@exemplo` — which passes an
+           * HTML5 email field and fails ours — was told "salvo" while their
+           * notices kept going to the old inbox. Nothing is at stake here but a
+           * round trip, so saying no is plainly better than saying yes.
+           */
+          return status(422, INVALID_EMAIL);
+        }
+
         const email = readEmail(body.email) ?? claimed.email;
         if (email === null) {
           // Nothing to turn on without somewhere to send it.
@@ -234,7 +252,7 @@ export function claimRoutes(dependencies: ClaimRouteDependencies) {
           notifyWeeklyRecap: t.Boolean(),
           email: t.Optional(t.String({ maxLength: 254 })),
         }),
-        response: { 200: NotificationPreferenceDto, 401: ApiErrorDto },
+        response: { 200: NotificationPreferenceDto, 401: ApiErrorDto, 422: ApiErrorDto },
       },
     );
 }

@@ -123,15 +123,21 @@ export function createApp(options: CreateAppOptions) {
       withRequestIdOf(request, () => log.error("api_error", error, { code }));
       /*
        * Reported as well as logged, and deliberately not awaited: a request
-       * that already failed should not also wait on a third party to hear
-       * about it. `capture` never rejects, so there is nothing to handle.
+       * that already failed should not also wait on a third party to hear about
+       * it. `capture` is written not to reject, and the `.catch` is here anyway
+       * — an unhandled rejection inside an error handler is the worst place to
+       * be relying on somebody else keeping a promise.
        */
-      void errorTracker.capture({
-        event: "api_error",
-        error,
-        ...(requestId === undefined ? {} : { requestId }),
-        context: { code, method: request.method, route: new URL(request.url).pathname },
-      });
+      void errorTracker
+        .capture({
+          event: "api_error",
+          error,
+          ...(requestId === undefined ? {} : { requestId }),
+          context: { code, method: request.method, route: new URL(request.url).pathname },
+        })
+        .catch(() => {
+          // Nothing left to do about it here; the failure is already in the log.
+        });
       set.status = 500;
       return { error: { code: "INTERNAL", message: "Erro interno." } };
     })

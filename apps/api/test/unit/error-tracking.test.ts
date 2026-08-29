@@ -189,6 +189,11 @@ describe("what reaches the tracker", () => {
      */
     const { tracker, sent } = trackerWithCapture();
     const leaky = [
+      // A JWT, so this pins the bearer rule itself rather than the `sk_live`
+      // one — deleting the bearer pattern used to leave the suite green.
+      "refused for Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.abcdef.ghijkl",
+      "refused for Authorization: Basic dXNlcjpwYXNzd29yZA==",
+      "MERCADO_PAGO_ACCESS_TOKEN=APP_USR-9999-aaaa was rejected",
       "refused for Authorization: Bearer sk_live_abcdef123456",
       "cookie co_admin_session=abcdef123456 rejected",
       "provider refused 00020126580014br.gov.bcb.pix0136abcdef-1234-5678-9012-abcdefabcdef5204",
@@ -201,6 +206,9 @@ describe("what reaches the tracker", () => {
       "sk_live_abcdef123456",
       "co_admin_session=abcdef123456",
       "br.gov.bcb.pix",
+      "eyJhbGciOiJIUzI1NiJ9.abcdef.ghijkl",
+      "dXNlcjpwYXNzd29yZA==",
+      "APP_USR-9999-aaaa",
     ]) {
       expect(body, secret).not.toContain(secret);
     }
@@ -315,5 +323,94 @@ describe("the null tracker", () => {
         .capture({ event: "request_failed", error: new Error("boom") })
         .then(() => "resolved"),
     ).toBe("resolved");
+  });
+});
+
+describe("a tracker that is handed something hostile", () => {
+  /*
+   * `capture` is fire-and-forget from the API's error handler, on a request
+   * that has already failed. A rejection there is an unhandled rejection in the
+   * worst possible place, so nothing the caller passes may produce one.
+   */
+  function trackerFor(sent: string[]): SentryErrorTracker {
+    return new SentryErrorTracker({
+      dsn: "https://abc123def456@o987654.ingest.sentry.io/4505",
+      environment: "test",
+      transport: async (_url, init) => {
+        sent.push(typeof init.body === "string" ? init.body : "");
+      },
+    });
+  }
+
+  test("does not reject on a context field whose getter throws", async () => {
+    const sent: string[] = [];
+    const hostile = {
+      get creatorSlug(): string {
+        throw new Error("no");
+      },
+    };
+    expect(
+      await trackerFor(sent)
+        .capture({ event: "request_failed", error: new Error("boom"), context: hostile })
+        .then(() => "resolved"),
+    ).toBe("resolved");
+  });
+
+  test("does not reject on a value JSON cannot serialise", async () => {
+    const sent: string[] = [];
+    expect(
+      await trackerFor(sent)
+        .capture({
+          event: "request_failed",
+          error: new Error("boom"),
+          context: { attempts: 3n },
+        })
+        .then(() => "resolved"),
+    ).toBe("resolved");
+  });
+
+  test("redacts a credential named however the caller named it", async () => {
+    const sent: string[] = [];
+    await trackerFor(sent).capture({
+      event: "request_failed",
+      error: new Error("boom"),
+      context: {
+        accessToken: "APP_USR-1111",
+        apiKey: "key-2222",
+        sessionToken: "sess-3333",
+        cookies: "co_sid=4444",
+        creatorSlug: "ana",
+      },
+    });
+
+    const body = sent[0] ?? "";
+    for (const secret of ["APP_USR-1111", "key-2222", "sess-3333", "co_sid=4444"]) {
+      expect(body, secret).not.toContain(secret);
+    }
+    expect(body).toContain("ana");
+  });
+
+  test("redacts a secret that arrives as a value rather than under its own key", async () => {
+    const sent: string[] = [];
+    await trackerFor(sent).capture({
+      event: "request_failed",
+      error: new Error("boom"),
+      context: {
+        note: "00020126580014br.gov.bcb.pix0136abcdef-1234-5678-9012-abcdefabcdef5204",
+        detail: "used sk_live_zzzzzzzzzzzz",
+      },
+    });
+
+    const body = sent[0] ?? "";
+    expect(body).not.toContain("br.gov.bcb.pix");
+    expect(body).not.toContain("sk_live_zzzzzzzzzzzz");
+  });
+
+  test("redacts a secret smuggled into the error's name", async () => {
+    const sent: string[] = [];
+    const named = new Error("boom");
+    named.name = "Error: Bearer eyJhbGciOiJIUzI1NiJ9.zzz.yyy";
+    await trackerFor(sent).capture({ event: "request_failed", error: named });
+    expect(sent[0] ?? "").not.toContain("eyJhbGciOiJIUzI1NiJ9.zzz.yyy");
   });
 });

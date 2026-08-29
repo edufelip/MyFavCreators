@@ -57,6 +57,61 @@ describe("log lines", () => {
     expect(record["creatorSlug"]).toBe("luna-verso");
   });
 
+  /*
+   * Every name the codebase actually spells, pinned one by one.
+   *
+   * The list above used to hold exact field names and was rewritten into stems,
+   * which looked strictly stronger — `token` covers `manageToken`, `cookie`
+   * covers `setCookie`. It was not: `fanIdentityKey` is a substring of no stem,
+   * so the supporter's pseudonymous identity started printing in full and every
+   * other assertion still passed. A rewrite is only safe if the cases it must
+   * keep are named somewhere it cannot quietly stop covering them.
+   */
+  test("redacts every sensitive field name this codebase actually writes", () => {
+    const records = capture();
+    log.info("every_shape", {
+      Authorization: "Bearer abc",
+      "set-cookie": "co_manage=abc",
+      manageToken: "abc",
+      unsubToken: "abc",
+      admin_api_secret: "abc",
+      accessToken: "abc",
+      apiKey: "abc",
+      fanIdentityKey: "hmac",
+      supporterEmail: "ana@example.com",
+      pixPayload: "000201...",
+      qrCode: "data:image/png",
+      copyPaste: "000201...",
+      emv: "000201...",
+    });
+
+    const record: LogRecord = records[0] ?? { level: "info", event: "none" };
+    for (const [field, value] of Object.entries(record)) {
+      if (field === "level" || field === "event") {
+        continue;
+      }
+      expect(value, field).toBe("[redacted]");
+    }
+  });
+
+  test("still prints the fields an operator needs to read", () => {
+    const records = capture();
+    log.info("ordinary", {
+      creatorSlug: "luna-verso",
+      amountCents: 500,
+      provider: "fake-pix",
+      // Not a credential: it identifies a retry, not a person, and redacting it
+      // would take the one field that makes a duplicate payment traceable.
+      idempotencyKey: "boost-1",
+      status: "CONFIRMED",
+    });
+
+    const record: LogRecord = records[0] ?? { level: "info", event: "none" };
+    expect(record["idempotencyKey"]).toBe("boost-1");
+    expect(record["amountCents"]).toBe(500);
+    expect(record["status"]).toBe("CONFIRMED");
+  });
+
   test("describe an error rather than printing it", () => {
     const records = capture();
     const cause = new Error('relation "x" does not exist');

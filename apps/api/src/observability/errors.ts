@@ -24,8 +24,14 @@ const PARAMETER_MARKERS = ["params:", "parameters:"];
  */
 const REDACTIONS: ReadonlyArray<readonly [RegExp, string]> = [
   [/[^\s@]+@[^\s@]+\.[^\s@]+/g, "[email]"],
-  [/\bbearer\s+[\w.~+/=-]+/gi, "Bearer [redacted]"],
-  [/\b(co_[a-z_]+|session|token)=[\w.~+/=-]+/gi, "$1=[redacted]"],
+  [/\b(bearer|basic)\s+[\w.~+/=-]+/gi, "$1 [redacted]"],
+  /*
+   * Any assignment whose name ends in a credential word. The earlier pattern
+   * could not match `MERCADO_PAGO_ACCESS_TOKEN=` at all — `_` is a word
+   * character, so there is no `\b` before `TOKEN` — and a provider SDK quoting
+   * its own configuration back is exactly how one of these reaches a message.
+   */
+  [/[\w-]*(?:token|secret|password|key|credential|session)=[\w.~+/=-]+/gi, "[redacted]"],
   // A PIX "copia e cola" always begins with the EMV payload-format indicator.
   [/\b000201[\w.*$%:;,+/=-]{16,}/g, "[pix-payload]"],
   [/\b(sk|pk|rk)_(live|test)_[\w-]+/gi, "[key]"],
@@ -61,7 +67,9 @@ export function describeError(error: unknown): DescribedError {
   }
   const deepest = deepestCause(error);
   return {
-    name: deepest.name,
+    // The name is sanitised too. It looks like a constant, and is — until a
+    // library builds one out of a response it received.
+    name: sanitize(deepest.name),
     message: sanitize(deepest.message),
     frames: safeFrames(deepest.stack),
   };
@@ -78,6 +86,13 @@ function safeFrames(stack: string | undefined): readonly string[] {
       // Only the frames. Anything that is not one is part of the message.
       .filter((line) => line.startsWith("at "))
       .slice(0, MAX_FRAMES)
+      /*
+       * Sanitised like everything else. Frames are file paths and function
+       * names, which carry nothing about a request — until a stack is built by
+       * hand, or a path carries a query string, and then this is the one thing
+       * being forwarded verbatim.
+       */
+      .map(sanitize)
   );
 }
 
@@ -94,7 +109,14 @@ function deepestCause(error: Error): Error {
   return current;
 }
 
-function sanitize(message: string): string {
+/**
+ * Reduces any text to something safe to print.
+ *
+ * Exported because the same rule has to apply to a value in a log field, not
+ * only to an error message: a PIX payload under `note:` is the same payload it
+ * is under `pixPayload:`.
+ */
+export function sanitize(message: string): string {
   let cleaned = message;
   for (const marker of PARAMETER_MARKERS) {
     const at = cleaned.toLowerCase().indexOf(marker);

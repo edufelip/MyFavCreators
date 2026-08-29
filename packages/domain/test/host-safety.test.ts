@@ -248,3 +248,136 @@ describe("addresses that must never be stored", () => {
     expect(isUnsafeHost("internal-affairs.com")).toBe(false);
   });
 });
+
+describe("the checks that stop a URL resolving inside the infrastructure", () => {
+  /*
+   * These exist because mutation testing found the rules could be deleted
+   * without a single test noticing. Every one of them is an SSRF bypass: a
+   * creator URL is attacker-supplied and later becomes an outbound link and a
+   * metadata fetch target, so a rule nothing pins is a rule that can be lost in
+   * a refactor and never missed.
+   */
+  test("a bare internal hostname is refused, not only localhost", () => {
+    for (const host of ["localhost", "host", "broadcasthost"]) {
+      expect(isUnsafeHost(host), host).toBe(true);
+    }
+  });
+
+  test("an ordinary public host is allowed, so the refusals mean something", () => {
+    // Without this, every range check below could be replaced by "always
+    // private" and no test would fail.
+    for (const host of ["instagram.com", "youtube.com", "8.8.8.8", "1.1.1.1", "93.184.216.34"]) {
+      expect(isUnsafeHost(host), host).toBe(false);
+    }
+  });
+
+  test("refuses every private and reserved IPv4 range by name", () => {
+    const ranges: ReadonlyArray<readonly [string, string]> = [
+      ["0.0.0.0", "this network"],
+      ["10.1.2.3", "private"],
+      ["127.0.0.1", "loopback"],
+      ["100.64.0.1", "carrier-grade NAT"],
+      ["100.127.255.254", "carrier-grade NAT, upper edge"],
+      ["169.254.169.254", "link-local, the cloud metadata address"],
+      ["172.16.0.1", "private"],
+      ["172.31.255.254", "private, upper edge"],
+      ["192.0.0.1", "IETF protocol assignments"],
+      ["192.168.1.1", "private"],
+      ["198.18.0.1", "benchmarking"],
+      ["198.19.255.254", "benchmarking, upper edge"],
+      ["224.0.0.1", "multicast"],
+      ["255.255.255.255", "broadcast"],
+    ];
+    for (const [host, why] of ranges) {
+      expect(isUnsafeHost(host), `${host} (${why})`).toBe(true);
+    }
+  });
+
+  test("allows the addresses just outside each private range", () => {
+    // The edges are where an off-by-one in a range check hides.
+    for (const host of ["100.63.255.255", "100.128.0.1", "172.15.255.255", "172.32.0.1"]) {
+      expect(isUnsafeHost(host), host).toBe(false);
+    }
+  });
+
+  test("a private second octet does not make a public first one private", () => {
+    /*
+     * Every range is a pair, and dropping the first half of the pair leaves a
+     * rule that refuses ordinary addresses. These all carry a second octet that
+     * appears in some private range beside a first octet that does not.
+     */
+    for (const host of [
+      "8.0.0.1", // 192.0.0.0/24's second octet
+      "8.64.0.1", // 100.64/10's
+      "8.168.0.1", // 192.168/16's
+      "8.254.0.1", // 169.254/16's
+      "8.18.0.1", // 198.18/15's
+      "8.16.0.1", // 172.16/12's
+    ]) {
+      expect(isUnsafeHost(host), host).toBe(false);
+    }
+  });
+
+  test("an empty host is refused rather than treated as a name", () => {
+    expect(isUnsafeHost("")).toBe(true);
+  });
+
+  test("refuses a private IPv6 address, and only at the start of it", () => {
+    for (const host of ["[::1]", "[::]", "[fc00::1]", "[fd12:3456::1]", "[fe80::1]"]) {
+      expect(isUnsafeHost(host), host).toBe(true);
+    }
+    /*
+     * A public address that merely *contains* a private-looking group is
+     * public. An unanchored pattern would refuse it, which is a rule that
+     * quietly stops working rather than one that fails loudly.
+     */
+    for (const host of ["[2001:db8::fc00:1]", "[2001:db8::fe80:1]"]) {
+      expect(isUnsafeHost(host), host).toBe(false);
+    }
+  });
+
+  test("an IPv4-mapped IPv6 address inherits the IPv4 rules", () => {
+    expect(isUnsafeHost("[::ffff:127.0.0.1]")).toBe(true);
+    expect(isUnsafeHost("[::ffff:169.254.169.254]")).toBe(true);
+    expect(isUnsafeHost("[::ffff:8.8.8.8]")).toBe(false);
+  });
+
+  test("refuses a numeric host it cannot pin down, including a zero-padded one", () => {
+    /*
+     * The dangerous case is the one that does not parse cleanly. Parsers
+     * disagree about zero-padded labels — "010.0.0.1" is 8.0.0.1 to one and
+     * 10.0.0.1 to another — so anything ambiguous is refused outright.
+     */
+    for (const host of ["010.0.0.1", "0177.0.0.1", "2130706433", "0x7f.0.0.1", "127.1"]) {
+      expect(isUnsafeHost(host), host).toBe(true);
+    }
+  });
+
+  test("a hostname that merely starts with a digit is not treated as a number", () => {
+    // `looksNumeric` needs both conditions: all-numeric characters *and* a
+    // leading digit. Either alone misclassifies an ordinary name.
+    expect(isUnsafeHost("4chan.org")).toBe(false);
+    expect(isUnsafeHost("9gag.com")).toBe(false);
+  });
+});
+
+describe("parsing the IPv4 forms a URL parser accepts", () => {
+  test("refuses more than four labels, or an empty one", () => {
+    expect(parseIpv4("1.2.3.4.5")).toBeNull();
+    expect(parseIpv4("1..2.3")).toBeNull();
+    expect(parseIpv4(".1.2.3")).toBeNull();
+    expect(parseIpv4("1.2.3.")).toBeNull();
+  });
+
+  test("refuses a label out of range", () => {
+    expect(parseIpv4("256.0.0.1")).toBeNull();
+    expect(parseIpv4("1.2.3.256")).toBeNull();
+  });
+
+  test("reads the hexadecimal and octal forms as their own bases", () => {
+    // Reading "0x7f" as anything but 127, or "0177" as anything but 127, is how
+    // a loopback address gets past a check that only looks at the text.
+    expect(parseIpv4("0x7f.0.0.1")).toEqual([127, 0, 0, 1]);
+    expect(parseIpv4("0177.0.0.1")).toEqual([127, 0, 0, 1]);
+  });
+});

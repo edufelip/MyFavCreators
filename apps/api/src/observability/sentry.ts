@@ -94,6 +94,25 @@ export class SentryErrorTracker implements ErrorTracker {
       return;
     }
 
+    /*
+     * Everything below is inside the guard, not only the transport. Building
+     * the envelope reads the caller's context and serialises it, and both can
+     * throw — a getter that raises, a BigInt with no JSON form. The port's
+     * contract is that this never rejects, and `app.ts` relies on it: the call
+     * there is fire-and-forget on a request that has already failed.
+     */
+    try {
+      await this.send(tracked);
+    } catch (error) {
+      log.error("error_report_failed", error, { tracker: this.name });
+    }
+  }
+
+  private async send(tracked: TrackedError): Promise<void> {
+    if (this.dsn === null) {
+      return;
+    }
+
     const described = describeError(tracked.error);
     const eventId = randomUUID().replace(/-/g, "");
     const header = JSON.stringify({ event_id: eventId, sent_at: new Date().toISOString() });
@@ -124,24 +143,18 @@ export class SentryErrorTracker implements ErrorTracker {
       },
     });
 
-    try {
-      await this.transport(this.dsn.envelopeUrl, {
-        method: "POST",
-        headers: {
-          "content-type": "application/x-sentry-envelope",
-          "x-sentry-auth": [
-            "Sentry sentry_version=7",
-            "sentry_client=creator-outdoor/1",
-            `sentry_key=${this.dsn.publicKey}`,
-          ].join(", "),
-        },
-        body: `${header}\n${JSON.stringify({ type: "event" })}\n${body}\n`,
-      });
-    } catch (error) {
-      // The caller is already handling a failure. Losing the report is a much
-      // smaller problem than replacing their error with this one.
-      log.error("error_report_failed", error, { tracker: this.name });
-    }
+    await this.transport(this.dsn.envelopeUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-sentry-envelope",
+        "x-sentry-auth": [
+          "Sentry sentry_version=7",
+          "sentry_client=creator-outdoor/1",
+          `sentry_key=${this.dsn.publicKey}`,
+        ].join(", "),
+      },
+      body: `${header}\n${JSON.stringify({ type: "event" })}\n${body}\n`,
+    });
   }
 }
 
